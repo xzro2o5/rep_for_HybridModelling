@@ -1,0 +1,50 @@
+#
+# This is Dennis Baldocchi's Canveg re-written in Fortran.
+#
+# The starting version was Canveg v3.4 (taken from c/newmex directory on 18.01.2011).
+#
+# The starting version included 13C and water isotopes as coded by
+# Alexander Knohl and Matthias Cuntz. It was a cleaned (and hopefully
+# robust) version of what Alex and Matthias presented at Nate
+# McDowell's workshop in New Mexico in 2006.
+#
+
+# -----------------------------------------------------------------------
+# C-version
+#
+# For the old C-Version goto directory c
+cd c
+./c-start
+# This creates output in model_output/YYYYMMDD_hhmm
+# To look at it go to idl directory and run plot_run.pro
+cd ../idl
+idl
+IDL> .r plot_run
+IDL> main, path='../c/model_output/20110801_1542', year=2006, /profile, /wiso, /d13c, /season, /soil, /daily, /h2osoil, /h2oleaf, /time
+
+
+# -----------------------------------------------------------------------
+# Directory structure
+#
+# The subdirectories are:
+c/               - the original C-Version
+dispersion/      - the C-Code to create the dispersion matrix
+fortran_test/    - some simple Fortran programs/modules to test things
+idl/             - idl script to visualise model output
+input/           - the input files for Canveg incl. the dispersion matrix
+obs/             - observations for comparison
+old/             - older model versions (after 3.4)
+output/          - directory where the output-directories will be created
+utils/           - utilities such as soil layer thickness or counting the # of parameters in the C-version parameter file
+
+
+# -----------------------------------------------------------------------
+# Fortran-version
+#
+# For the new Fortran90-Version use the make file.
+make
+# Compilers are:    compiler=intel gortran3 (ver<=4.3) gfortran (ver>=4.4) g95 nag absoft
+# Releases are:      release=release debug
+# Users are:           user=mc32 (Matthias Mac OSX 32-bit) mc64 (Matthias Mac OSX 64-bit) mcl (Matthias Linux 64-bit)
+# For example:
+make compiler=intel release=release user=mc64 && ./canveg

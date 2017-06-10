@@ -1,0 +1,325 @@
+----------------------------------------------------
+
+10-18-2007, Canisotope, revision 3.4
+
+DENNIS BALDOCCHI
+Ecosystem Science Division
+Department of Environmental Science, Policy and Management
+& Berkeley Atmospheric Science Center
+151 Hilgard Hall
+University of California, Berkeley
+Berkeley, CA 94720-3110
+baldocchi@nature.berkeley.edu
+510-642-2874
+
+Canisotope is a member of the CANOAK family of models.
+
+The original isotope version of CANOAK was developed in collaboration with
+Dave Bowling, Universtiy of Utah.
+
+This version includes extensions and updates of Alexander Knohl (ETH Zurich)
+and Matthias Cuntz (MPI-BGC Jena).
+
+-------------------------------------------------
+
+CANOAK:
+
+CANOAK is a coupled biophysical and ecophysiolgical model that
+computes fluxes of water, heat and CO2 exchange within vegetation
+canopies and between the canopy and the atmosphere. In doing so CANOAK
+computes the canopy microclimate (light, wind, temperature, humidity and
+CO2), which provides drivers for physiological processes such as photosynthesis,
+respiration, transpiration and stomatal conductance. The canopy is divided into
+40 layers and at each layer the energy balance, photosynthesis, transpiration,
+stomatal conductance and respiration of sunlit and shaded leaves is computed.
+Stomatal conductance is computed using a model that is linked to photosynthesis.
+
+
+The mechanistic and biochemical photosynthesis model of Farquhar is used to scale
+leaf CO2 exchange to the canopy.
+
+Stomatal conductance is computed using the Ball-Berry routine, that
+is dependent on leaf photosynthesis, relative humidity and the
+CO2 concentration at the leaf's surface.
+
+Photosynthesis and stomatal conductance are computed using a
+cubic analytical solution I developed from the coupled models
+during my stay in Viterbo, 92/93 (Baldocchi, 1994).
+
+Photosynthetic parameters (Vcmax and Jmax) are scaled
+with height according to specific leaf weight. SLW is a
+surrogate for the effect of leaf nitrogen on these parameters.
+Kinetic photosynthetic coefficients are derived from Peter
+Harley's 1992 field measurements at WBW. For the seasonal runs Vcmax and
+Jmax are scaled to seasonal changes in leaf area index.
+
+This model calculates isoprene emissions from the forest canopy using
+algorithms by Guenther.
+
+Turbulent diffusion is based on Lagrangian theory. A dispersion matrix is
+calculated from the random walk algorithm of Thomson (from program MOVTHM.C).
+The dispersion matrix is scaled according to u*. The dispersion matrix also
+scales with stability, since it is dependent on sigma w and sigma w depends on z/L.
+Dispersion matrices's functional dependence on stability have been derived by
+regression against 5 stability classes.
+
+Light profiles are computed on the basis of layers with constant
+DELTA Z to be compatible with the meteorological model. Clumping of
+foliage is consider via use of the Markov model for the probability
+of beam penetration. The penetration and scattering routines of Norman (1979) are
+used, these use a slab, one dimensional 'adding' method for scattering.
+The probability of sunlit leaf area is computed using the
+Markov model which introduces a clumping factor to the
+Poisson eq.
+
+
+Feedbacks are considered between the source sink function,
+which is a function of C, and the dispersed concentration field,
+which is a function of sources and sinks.
+
+Solar elevation is computed with the algorithm of Welgraven
+
+Soil energy balance and heat fluxes are computed using a
+numerical solution to the Fourier heat transfer equation.
+after Campbell.
+
+Analytical (quadratic) solutions are used for the leaf and soil surface energy balances
+
+Overall the model requires simple environmental inputs. Solar
+radiation, wind speed, air temperature, humidity, CO2 and a
+deep 32 cm soil temperature, at least, are needed to calculate
+fluxes. Of course parameters describing leaf area, height and
+physiological capacity of the vegetation are needed, but these
+are canopy specific.
+
+
+This version computes fluxes over the course of an annual cycle using hourly
+data from Walker Branch Watershed. Inputs include meteorological data and seasonal
+adjustment of leaf area index and photosynthetic capacity. Respiration and electron
+transport rates are scaled with Vcmax, which is a function of leaf nitrogen and depth
+in the canopy.
+
+
+Information on the photosynthetic and stomatal conductance model are reported in:
+
+Baldocchi, D.D. 1994. An analytical solution for coupled leaf photosynthesis
+and stomatal conductance models. Tree Physiology 14: 1069-1079.
+
+
+Information on the leaf photosynthetic parameters can be found in:
+
+Harley, P.C. and Baldocchi, 1995.Scaling carbon dioxide and water vapor exchange
+from leaf to canopy in a deciduous forest:leaf level parameterization.
+Plant, Cell and Environment. 18: 1146-1156.
+
+Wilson, K.B., D.D. Baldocchi and P.J. Hanson. 2000. Spatial and seasonal variability of
+photosynthesis parameters and their relationship to leaf nitrogen in a deciduous forest.
+Tree Physiology. 20, 565-587.
+
+
+Tests of the model are reported in:
+
+Baldocchi, D.D. 1997. Measuring and modeling carbon dioxide and water vapor
+exchange over a temperate broad-leaved forest during the 1995 summer drought.
+Plant, Cell and Environment. 20: 1108-1122
+
+Baldocchi, D.D. and P.C. Harley. 1995. Scaling carbon dioxide and water vapor
+exchange from leaf to canopy in a deciduous forest: model testing and application.
+Plant, Cell and Environment. 18: 1157-1173.
+
+Baldocchi, D.D and T.P. Meyers. 1998. On using eco-physiological, micrometeorological
+and biogeochemical theory to evaluate carbon dioxide, water vapor and gaseous deposition
+fluxes over vegetation. Agricultural and Forest Meteorology 90: 1-26.
+
+Baldocchi, D.D. Fuentes, J.D., Bowling, D.R, Turnipseed, A.A. Monson, R.K. 1999. Scaling
+isoprene fluxes from leaves to canopies: test cases over a boreal aspen and a mixed species temperate
+forest. J. Applied Meteorology. 38, 885-898.
+
+Baldocchi, D.D. and K.B.Wilson. 2001. Modeling CO2 and water vapor exchange of a
+temperate broadleaved forest across hourly to decadal time scales. Ecological Modeling 142,155-184
+
+Baldocchi, D.D. and Bowling, D.R. 2003. Modeling the discrimination of 13CO2 above and within a
+temperate broadleaved forest canopy on hour to seasonal time scales
+Plant, Cell and Environment (in press).
+
+----------------------------------------------------
+
+DEBUGGING NOTES
+
+October 2007, ak, mc
+  - included water cycle
+    % interception water
+    % soil water (optional)
+    % litter water (optional)
+  - included water isotopes (optional)
+    % ISOLSM - but changed percolation in soil, and changed surface fluxes
+  - update 13C-formulation
+  - LAI input file (optional)
+  - photosynthetic parameter in two canopy layers (optional)
+  - new parameter file format
+  - only C (no C++), C99 standard; tested on Microsoft Visual C++ and GCC compilers
+    the gcc call is: gcc -O3 -lm -x c -std=c99 -o caniso canisotope_v3.4.cpp
+
+September 2006,ak
+leaf photosynthesis and stomata conductance is now calculated from an analytical solution of the Farquhar model for
+photosynthesis including mesophyll conductance and the Leuning Ball Berry equation for stomata conductance
+
+August 2006, ak
+diffuse radiation can either be calculated or can come from measurements (input file). Have to check diffuse radiation
+routine since modelled diffuse radiation does not fit well with measurements.
+
+August 2006, ak
+ustar and z/L are now calculated based on actual measurement height, canopy height, displacement height and roughness length, not fixed parameters
+
+Jan 2006 ,ak
+soil temperature are now initiatlised with soil temperature from last time step (memory effect)
+
+Sept 2005, ak
+new routines for soil water added (based on LSM)
+
+7-6-2004, ak
+Parameter are read in from external file (parameter_file) in same directory. These parameters overwrite default values.
+source code is changed from C to C++ (*.c to *.cpp) to allow object oriented programming.
+
+12-5-2002
+Changed Dispersion matrix to account for the exponential decrease in sigma w and to use
+the Tl model of Massman and Weil, which considers canopy structure better. It produces a profile
+of Tl that increase with depth, like my data, and produces a relatively constant length scale.
+This makes better sense as L in the canopy is large and scales with the canopy shear length scale,
+eg h, and is representative of large scale coherent eddies.
+
+7-15-2002. Need to consider diffusion of 13C across the boundary layer, explicitly.
+
+Found I am using constant diffusivities, irrespective of temperature and pressure, based on
+data from Monteith and Unsworth at 20 C.
+
+Modified code and adopt reference values of Massman (1998) and am correcting diffusivities for
+temperature and pressure
+
+added diffuse_par/par as an output
+
+4-18-2002. Ready to submit paper to journal, but noticed some inconsistancies with R= C13/(C12+C13).
+Also found an error in pdb_CO2. It is 0.01115, not 0.011115. New version has been tested and with
+proper changes, there was only a small change in values. Keeling plot intercept even improved.
+
+3-28-2002 calling measured CO2 at 44 m on D196
+evaluating del 13C with different functions for day and night
+found algebraic error in recycling calculation
+
+3-26-2002. I think the signs may be wrong for Fiso. To be consistent with the up and down direction
+of fluxes I am introducing (-)Acan into Fiso
+
+3-25-2002. Need to average daily Ps for periods when it is not zero. Also computing daily
+ave disc13.
+
+2-28-2002 Found new calcs of recycle are inconsistant with old files. Need to average the layer
+by layer calculations. Now having problems trying to find best way to express it and interpret
+variables in the Yakir and Sternberg Eq.
+
+2-26- 2002 Sensitivity run with sigma0 =0.3 rather than 0.15 on Dispersion matrix
+
+2-18-2002 Running with CO2 = 370 ppm based on day values of Bowling, rather than 360
+
+12-12-2001 Turn off soil respiration; *.resp
+
+12-6-2001 Sensitivity Run with Vcmax set at 50 umol m-2 s-1
+
+11/19/2001 Making sure changes to Cansens_v2 have been made to this code.
+
+found error in Dij function. It should be f=(a+x)/(b+c x)
+
+6-25-2001 Added the Daaman and Simmonds convection effects to soil resistances.
+Also keeping rh at soil surface too high. Using RH of air to deduce if the soil
+surface may be wet. Then vpdfact=1, else 0.1, like the Canpond simulations.
+
+Found unit error in the vpd at the soil. Plus it was using the ea at the top of the canopy
+rather than near the soil, as a reference value. Also we need to adjust the vpdsoil factor
+for wet and dry soils. I am assuming the soil is wet if RH is above some level, eg 95%.
+Then vpdfact is one. Otherwise the vpdfact is 0.1, like the test for the Pipo in Oregon.
+
+6-23-2001. Need to incorporate Daaman and Simmons routines for soil resistances, like
+Canpond. At present soil evaporation is too large during the winter. Thought I had put these
+routines in, but did not.
+
+6-25-2001. Sorted out the PS root problem and found some errors on the soil evaporation
+routine. Had wrong units and wrong variable for soil Energy balance. Also added Daamen
+and Simmons routine to soil energy. Need to fix this code yet.
+
+6/17/2001. Fixed minor LAI profiling error
+Incorporated changes in the Photosynthesis routine catch the right roots
+
+6/7/2001: Be careful. Getting obscenely large Ps values with new root correction
+
+4/12/2001 Fixed conditional statement in PS().
+Was: if (ROOT1=ROOT2).
+Fixed to: if (ROOT1==ROOT2)
+
+
+add recycling to profiles; these need debugging or need to be dropped as
+negative values occur and I am not considering the transfer of air from above
+correctly
+
+4/11/2001
+
+Adding computations of recycling of Co2 according to Sternberg
+
+3/29/2001
+
+Code is compute photosynthesis weighted disc13 and the Keeling int are agreeing with data
+from Bowling.
+
+Computing fraction of air from soil
+
+3/23/2001
+
+Compute Flux weighted disc13
+
+Computing what the assimilated discrimination, R, was to use to respire the next day
+to assess the isotope discrimination of the respired CO2
+
+3/21/2001
+
+The current version gives a linear Keeling plot and the intercept is -26 per mill
+the soil value!!
+
+
+3/20/2001 Bole.resp was in mg m-2 s-1 and was being added to the source which
+I had converted to umol m-2 s-1. I was also not converting the bole respiration
+to 13C fluxes. This may be one reason Isotopes were getting screwed up in the canopy
+
+3/13/2001 Redoing the Dij using the algorithm of Massman and Weil. Recomputed
+Dij function for z/L
+
+Debugging ISOTOPE and CONC
+
+found that I needed to adjust the CO2 profile by the factor ma/mc rhoair_mole_m-3
+to convert from mole -3 to umol
+
+Need to make sure 13C and 12C or (12C + 13C) cancel.
+
+3/12/2001 Got Isotope model running
+
+
+2-23-2001 add info on wj and wc profiles
+
+1-7-2001
+
+found met.zl was set to zero in CONC for neutral run of dispersion matrix. need to
+turn it off here and in canoak!
+
+1-2-2001
+Be careful on reading data with C++ compiler. I was getting warning
+errors using floats, so I changed everything to double. When I did this
+the input structure and Dispersion matrices were read in as garbage.
+I had to change those variables back to float and then they read ok!
+
+NEED TO BE CAREFUL ON ISOTOPES AS MANY OF THE CO2 SOURCE SINKS WERE
+IN UNITS OF MG M-2 S-1. WANT TO BE IN UNITS OF MICROMOLES M-2 S-1
+
+NEED TO ASSIGN RS TO F(PAR) ONLY THE FIRST ITERATION ON SUN AND
+SHADE LEAVES. AT PRESENT IT IS BEING RESET TO F(PAR) EVERY
+LOOP
+
+12-28-2000
+
+converting global variables over to structures

@@ -27,7 +27,8 @@ MODULE io_text
   PUBLIC :: write_text_daily
   PUBLIC :: write_text_out
   PUBLIC :: write_text_prof
-
+  PUBLIC :: write_text_debug ! Yuan 2017.08.14
+! build file_cp, copy source code, parameter file, input data from current folder to the output folder. The output folder is created by system time in module "parameter". Yuan 2017.09.05
   INTEGER(i4) :: lastin
 
   ! ------------------------------------------------------------------
@@ -70,7 +71,7 @@ CONTAINS
     USE constants, ONLY: noutseas, noutopti, noutsoil, noutdaily, noutprof, &
          noutflux, nouth2osoil, &
          noutcisodaily, noutcisoseason, noutcisoprof, &
-         noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil
+         noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, noutdebug! Yuan 2017.08.14
     USE types,      ONLY: iswitch
 
     IMPLICIT NONE
@@ -82,6 +83,7 @@ CONTAINS
     close(unit=noutprof)
     close(unit=noutflux)
     close(unit=nouth2osoil)
+    close(unit=noutdebug)! Yuan 2017.08.14
     ! 13CO2 isotope files
     if (iswitch%d13c == 1) then
        close(unit=noutcisodaily)
@@ -237,11 +239,11 @@ CONTAINS
          noutseas, noutopti, noutsoil, noutdaily, noutprof, &                ! units
          noutflux, nouth2osoil, &
          noutcisodaily, noutcisoseason, noutcisoprof, &
-         noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, &
+         noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, noutdebug, & ! debugfile added by Yuan 2017.08.11
          dailyfile, daily13cfile, hourlyfile, hourly13cfile, optimisefile, & ! filenames
          profilefile, profile13cfile, profileisofile, fluxprofilefile, &
          fluxprofileisofile, soilfile, h2osoilfile, &
-         h2osoilisofile, h2oleafisofile
+         h2osoilisofile, h2oleafisofile, debugfile ! add debugfile by Yuan 2017.08.11
     USE parameters, ONLY: outdir, outsuffix
     USE types,      ONLY: iswitch
 
@@ -255,33 +257,62 @@ CONTAINS
     ! Hourly/Season
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(hourlyfile), trim(outsuffix)
     open(unit=noutseas, file=stmp,action="write", status="replace", &
-         form="formatted", recl=150*25, iostat=ierr)
+         form="formatted", recl=299*25, iostat=ierr) !150 variables+149 commas Yuan 2017.10.11
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(noutseas,*) "daytime ", "netrn ", "sumrn ", "sumh ", "sumle ", "canps ", &
-         "gpp ", "transpiration ", "canresp ", "soilresp ", "boleresp ", "gsoil ", &
-         "ksi ", "Tleaf ", "Tlsun ", "Tlshade ", "disc13 ", "disc13_long ", "disc13_a ", &
-         "disc13_ab ", "disc13_asal ", "disc13_b ", "CsCa ", "CiCa ", "CcCa ", "gm ", "gs ", &
-         "ave_dair_13C ", "isoprene%flux ", "diff_par ", "par ", "ta ", "u ", "ustar ", "rhov ", &
-         "zL ", "press%Pa ", "relative%humidity ", "CO2air ", "Tair40 ", "CO2air40 ", "Vpd40 ", &
-         "Tleaf40 ", "Sun_A40 ", "Sun_gs_mol40 ", "Sun_rbCO240 ", "Sun_cs40 ", "Sun_ci40 ", &
-         "Sun_cc40 ", "Sun_wj40 ", "Sun_wc40 ", "Quantum_sun40 ", "Sun_rh40 ", "Sun_vpd40 ", &
-         "H_40 ", "Trans_40 ", "canps_40 ", "Tleaf_40 ", "disc13_40 ", "disc13C_long_40 ", &
-         "disc13C_a_40 ", "disc13C_ab_40 ", "disc13C_asl_40 ", "disc13C_b_40 ", "cica_40 ", &
-         "gs_40 ", "Fisoprene_40 ", "PARdirect_40 ", "PARdiffuse_40 ", "NIRdirect_40 ", &
-         "NIRdiffuse_40 ", "H_30 ", "Trans_30 ", "canps_30 ", "Tleaf_30 ", "disc13_30 ", &
-         "disc13C_long_30 ", "disc13C_a_30 ", "disc13C_ab_30 ", "disc13C_asl_30 ", &
-         "disc13C_b_30 ", "cica_30 ", "gs_30 ", "Fisoprene_30 ", "PARdirect_30 ", &
-         "PARdiffuse_30 ", "NIRdirect_30 ", "NIRdiffuse_30 ", "H_20 ", "Trans_20 ", &
-         "canps_20 ", "Tleaf_20 ", "disc13_20 ", "disc13C_long_20 ", "disc13C_a_20 ", &
-         "disc13C_ab_20 ", "disc13C_asl_20 ", "disc13C_b_20 ", "cica_20 ", "gs_20 ", &
-         "Fisoprene_20 ", "PARdirect_20 ", "PARdiffuse_20 ", "NIRdirect_20 ", "NIRdiffuse_20 ", &
-         "H_10 ", "Trans_10 ", "canps_10 ", "Tleaf_10 ", "disc13_10 ", "disc13C_long_10 ", &
-         "disc13C_a_10 ", "disc13C_ab_10 ", "disc13C_asl_10 ", "disc13C_b_10 ", "cica_10 ", &
-         "gs_10 ", "Fisoprene_10 ", "PARdirect_10 ", "PARdiffuse_10 ", "NIRdirect_10 ", &
-         "NIRdiffuse_10 ", "H_1 ", "Trans_1 ", "canps_1 ", "Tleaf_1 ", "disc13_1 ", &
-         "disc13C_long_1 ", "disc13C_a_1 ", "disc13C_ab_1 ", "disc13C_asl_1 ", "disc13C_b_1 ", &
-         "cica_1 ", "gs_1 ", "Fisoprene_1 ", "PARdirect_1 ", "PARdiffuse_1 ", "NIRdirect_1 ", &
+    write(noutseas,*) "daytime ", ",", "netrn ", ",", "sumrn ", ",", "sumh ", ",", "sumle ", ",", "canps ", ",", &
+         "gpp ", ",", "transpiration ", ",", "canresp ", ",", "soilresp ", ",", "boleresp ", ",", "gsoil ", ",", &
+         "ksi ", ",", "Tleaf ", ",", "Tlsun ", ",", "Tlshade ", ",", "disc13 ", ",", "disc13_long ", ",", "disc13_a ", ",", &
+         "disc13_ab ", ",", "disc13_asal ", ",", "disc13_b ", ",", "CsCa ", ",", "CiCa ", ",", "CcCa ", ",", "gm ", ",", "gs ", &
+         ",", &
+         "ave_dair_13C ", ",", "isoprene%flux ", ",", "diff_par ", ",", "par ", ",", "ta ", ",", "u ", ",", "ustar ", &
+         ",", "rhov ", ",", &
+         "zL ", ",", "press%Pa ", ",", "relative%humidity ", ",", "CO2air ", ",", "Tair40 ", ",", "CO2air40 ", ",", "Vpd40 ", ",", &
+         "Tleaf40 ", ",", "Sun_A40 ", ",", "Sun_gs_mol40 ", ",", "Sun_rbCO240 ", ",", "Sun_cs40 ", ",", "Sun_ci40 ", ",", &
+         "Sun_cc40 ", ",", "Sun_wj40 ", ",", "Sun_wc40 ", ",", "Quantum_sun40 ", ",", "Sun_rh40 ", ",", "Sun_vpd40 ", ",", &
+         "H_40 ", ",", "Trans_40 ", ",", "canps_40 ", ",", "Tleaf_40 ", ",", "disc13_40 ", ",", "disc13C_long_40 ", ",", &
+         "disc13C_a_40 ", ",", "disc13C_ab_40 ", ",", "disc13C_asl_40 ", ",", "disc13C_b_40 ", ",", "cica_40 ", ",", &
+         "gs_40 ", ",", "Fisoprene_40 ", ",", "PARdirect_40 ", ",", "PARdiffuse_40 ", ",", "NIRdirect_40 ", ",", &
+         "NIRdiffuse_40 ", ",", "H_30 ", ",", "Trans_30 ", ",", "canps_30 ", ",", "Tleaf_30 ", ",", "disc13_30 ", ",", &
+         "disc13C_long_30 ", ",", "disc13C_a_30 ", ",", "disc13C_ab_30 ", ",", "disc13C_asl_30 ", ",", &
+         "disc13C_b_30 ", ",", "cica_30 ", ",", "gs_30 ", ",", "Fisoprene_30 ", ",", "PARdirect_30 ", ",", &
+         "PARdiffuse_30 ", ",", "NIRdirect_30 ", ",", "NIRdiffuse_30 ", ",", "H_20 ", ",", "Trans_20 ", ",", &
+         "canps_20 ", ",", "Tleaf_20 ", ",", "disc13_20 ", ",", "disc13C_long_20 ", ",", "disc13C_a_20 ", ",", &
+         "disc13C_ab_20 ", ",", "disc13C_asl_20 ", ",", "disc13C_b_20 ", ",", "cica_20 ", ",", "gs_20 ", ",", &
+         "Fisoprene_20 ", ",", "PARdirect_20 ", ",", "PARdiffuse_20 ", ",", "NIRdirect_20 ", ",", "NIRdiffuse_20 ", ",", &
+         "H_10 ", ",", "Trans_10 ", ",", "canps_10 ", ",", "Tleaf_10 ", ",", "disc13_10 ", ",", "disc13C_long_10 ", ",", &
+         "disc13C_a_10 ", ",", "disc13C_ab_10 ", ",", "disc13C_asl_10 ", ",", "disc13C_b_10 ", ",", "cica_10 ", ",", &
+         "gs_10 ", ",", "Fisoprene_10 ", ",", "PARdirect_10 ", ",", "PARdiffuse_10 ", ",", "NIRdirect_10 ", ",", &
+         "NIRdiffuse_10 ", ",", "H_1 ", ",", "Trans_1 ", ",", "canps_1 ", ",", "Tleaf_1 ", ",", "disc13_1 ", ",", &
+         "disc13C_long_1 ", ",", "disc13C_a_1 ", ",", "disc13C_ab_1 ", ",", "disc13C_asl_1 ", ",", "disc13C_b_1 ", ",", &
+         "cica_1 ", ",", "gs_1 ", ",", "Fisoprene_1 ", ",", "PARdirect_1 ", "PARdiffuse_1 ", ",", "NIRdirect_1 ", ",", &
          "NIRdiffuse_1"
+ !   write(noutseas,*) "daytime ", "netrn ", "sumrn ", "sumh ", "sumle ", "canps ", &
+ !        "gpp ", "transpiration ", "canresp ", "soilresp ", "boleresp ", "gsoil ", &
+ !        "ksi ", "Tleaf ", "Tlsun ", "Tlshade ", "disc13 ", "disc13_long ", "disc13_a ", &
+ !        "disc13_ab ", "disc13_asal ", "disc13_b ", "CsCa ", "CiCa ", "CcCa ", "gm ", "gs ", &
+ !        "ave_dair_13C ", "isoprene%flux ", "diff_par ", "par ", "ta ", "u ", "ustar ", "rhov ", &
+ !        "zL ", "press%Pa ", "relative%humidity ", "CO2air ", "Tair40 ", "CO2air40 ", "Vpd40 ", &
+ !        "Tleaf40 ", "Sun_A40 ", "Sun_gs_mol40 ", "Sun_rbCO240 ", "Sun_cs40 ", "Sun_ci40 ", &
+ !        "Sun_cc40 ", "Sun_wj40 ", "Sun_wc40 ", "Quantum_sun40 ", "Sun_rh40 ", "Sun_vpd40 ", &
+ !        "H_40 ", "Trans_40 ", "canps_40 ", "Tleaf_40 ", "disc13_40 ", "disc13C_long_40 ", &
+ !        "disc13C_a_40 ", "disc13C_ab_40 ", "disc13C_asl_40 ", "disc13C_b_40 ", "cica_40 ", &
+ !        "gs_40 ", "Fisoprene_40 ", "PARdirect_40 ", "PARdiffuse_40 ", "NIRdirect_40 ", &
+ !        "NIRdiffuse_40 ", "H_30 ", "Trans_30 ", "canps_30 ", "Tleaf_30 ", "disc13_30 ", &
+ !        "disc13C_long_30 ", "disc13C_a_30 ", "disc13C_ab_30 ", "disc13C_asl_30 ", &
+ !        "disc13C_b_30 ", "cica_30 ", "gs_30 ", "Fisoprene_30 ", "PARdirect_30 ", &
+ !        "PARdiffuse_30 ", "NIRdirect_30 ", "NIRdiffuse_30 ", "H_20 ", "Trans_20 ", &
+ !        "canps_20 ", "Tleaf_20 ", "disc13_20 ", "disc13C_long_20 ", "disc13C_a_20 ", &
+ !        "disc13C_ab_20 ", "disc13C_asl_20 ", "disc13C_b_20 ", "cica_20 ", "gs_20 ", &
+ !        "Fisoprene_20 ", "PARdirect_20 ", "PARdiffuse_20 ", "NIRdirect_20 ", "NIRdiffuse_20 ", &
+ !        "H_10 ", "Trans_10 ", "canps_10 ", "Tleaf_10 ", "disc13_10 ", "disc13C_long_10 ", &
+ !        "disc13C_a_10 ", "disc13C_ab_10 ", "disc13C_asl_10 ", "disc13C_b_10 ", "cica_10 ", &
+ !        "gs_10 ", "Fisoprene_10 ", "PARdirect_10 ", "PARdiffuse_10 ", "NIRdirect_10 ", &
+ !        "NIRdiffuse_10 ", "H_1 ", "Trans_1 ", "canps_1 ", "Tleaf_1 ", "disc13_1 ", &
+ !        "disc13C_long_1 ", "disc13C_a_1 ", "disc13C_ab_1 ", "disc13C_asl_1 ", "disc13C_b_1 ", &
+ !        "cica_1 ", "gs_1 ", "Fisoprene_1 ", "PARdirect_1 ", "PARdiffuse_1 ", "NIRdirect_1 ", &
+ !        "NIRdiffuse_1"
+
+
 
     ! Optimise
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(optimisefile), trim(outsuffix)
@@ -293,21 +324,30 @@ CONTAINS
     ! Soil
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(soilfile), trim(outsuffix)
     open(unit=noutsoil, file=stmp,action="write", status="replace", &
-         form="formatted", recl=25*25, iostat=ierr)
+         form="formatted", recl=25*41, iostat=ierr)! 26 VARIABLES +25 COMMAS. Yuan 2017.09.21
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(noutsoil,*) "daytime ", "netrn ", "soilh ", "soille ", "soil%tsrf ", &
-         "soil%T%base ", "soil%T%15cm ", "flux%transp ", "flux%evap ", "prof%throughfall ", &
-         "soil%soil_mm ", "soil%qinfl ", "soil%qdrai ", "soil%gsoil ", "soil%qtran ", "soil%surfrun ", &
-         "Tsoil%1 ", "Tsoil%2 ", "Tsoil%3 ", "Tsoil%4 ", "Tsoil%5 ", "Tsoil%6 ", "Tsoil%7 ", "Tsoil%8 ", &
-         "Tsoil%9 ", "Tsoil%10"
+    write(noutsoil,*) "daytime ", ',', "netrn ", ',', "soilh ", ',', "soille ", ',', "soil%tsrf ",',', &
+         "soil%T%base ",',', "soil%T%15cm ", ',', "flux%transp ", ',', "flux%evap ", ',', "prof%throughfall ", ',', &
+         "soil%soil_mm ", ',', "soil%qinfl ", ',', "soil%qdrai ", ',', "soil%gsoil ", ',', "soil%qtran ", ',', &
+         "soil%surfrun ", ",", &
+         "Tsoil%1 ", ',', "Tsoil%2 ", ',', "Tsoil%3 ", ',', "Tsoil%4 ", ',', "Tsoil%5 ", ',', &
+         "Tsoil%6 ", ',', "Tsoil%7 ", ',', "Tsoil%8 ", ",", &
+         "Tsoil%9 ", ',', "Tsoil%10"
+
+ !   write(noutsoil,*) "daytime ", "netrn ", "soilh ", "soille ", "soil%tsrf ", &
+ !        "soil%T%base ", "soil%T%15cm ", "flux%transp ", "flux%evap ", "prof%throughfall ", &
+ !        "soil%soil_mm ", "soil%qinfl ", "soil%qdrai ", "soil%gsoil ", "soil%qtran ", "soil%surfrun ", &
+ !        "Tsoil%1 ", "Tsoil%2 ", "Tsoil%3 ", "Tsoil%4 ", "Tsoil%5 ", "Tsoil%6 ", "Tsoil%7 ", "Tsoil%8 ", &
+ !        "Tsoil%9 ", "Tsoil%10"
 
     ! Daily average
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(dailyfile), trim(outsuffix)
     open(unit=noutdaily, file=stmp,action="write", status="replace", &
-         form="formatted", recl=14*25, iostat=ierr)
+         form="formatted", recl=27*25, iostat=ierr) ! 14 variables + 13 commas* 25 rows Yuan 2017.10.27
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(noutdaily,*) "Day ", "Avg_FC ", "Avg_EVAP ", "AVG_H ", "Avg_PAR ", "Avg_RNET ", "lai ", "Avg_PS ", &
-         "Ave_Resp ", "Avg_BOLE ", "Avg_SOIL ", "Avg_TLeaf ", "Avg_Gs ", "Tleaf_day"
+    write(noutdaily,*) "Day ", ",", "Avg_FC ", ",", "Avg_EVAP ", ",", "AVG_H ", ",", &
+         "Avg_PAR ", ",", "Avg_RNET ", ",", "lai ", ",", "Avg_PS ", ",", &
+         "Ave_Resp ", ",", "Avg_BOLE ", ",", "Avg_SOIL ", ",", "Avg_TLeaf ", ",", "Avg_Gs ", ",", "Tleaf_day"
 
     ! Profile air
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(profilefile), trim(outsuffix)
@@ -319,17 +359,17 @@ CONTAINS
     ! Profile fluxes
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(fluxprofilefile), trim(outsuffix)
     open(unit=noutflux, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*25, iostat=ierr)
+         form="formatted", recl=40*46, iostat=ierr)
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(noutflux,*) "daytime ", "i ", "dHdz ", "dLEdz ", "dLEdz%sun ", "dLEdz%shd ", &
-         "sun_A ", "shd_A ", "dGPPdz ", "dGPPdz%sun ", "dGPPdz%shd ", "dPsdz ", &
-         "dPsdz%sun ", "dPsdz%shd ", "dRESPdz ", "dRESPdz%sun ", "dRESPdz%shd ", &
-         "PARdirect ", "PARdiffuse ", "Tleaf ", "Tleaf_sun ", "Tleaf_shd ", &
-         "Beam ", "Nonbeam ", "LAI ", "Isopreneflux ", "gs ", "gs%sun ", "gs%shd ", &
-         "disc13Clong ", "disc13Clong%sun ", "disc13Clong%shd ", "disc13C ", &
-         "disc13C%sun ", "disc13C%shd ", "disc13Ca%sun ", "disc13Cab%sun ", &
-         "disc13Casal%sun ", "disc13Cb%sun ", "disc13Ca%shd ", "disc13Cab%shd ", &
-         "disc13Casal%shd ", "disc13Cb%shd ", "PARin"
+    write(noutflux,*) "daytime ",',',  "i ", ',', "dHdz ", ',', "dLEdz ", ',', "dLEdz%sun ", ',', "dLEdz%shd ", ',', &
+         "sun_A ", ',', "shd_A ", ',', "dGPPdz ", ',', "dGPPdz%sun ", ',', "dGPPdz%shd ", ',', "dPsdz ", ',', &
+         "dPsdz%sun ", ',', "dPsdz%shd ", ',', "dRESPdz ", ',', "dRESPdz%sun ", ',', "dRESPdz%shd ", ',', &
+         "PARdirect ", ',', "PARdiffuse ", ',', "Tleaf ", ',', "Tleaf_sun ", ',', "Tleaf_shd ", ',', &
+         "Beam ", ',', "Nonbeam ", ',', "LAI ", ',', "Isopreneflux ", ',', "gs ", ',', "gs%sun ", ',', "gs%shd ", ',', &
+         "disc13Clong ", ',', "disc13Clong%sun ", ',', "disc13Clong%shd ", ',', "disc13C ", ',', &
+         "disc13C%sun ", ',', "disc13C%shd ", ',', "disc13Ca%sun ", ',', "disc13Cab%sun ", ',', &
+         "disc13Casal%sun ", ',', "disc13Cb%sun ", ',', "disc13Ca%shd ", ',', "disc13Cab%shd ", ',', &
+         "disc13Casal%shd ", ',', "disc13Cb%shd ", ',', "PARin", ',',"test" ! test lout_leaf, Yuan 2017.09.22
 
     ! Soil water
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(h2osoilfile), trim(outsuffix)
@@ -386,7 +426,7 @@ CONTAINS
        ! Iso profile flux
        write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(fluxprofileisofile), trim(outsuffix)
        open(unit=noutwisoflux, file=stmp,action="write", status="replace", &
-            form="formatted", recl=28*25, iostat=ierr)
+            form="formatted", recl=40*29, iostat=ierr)
        if (ierr > 0) call error_opening(isroutine, stmp)
        write(noutwisoflux,*) "daytime ", "i ", "dLEdz2 ", "dLEdz3 ", "dLEdz4 ", &
             "sun_craig2 ", "sun_craig3 ", "sun_craig4 ", "shd_craig2 ", "shd_craig3 ", &
@@ -424,6 +464,14 @@ CONTAINS
             "soil%theta71 ", "soil%theta72 ", "soil%theta73 ", "soil%theta74 ", "soil%theta81 ", &
             "soil%theta82 ", "soil%theta83 ", "soil%theta84 ", "soil%theta91 ", "soil%theta92 ", &
             "soil%theta93 ", "soil%theta94"
+
+       ! debug file Yuan 2017.08.11
+
+       write(stmp,'(a,a,a)') trim(outdir), '/', trim(debugfile)
+       open(unit=noutdebug, file=stmp,action="write", status="replace", &
+            form="formatted", recl=3*25, iostat=ierr)
+       if (ierr > 0) call error_opening(isroutine, stmp)
+       write(noutdebug,*) "this is debug file of Yuan\"
     end if
 
   END SUBROUTINE open_text_out
@@ -565,7 +613,7 @@ CONTAINS
       input%dppt(2)    = real(in01,kind=wp)
       input%dppt(3)    = real(in02,kind=wp)
       input%dppt(4)    = zero
-      input%dvapour(2) = real(in03,kind=wp)      
+      input%dvapour(2) = real(in03,kind=wp)
       ! Test Meteoric water line for deuterium
       input%dppt(3) = 8._wp * input%dppt(2) + 10._wp
       if (wiso%nofracin == 1) input%dppt(1:nwiso) = wiso%dtheta(1,2:nwiso)
@@ -623,7 +671,7 @@ CONTAINS
     if (ierr > 0) call error_reading(isroutine, ninmet)
     if (ierr < 0) call error_reading(isroutine, ninmet, 'reached EOF.')
     backspace ninmet
-    
+
     ! water isotopes
     if (iswitch%wiso == 1) then
        notreached = .true.
@@ -636,7 +684,7 @@ CONTAINS
        if (ierr < 0) call error_reading(isroutine, ninwiso, 'reached EOF.')
        backspace ninwiso
     end if
-    
+
     ! LAI
     if (extra_nate == 1) then
        notreached = .true.
@@ -667,11 +715,17 @@ CONTAINS
     ierr = 0
     ! Daily average
     write(noutdaily,*,iostat=ierr) &
-         input%dayy, output%sumfc, output%sumevap, output%sumsens, &
-         output%sumpar, output%sumnet, time%lai, &
-         output%sumps, output%sumresp, output%sumbole, output%sumsoil, &
-         output%sumta, output%sumgs, output%sumTleaf
+         input%dayy, ",", output%sumfc, ",", output%sumevap, ",", output%sumsens, ",", &
+         output%sumpar, ",", output%sumnet, ",", time%lai, ",", &
+         output%sumps, ",", output%sumresp, ",", output%sumbole, ",", output%sumsoil, ",", &
+         output%sumta, ",", output%sumgs, ",", output%sumTleaf
     if (ierr > 0) call error_writing(isroutine, noutdaily)
+    write(*,*) &
+         input%dayy, ",", output%sumfc, ",", output%sumevap, ",", output%sumsens, ",", &
+         output%sumpar, ",", output%sumnet, ",", time%lai, ",", &
+         output%sumps, ",", output%sumresp, ",", output%sumbole, ",", output%sumsoil, ",", &
+         output%sumta, ",", output%sumgs, ",", output%sumTleaf
+
 
     ! 13CO2 isotope files
     if (iswitch%d13c == 1) then
@@ -701,41 +755,41 @@ CONTAINS
     ierr = 0
     ! Hourly/Season
     write(noutseas,*,iostat=ierr) &
-         time%daytime, output%netrad, output%sumrn, output%sumh, output%sumle, output%can_ps_mol, &
-         output%can_gpp, output%c_transpiration_mole, output%canresp, soil%respiration_mole, &
-         bole%respiration_mole, soil%gsoil, output%sumksi, output%tleaf_mean, output%tavg_sun, &
-         output%tavg_shd, output%ave_disc13, output%ave_disc13_long, output%ave_disc13_a, &
-         output%ave_disc13_ab, output%ave_disc13_asal, output%ave_disc13_b, output%ave_csca, &
-         output%ave_cica, output%ave_ccca, output%ave_gm, output%ave_gs, output%ave_daC13, &
-         output%isoprene_efflux, output%diff_par, input%parin,input%ta, input%wnd, met%ustar, &
-         met%rhova_g, met%zl, met%press_Pa, met%relative_humidity, input%co2air, prof%tair(ncl), &
-         prof%co2_air(ncl), prof%vpd_air(ncl), prof%tleaf(ncl), prof%sun_A(ncl), &
-         prof%sun_gs_mol(ncl), prof%sun_rbco2(ncl), prof%sun_cs(ncl), prof%sun_ci(ncl), &
-         prof%sun_cc(ncl), prof%sun_wj(ncl), prof%sun_wc(ncl), solar%quantum_sun(ncl), &
-         prof%sun_rh(ncl), prof%sun_vpd(ncl), prof%dHdz(ncl), prof%dLEdz(ncl,1), prof%dPsdz(ncl), &
-         prof%tleaf(ncl), prof%disc13C(ncl), prof%disc13C_long(ncl), prof%disc13C_a(ncl), &
-         prof%disc13C_ab(ncl), prof%disc13C_asal(ncl), prof%disc13C_b(ncl), prof%cica(ncl), &
-         prof%dStomCondz(ncl), prof%isopreneflux(ncl), solar%beam_flux_par(ncl), &
-         solar%par_down(ncl), solar%beam_flux_nir(ncl), solar%nir_dn(ncl), prof%dHdz(3*ncl/4), &
-         prof%dLEdz(3*ncl/4,1), prof%dPsdz(3*ncl/4), prof%tleaf(3*ncl/4), prof%disc13C(3*ncl/4), &
-         prof%disc13C_long(3*ncl/4), prof%disc13C_a(3*ncl/4), prof%disc13C_ab(3*ncl/4), &
-         prof%disc13C_asal(3*ncl/4), prof%disc13C_b(3*ncl/4), prof%cica(3*ncl/4), &
-         prof%dStomCondz(3*ncl/4), prof%isopreneflux(3*ncl/4), solar%beam_flux_par(3*ncl/4), &
-         solar%par_down(3*ncl/4), solar%beam_flux_nir(3*ncl/4), solar%nir_dn(3*ncl/4), &
-         prof%dHdz(ncl/2), prof%dLEdz(ncl/2,1), prof%dPsdz(ncl/2), prof%tleaf(ncl/2), &
-         prof%disc13C(ncl/2), prof%disc13C_long(ncl/2), prof%disc13C_a(ncl/2), &
-         prof%disc13C_ab(ncl/2), prof%disc13C_asal(ncl/2), prof%disc13C_b(ncl/2), prof%cica(ncl/2), &
-         prof%dStomCondz(ncl/2), prof%isopreneflux(ncl/2), solar%beam_flux_par(ncl/2), &
-         solar%par_down(ncl/2), solar%beam_flux_nir(ncl/2), solar%nir_dn(ncl/2), prof%dHdz(ncl/4), &
-         prof%dLEdz(ncl/4,1), prof%dPsdz(ncl/4), prof%tleaf(ncl/4), prof%disc13C(ncl/4), &
-         prof%disc13C_long(ncl/4), prof%disc13C_a(ncl/4), prof%disc13C_ab(ncl/4), &
-         prof%disc13C_asal(ncl/4), prof%disc13C_b(ncl/4), prof%cica(ncl/4), prof%dStomCondz(ncl/4), &
-         prof%isopreneflux(ncl/4), solar%beam_flux_par(ncl/4), solar%par_down(ncl/4), &
-         solar%beam_flux_nir(ncl/4), solar%nir_dn(ncl/4), prof%dHdz(1), prof%dLEdz(1,1), &
-         prof%dPsdz(1), prof%tleaf(1), prof%disc13C(1), prof%disc13C_long(1), prof%disc13C_a(1), &
-         prof%disc13C_ab(1), prof%disc13C_asal(1), prof%disc13C_b(1), prof%cica(1), &
-         prof%dStomCondz(1), prof%isopreneflux(1), solar%beam_flux_par(1), solar%par_down(1), &
-         solar%beam_flux_nir(1), solar%nir_dn(1)
+         time%daytime, ",", output%netrad, ",", output%sumrn, ",", output%sumh, ",", output%sumle, ",", output%can_ps_mol, ",", &
+         output%can_gpp, ",", output%c_transpiration_mole, ",", output%canresp, ",", soil%respiration_mole, ",", &
+         bole%respiration_mole, ",", soil%gsoil, ",", output%sumksi, ",", output%tleaf_mean, ",", output%tavg_sun, ",", &
+         output%tavg_shd, ",", output%ave_disc13, ",", output%ave_disc13_long, ",", output%ave_disc13_a, ",", &
+         output%ave_disc13_ab, ",", output%ave_disc13_asal, ",", output%ave_disc13_b, ",", output%ave_csca, ",", &
+         output%ave_cica, ",", output%ave_ccca, ",", output%ave_gm, ",", output%ave_gs, ",", output%ave_daC13, ",", &
+         output%isoprene_efflux, ",", output%diff_par, ",", input%parin,input%ta, ",", input%wnd, ",", met%ustar, ",", &
+         met%rhova_g, ",", met%zl, ",", met%press_Pa, ",", met%relative_humidity, ",", input%co2air, ",", prof%tair(ncl), ",", &
+         prof%co2_air(ncl), ",", prof%vpd_air(ncl), ",", prof%tleaf(ncl), ",", prof%sun_A(ncl), ",", &
+         prof%sun_gs_mol(ncl), ",", prof%sun_rbco2(ncl), ",", prof%sun_cs(ncl), ",", prof%sun_ci(ncl), ",", &
+         prof%sun_cc(ncl), ",", prof%sun_wj(ncl), ",", prof%sun_wc(ncl), ",", solar%quantum_sun(ncl), ",", &
+         prof%sun_rh(ncl), ",", prof%sun_vpd(ncl), ",", prof%dHdz(ncl), ",", prof%dLEdz(ncl,1), ",", prof%dPsdz(ncl), ",", &
+         prof%tleaf(ncl), ",", prof%disc13C(ncl), ",", prof%disc13C_long(ncl), ",", prof%disc13C_a(ncl), ",", &
+         prof%disc13C_ab(ncl), ",", prof%disc13C_asal(ncl), ",", prof%disc13C_b(ncl), ",", prof%cica(ncl), ",", &
+         prof%dStomCondz(ncl), ",", prof%isopreneflux(ncl), ",", solar%beam_flux_par(ncl), ",", &
+         solar%par_down(ncl), ",", solar%beam_flux_nir(ncl), ",", solar%nir_dn(ncl), ",", prof%dHdz(3*ncl/4), ",", &
+         prof%dLEdz(3*ncl/4,1), ",", prof%dPsdz(3*ncl/4), ",", prof%tleaf(3*ncl/4), ",", prof%disc13C(3*ncl/4), ",", &
+         prof%disc13C_long(3*ncl/4), ",", prof%disc13C_a(3*ncl/4), ",", prof%disc13C_ab(3*ncl/4), ",", &
+         prof%disc13C_asal(3*ncl/4), ",", prof%disc13C_b(3*ncl/4), ",", prof%cica(3*ncl/4), ",", &
+         prof%dStomCondz(3*ncl/4), ",", prof%isopreneflux(3*ncl/4), ",", solar%beam_flux_par(3*ncl/4), ",", &
+         solar%par_down(3*ncl/4), ",", solar%beam_flux_nir(3*ncl/4), ",", solar%nir_dn(3*ncl/4), ",", &
+         prof%dHdz(ncl/2), ",", prof%dLEdz(ncl/2,1), ",", prof%dPsdz(ncl/2), ",", prof%tleaf(ncl/2), ",", &
+         prof%disc13C(ncl/2), ",", prof%disc13C_long(ncl/2), ",", prof%disc13C_a(ncl/2), ",", &
+         prof%disc13C_ab(ncl/2), ",", prof%disc13C_asal(ncl/2), ",", prof%disc13C_b(ncl/2), ",", prof%cica(ncl/2), ",", &
+         prof%dStomCondz(ncl/2), ",", prof%isopreneflux(ncl/2), ",", solar%beam_flux_par(ncl/2), ",", &
+         solar%par_down(ncl/2), ",", solar%beam_flux_nir(ncl/2), ",", solar%nir_dn(ncl/2), ",", prof%dHdz(ncl/4), ",", &
+         prof%dLEdz(ncl/4,1), ",", prof%dPsdz(ncl/4), ",", prof%tleaf(ncl/4), ",", prof%disc13C(ncl/4), ",", &
+         prof%disc13C_long(ncl/4), ",", prof%disc13C_a(ncl/4), ",", prof%disc13C_ab(ncl/4), ",", &
+         prof%disc13C_asal(ncl/4), ",", prof%disc13C_b(ncl/4), ",", prof%cica(ncl/4), ",", prof%dStomCondz(ncl/4), ",", &
+         prof%isopreneflux(ncl/4), ",", solar%beam_flux_par(ncl/4), ",", solar%par_down(ncl/4), ",", &
+         solar%beam_flux_nir(ncl/4), ",", solar%nir_dn(ncl/4), ",", prof%dHdz(1), ",", prof%dLEdz(1,1), ",", &
+         prof%dPsdz(1), ",", prof%tleaf(1), ",", prof%disc13C(1), ",", prof%disc13C_long(1), ",", prof%disc13C_a(1), ",", &
+         prof%disc13C_ab(1), ",", prof%disc13C_asal(1), ",", prof%disc13C_b(1), ",", prof%cica(1), ",", &
+         prof%dStomCondz(1), ",", prof%isopreneflux(1), ",", solar%beam_flux_par(1), ",", solar%par_down(1), ",", &
+         solar%beam_flux_nir(1), ",", solar%nir_dn(1)
 
     if (ierr > 0) call error_writing(isroutine, noutseas)
 
@@ -745,11 +799,11 @@ CONTAINS
 
     ! Soil
     write(noutsoil,*,iostat=ierr) &
-         time%daytime, output%rnet_soil, soil%heat, soil%evap, &
-         soil%tsrf, soil%T_base, soil%T_15cm, flux%c_transpiration(1), &
-         flux%s_evap(1), prof%throughfall(1,1), soil%soil_mm, &
-         soil%qinfl(1), soil%qdrai(1), output%c7,soil%qtran(1), &
-         flux%surfrun(1), soil%T_soil(1:nsoil)
+         time%daytime, ",", output%rnet_soil, ",", soil%heat, ",", soil%evap, ",", &
+         soil%tsrf, ",", soil%T_base, ",", soil%T_15cm, ",", flux%c_transpiration(1), ",", &
+         flux%s_evap(1), ",", prof%throughfall(1,1), ",", soil%soil_mm, ",", &
+         soil%qinfl(1), ",", soil%qdrai(1), ",", output%c7,soil%qtran(1), ",", &
+         flux%surfrun(1), ",", soil%T_soil(1:nsoil)
     if (ierr > 0) call error_writing(isroutine, noutsoil)
 
     ! Soil water
@@ -794,6 +848,7 @@ CONTAINS
        if (ierr > 0) call error_writing(isroutine, noutwisosoil)
     end if
 
+
   END SUBROUTINE write_text_out
 
 
@@ -823,23 +878,26 @@ CONTAINS
     ! Profile fluxes
     do j=1, ncl
        write(noutflux,*,iostat=ierr) &
-            time%daytime,j,prof%dHdz(j), prof%dLEdz(j,1), &
-            prof%dLEdz_sun(j), prof%dLEdz_shd(j), prof%sun_A(j), &
-            prof%shd_A(j), prof%dGPPdz(j), prof%dGPPdz_sun(j), &
-            prof%dGPPdz_shd(j), prof%dPsdz(j), prof%dPsdz_sun(j), &
-            prof%dPsdz_shd(j), prof%dRESPdz(j), prof%dRESPdz_sun(j), &
-            prof%dRESPdz_shd(j), solar%quantum_sun(j), &
-            solar%quantum_shd(j), prof%tleaf(j), prof%sun_tleaf(j), &
-            prof%shd_tleaf(j), solar%prob_beam(j), solar%prob_shd(j), &
-            prof%dLAIdz(j), prof%isopreneflux(j), &
-            prof%dStomCondz(j)*1e3_wp,prof%dStomCondz_sun(j)*1e3_wp,prof%dStomCondz_shd(j)*1e3_wp, &
-            prof%disc13C_long(j), &
-            prof%sun_disc13_long(j), prof%shd_disc13_long(j), &
-            prof%disc13C(j), prof%sun_disc13(j), prof%shd_disc13(j), &
-            prof%sun_disc13_ab(j), prof%sun_disc13_a(j), &
-            prof%sun_disc13_asal(j), prof%sun_disc13_b(j), &
-            prof%shd_disc13_ab(j), prof%shd_disc13_a(j), &
-            prof%shd_disc13_asal(j), prof%shd_disc13_b(j), input%parin
+            time%daytime,',',j,',', prof%dHdz(j),',',prof%dLEdz(j,1),',',&
+            prof%dLEdz_sun(j),',',prof%dLEdz_shd(j),',',prof%sun_A(j),',',&
+            prof%shd_A(j),',',prof%dGPPdz(j),',',prof%dGPPdz_sun(j),',',&
+            prof%dGPPdz_shd(j),',',prof%dPsdz(j),',',prof%dPsdz_sun(j),',',&
+            prof%dPsdz_shd(j),',',prof%dRESPdz(j),',',prof%dRESPdz_sun(j),',',&
+            prof%dRESPdz_shd(j),',',solar%quantum_sun(j),',',&
+            solar%quantum_shd(j),',',prof%tleaf(j),',',prof%sun_tleaf(j),',',&
+            prof%shd_tleaf(j),',',solar%prob_beam(j),',',solar%prob_shd(j),',',&
+            prof%dLAIdz(j),',',prof%isopreneflux(j),',',&
+            prof%dStomCondz(j)*1e3_wp,',',prof%dStomCondz_sun(j)*1e3_wp,',',prof%dStomCondz_shd(j)*1e3_wp,',',&
+            prof%disc13C_long(j),',',&
+            prof%sun_disc13_long(j),',',prof%shd_disc13_long(j),',',&
+            prof%disc13C(j),',',prof%sun_disc13(j),',',prof%shd_disc13(j),',',&
+            prof%sun_disc13_ab(j),',',prof%sun_disc13_a(j),',',&
+            prof%sun_disc13_asal(j),',',prof%sun_disc13_b(j),',',&
+            prof%shd_disc13_ab(j),',',prof%shd_disc13_a(j),',',&
+            prof%shd_disc13_asal(j),',',prof%shd_disc13_b(j),',',input%parin,',',prof%test(j)
+
+
+
     end do
     if (ierr > 0) call error_writing(isroutine, noutflux)
 
@@ -877,10 +935,36 @@ CONTAINS
           write(noutwisoflux,*,iostat=ierr) &
                time%daytime, j, tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, &
                tmp7, tmp8, tmp9
+ !                   write(noutwisoflux,*,iostat=ierr) time%daytime
        end do
        if (ierr > 0) call error_writing(isroutine, noutwisoflux)
     end if
 
   END SUBROUTINE write_text_prof
+
+  SUBROUTINE write_text_debug()
+    USE constants, ONLY: noutdebug
+ !   USE types,     ONLY: iswitch, prof, solar, time, input
+ !   USE setup,     ONLY: ncl, ntl, nwiso
+
+    IMPLICIT NONE
+
+    CHARACTER(len=*), PARAMETER :: isroutine = 'WRITE_TEXT_DEBUG'
+    CHARACTER(len=*), PARAMETER :: errinfo = 'writting not done!'
+    INTEGER :: ierr
+!    INTEGER(i4) :: j
+!    REAL(wp), DIMENSION(nwiso-1) :: tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8, tmp9
+
+!    ierr = 0
+    ! Profile air
+!    do j=1, ntl
+       write(noutdebug,*,iostat=ierr) errinfo
+ !   end do
+    if (ierr > 0) call error_writing(isroutine, noutdebug)
+
+  END SUBROUTINE write_text_debug
+
+
+
 
 END MODULE io_text

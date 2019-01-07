@@ -20,6 +20,7 @@ MODULE io
   PUBLIC :: write_daily
   PUBLIC :: write_profiles
   PUBLIC :: write_output
+  PUBLIC :: write_debug ! YUAN 2017.08.14
 
   ! ------------------------------------------------------------------
 
@@ -136,6 +137,7 @@ CONTAINS
     else
        continue
     end if
+  !  print *, "called"
 
   END SUBROUTINE write_daily
 
@@ -172,6 +174,21 @@ CONTAINS
     end if
 
   END SUBROUTINE write_output
+
+  SUBROUTINE write_debug()
+    ! Calls the routines to write debug file Yuan 2017.08.13
+!    USE parameters, ONLY: netcdf_out
+    USE io_text,    ONLY: write_text_debug
+
+    IMPLICIT NONE
+
+ !   if (netcdf_out == 0) then
+       call write_text_debug()
+!    else
+ !      continue
+ !   end if
+
+  END SUBROUTINE write_debug
 
 
 END MODULE io

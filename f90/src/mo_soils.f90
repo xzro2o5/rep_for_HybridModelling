@@ -206,7 +206,7 @@ CONTAINS
     else
        soil%theta_l(1:nwiso) = soil%theta(1,1:nwiso) !m3 m-3
     end if
-
+!print *, "theta_l", soil%theta_l(1:nwiso)
   END SUBROUTINE set_litter_moisture
 
 
@@ -395,7 +395,7 @@ CONTAINS
        soil%theta(1:nsoil,2:nwiso) = spread(soil%theta(1:nsoil,1),dim=2,ncopies=nwiso-1) * &
             invdelta1000_h2o(wiso%dtheta(1:nsoil,2:nwiso), mc(1:nwiso-1)) !m3 m-3
     end if
-
+!print *, soil%theta
   END SUBROUTINE set_soil_moisture
 
 
@@ -409,9 +409,19 @@ CONTAINS
     IMPLICIT NONE
 
     REAL(wp) :: root_total ! total has to sum up to 1
+    REAL(wp) :: r1,r2,t1,t2
 
-    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(1:nsoil)) - &
-         soil%root_factor**(100._wp*soil%z_soil(0:nsoil-1))
+!    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(1:nsoil)) - &
+!         soil%root_factor**(100._wp*soil%z_soil(0:nsoil-1)) !2017.10.04, wrong??
+    t1 = soil%root_factor**(100._wp*soil%z_soil(0))
+    t2 = soil%root_factor**(100._wp*soil%z_soil(1))
+    r1 = 1-soil%root_factor**(100._wp*soil%z_soil(0))
+    r2 = 1-soil%root_factor**(100._wp*soil%z_soil(1))
+    soil%root(1) = r2-r1
+    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(0:nsoil-1)) - &
+         soil%root_factor**(100._wp*soil%z_soil(1:nsoil))
+!    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(0)) - &
+!         soil%root_factor**(100._wp*soil%z_soil(1))
     ! for Nate McDowell''s juniper site give root distribution
     if (extra_nate == 1) then
        soil%root(1)  = 0.019927536_wp
@@ -426,9 +436,18 @@ CONTAINS
        soil%root(10) = 0.342753623_wp
     end if
     ! normalise to total=1 ! for comparison with v3.3.8 move above fixed root distribution
-    root_total = one / sum(soil%root(1:nsoil))
-    soil%root(1:nsoil) = soil%root(1:nsoil) * root_total
-
+!    print *, "z0 ", soil%z_soil(0)
+!    print *, "z1 ", soil%z_soil(1)
+!    print *, "before: ", soil%root(1:nsoil)
+ !   root_total = one / sum(soil%root(1:nsoil))
+    root_total = sum(soil%root(1:nsoil))
+!    print *, "root_total before", root_total
+ !   soil%root(1:nsoil) = soil%root(1:nsoil) * root_total
+    soil%root(1:nsoil) = soil%root(1:nsoil) / root_total
+!    print *, "z_soil", soil%z_soil(0:nsoil)
+!    print *, "sum", sum(soil%root(1:nsoil))
+!    print *, "after: ", soil%root(1:nsoil)
+!    print *, "root_total after", root_total
   END SUBROUTINE set_soil_root
 
 
@@ -1354,6 +1373,9 @@ CONTAINS
           soil%lost0 = 1
        end if
 #endif
+!print *,"rthrough = ",rthrough(1:nwiso)
+!print *, "intercept = ",intercept
+!print *,prof%cws(i,1:nwiso)
        ! check if canopy water storage is at maximum
        if (prof%cws(i,1) > cws_max*prof%dLAIdz(i)) then
           drip                = prof%cws(i,1) -  cws_max * prof%dLAIdz(i)
@@ -1361,6 +1383,7 @@ CONTAINS
        else
           drip = zero
        end if
+     !  print *,prof%cws(i,1:nwiso)
        ! throughfall from this layer to next layer
        prof%throughfall(i,1:nwiso) = prof%throughfall(i+1,1:nwiso) - &
             rthrough(1:nwiso)*intercept + rcws(1:nwiso)*drip

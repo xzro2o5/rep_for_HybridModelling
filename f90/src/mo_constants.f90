@@ -9,10 +9,10 @@ MODULE constants
   USE kinds, ONLY: i4, wp
 
   IMPLICIT NONE
-  
+
   CHARACTER(len=*), PARAMETER :: version       = '4.0'        ! model version number
   CHARACTER(len=*), PARAMETER :: main_file     = 'canveg.f90' ! main file name
-  CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg.nml' ! namelist file name
+  CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg1025.nml' ! namelist file name
 
   ! maximum model parameters
   INTEGER(i4), PARAMETER :: nsoilmax = 10       ! max # of soil layers
@@ -20,10 +20,12 @@ MODULE constants
   INTEGER(i4), PARAMETER :: nleafopticalmax = 4 ! max # of leaf optical properties
 
   REAL(wp), PARAMETER :: undef = 9999._wp      ! undefinde values
+  REAL(wp), PARAMETER :: perc_up = 1.1_wp      ! increase parameters by 10% for sensitivity analysis Yuan 2017.10.26
+  REAL(wp), PARAMETER :: perc_dn = 0.9_wp      ! decrease parameters by 10% for sensitivity analysis Yuan 2017.10.26
 
   ! file units
   INTEGER, PARAMETER :: nin            = 5   ! standard input stream
-  INTEGER, PARAMETER :: nout           = 6   ! standard output stream 
+  INTEGER, PARAMETER :: nout           = 6   ! standard output stream
   INTEGER, PARAMETER :: nerr           = 0   ! error output stream
   INTEGER, PARAMETER :: ninnml         = 100 ! namelist unit
 
@@ -50,6 +52,7 @@ MODULE constants
   INTEGER, PARAMETER :: noutcisoseason = 121 ! fptr21  13c season out
   INTEGER, PARAMETER :: noutcisoprof   = 122 ! fptr22  13c profile air out
   INTEGER, PARAMETER :: noutcisoflux   = 123 ! fptr23  13c profile flux out
+  INTEGER, PARAMETER :: noutdebug      = 124 ! fptr24  debug file out
 
   CHARACTER(len=*), PARAMETER :: dailyfile          = "daily_ave"
   CHARACTER(len=*), PARAMETER :: daily13cfile       = "daily_ave_13c"
@@ -66,6 +69,7 @@ MODULE constants
   CHARACTER(len=*), PARAMETER :: h2osoilfile        = "h2osoil"
   CHARACTER(len=*), PARAMETER :: h2osoilisofile     = "h2osoil_wiso"
   CHARACTER(len=*), PARAMETER :: h2oleafisofile     = "h2oleaf_wiso"
+  CHARACTER(len=*), PARAMETER :: debugfile          = "debug_Yuan.txt" ! debug file
 
   ! computational
   REAL(wp), PARAMETER :: zero     = 0.0_wp      ! 0
@@ -88,10 +92,17 @@ MODULE constants
   ! REAL(wp), PARAMETER :: pi4   = 4.0_wp * pi               ! 4*pi
   ! REAL(wp), PARAMETER :: pi9   = 9.0_wp / pi               ! 9/pi
   ! REAL(wp), PARAMETER :: pi180 = pi / 180.0_wp             ! pi/180
-  REAL(wp), PARAMETER :: pi    = 3.1415926536_wp
+  !REAL(wp), PARAMETER :: pi    = 3.1415926536_wp
+  !REAL(wp), PARAMETER :: pi2   = 6.2831853072_wp
+  !REAL(wp), PARAMETER :: pi4   = 12.5663706_wp
+  !REAL(wp), PARAMETER :: pi180 = 0.0174532925_wp
+  !REAL(wp), PARAMETER :: pi9   = 2.86478898_wp
+
+  ! improved by Yuan 2017.09.24
+  REAL(wp), PARAMETER :: pi    = 3.1415926536_wp !2017.10.04
   REAL(wp), PARAMETER :: pi2   = 6.2831853072_wp
-  REAL(wp), PARAMETER :: pi4   = 12.5663706_wp
-  REAL(wp), PARAMETER :: pi180 = 0.0174532925_wp
+  REAL(wp), PARAMETER :: pi4   = 4.0_wp * pi               ! 12.5663706_wp
+  REAL(wp), PARAMETER :: pi180 = 0.0174532925_wp !0.0174532925
   REAL(wp), PARAMETER :: pi9   = 2.86478898_wp
 
   ! physical
@@ -114,11 +125,11 @@ MODULE constants
   REAL(wp), PARAMETER ::  dldt       = -2370._wp   ! Derivative of the latent heat of vaporization
 
   ! constants for the polynomial equation for saturation vapor pressure-T function, es=f(t)
-  REAL(wp), PARAMETER :: a1en = 617.4_wp     ! 
-  REAL(wp), PARAMETER :: a2en = 42.22_wp     !  
-  REAL(wp), PARAMETER :: a3en = 1.675_wp     ! 
-  REAL(wp), PARAMETER :: a4en = 0.01408_wp   ! 
-  REAL(wp), PARAMETER :: a5en = 0.0005818_wp ! 
+  REAL(wp), PARAMETER :: a1en = 617.4_wp     !
+  REAL(wp), PARAMETER :: a2en = 42.22_wp     !
+  REAL(wp), PARAMETER :: a3en = 1.675_wp     !
+  REAL(wp), PARAMETER :: a4en = 0.01408_wp   !
+  REAL(wp), PARAMETER :: a5en = 0.0005818_wp !
 
   ! Diffusivity values for 273 K and 1013 mb (STP) using values from Massman (1998) Atmos Environment
   ! These values are for diffusion in air. When used these values must be adjusted for
@@ -155,5 +166,6 @@ MODULE constants
   ! numerical
   REAL(wp), PARAMETER :: isotolerance = 1e-15_wp ! tolerance in isotope variables so that two values are the same
   REAL(wp), PARAMETER :: isnight      = 0.05_wp  ! if (solar%sine_beta <= isnight) then it is dark
-  
+  LOGICAL judgenight ! judge if night, more complex than isnight. Yuan 2017.08.17
+
 END MODULE constants

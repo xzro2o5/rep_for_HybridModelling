@@ -21,10 +21,10 @@ MODULE parameters
        vc25, jm_vc, rd_vc, g0, a1, D0, kball, bprime, vcopt, jmopt, ht_midpt, lai_freq, pai_freq, &
        par_reflect, par_trans, par_soil_refl_dry, nir_reflect, nir_trans, nir_soil_refl_dry, workdir, &
        indir, metinfile, laiinfile, wisoinfile, outdir, outsuffix, dispfile, netcdf_in, netcdf_out, netcdf_disp, &
-       start_run, end_run, start_profiles, end_profiles, latitude, longitude, zone, ht, pai, lai, ustar_ref, &
+       start_run, end_run, start_profiles, end_profiles, latitude, longitude, perc_up, perc_dn, zone, ht, pai, lai, ustar_ref, &
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
-       leaf_fall, leaf_fall_complete, attfac, eabole, epsoil, water_film_thickness, tau_water, extra_nate, nup
+       leaf_fall, leaf_fall_complete, attfac, eabole, epsoil, water_film_thickness, tau_water, extra_nate, nup ! add perc_up and down for sensitivity analysis Yuan 2017.10.26
 
   ! Derived parameters
   INTEGER(i4) :: izref     ! array value of reference height = measurement height*ncl/ht
@@ -54,7 +54,7 @@ MODULE parameters
   REAL(wp), DIMENSION(:), ALLOCATABLE :: ht_midpt ! height of mid point of layer of lai_freq
   REAL(wp), DIMENSION(:), ALLOCATABLE :: lai_freq ! fraction of total LAI per layer
   REAL(wp), DIMENSION(:), ALLOCATABLE :: pai_freq ! fraction of total PAI per layer
-  REAL(wp), DIMENSION(:), ALLOCATABLE :: par_reflect       ! PAR leaf reflectivity, BARK REFLECTIVITY, AVG TOP AND BOTTOM 
+  REAL(wp), DIMENSION(:), ALLOCATABLE :: par_reflect       ! PAR leaf reflectivity, BARK REFLECTIVITY, AVG TOP AND BOTTOM
   REAL(wp), DIMENSION(:), ALLOCATABLE :: par_trans         ! PAR leaf transmissivity, LEAF TRANSMISSIVITY
   REAL(wp), DIMENSION(:), ALLOCATABLE :: par_soil_refl_dry ! PAR soil reflectivitiy
   REAL(wp), DIMENSION(:), ALLOCATABLE :: nir_reflect       ! NIR leaf reflectivity
@@ -87,14 +87,14 @@ MODULE parameters
   ! set coupled stomata-photosynthesis model to
   !   (0) Ball Berry (Baldocchi analytical solution) or
   !   (1) Leuning and mesophyll conductance (Knohl analytical solution)
-  INTEGER(i4)        :: switch_ball       ! 
+  INTEGER(i4)        :: switch_ball       !
   INTEGER(i4)        :: switch_isoprene   ! (1) calc isoprene ! (0) no isoprene
   INTEGER(i4)        :: switch_d13c       ! (1) calc d13C ! (0) no d13C
   INTEGER(i4)        :: switch_wiso       ! (1) calc water isotopes ! (0) no water isotopes
   ! How to determine autotrophic respiration
   !   (0) total = 50% auto + 50% hetero
   !   (1) from BETHY (Knorr 1997)
-  INTEGER(i4)        :: switch_bethy_resp ! 
+  INTEGER(i4)        :: switch_bethy_resp !
   ! Debug by not allowing condensation
   INTEGER(i4)        :: switch_no_negative_water_flux ! (1) all water fluxes >= 0 ! (0) no restriction, <0 possible
   ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -102,6 +102,9 @@ MODULE parameters
   ! Site location = Mesita del Buey, NM, USA
   REAL(wp)           :: latitude          ! latitude  N
   REAL(wp)           :: longitude         ! longitude E
+  REAL(wp)           :: perc_up           ! range of parameter variation for sensitivity analysis Yuan 2017.10.26
+  REAL(wp)           :: perc_dn           ! range of parameter variation for sensitivity analysis Yuan 2017.10.26
+
   ! Eastern Standard Time
   REAL(wp)           :: zone              ! delay from GMT
   REAL(wp)           :: ht                ! Canopy height [m]
@@ -110,13 +113,13 @@ MODULE parameters
   REAL(wp)           :: vc25_in              ! carboxylation rate at 25 deg C, [umol m-2 s-1], old = 66.3
   ! ratios of x to vcmax
   !   jmax = electron transport rate at 25 deg C, [umol m-2 s-1] old = 127.5
-  REAL(wp)           :: jm_vc_in             ! 
+  REAL(wp)           :: jm_vc_in             !
   !  ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
-  REAL(wp)           :: rd_vc_in             ! 
+  REAL(wp)           :: rd_vc_in             !
 
   REAL(wp)           :: ustar_ref         ! reference ustar for Dij [umol m-2 s-1]
   !INTEGER(i4) :: ncl   ! canopy layers
-  !INTEGER(i4) :: nsky  ! # of sky angle classes 
+  !INTEGER(i4) :: nsky  ! # of sky angle classes
   !INTEGER(i4) :: nsoil ! # of soil layers (0: old Canoak formulation)
   !INTEGER(i4) :: nbeta ! # of levels for beta distribution of e.g. lai
   !INTEGER(i4) :: ndaysc13 ! # of days to remember for mean 13C discrimination
@@ -195,7 +198,7 @@ MODULE parameters
   !   2. date > leafout and date < fulleaf
   !   3. date >= fulleaf and date <= leaf_fall
   !   4. date > leaf_fall and date < leaf_fall_complete
-  REAL(wp), DIMENSION(nleafopticalmax) :: par_reflect_in       ! PAR leaf reflectivity, BARK REFLECTIVITY, AVG TOP AND BOTTOM 
+  REAL(wp), DIMENSION(nleafopticalmax) :: par_reflect_in       ! PAR leaf reflectivity, BARK REFLECTIVITY, AVG TOP AND BOTTOM
   REAL(wp), DIMENSION(nleafopticalmax) :: par_trans_in         ! PAR leaf transmissivity, LEAF TRANSMISSIVITY
   REAL(wp), DIMENSION(nleafopticalmax) :: par_soil_refl_dry_in ! PAR soil reflectivitiy
   REAL(wp), DIMENSION(nleafopticalmax) :: nir_reflect_in       ! NIR leaf reflectivity
@@ -221,7 +224,7 @@ MODULE parameters
   ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
   ! --- Litter ---
   REAL(wp)           :: z_litter ! depth of litter layer [m] ! 0 = no litter
-  ! z_litter = 0 ! 
+  ! z_litter = 0 !
   ! litter density
   !   Hainich: annual litter=200 gC/m2 =400 gTG/m2 = 0.04 g/cm3
   !   for 1 cm litter height = 40 kg/m3
@@ -251,16 +254,16 @@ MODULE parameters
   ! --- Water Isotopes ---
   ! For water isotope test purposes
   ! (0) normal soil water isotope fractionation ! (1) test code with no fractionation during soil evaporation
-  INTEGER(i4)        :: wiso_nofracsoil ! 
+  INTEGER(i4)        :: wiso_nofracsoil !
   ! (0) normal litter water isotope fractionation ! (1) test code with no fractionation during litter evaporation
-  INTEGER(i4)        :: wiso_nofraclitter ! 
+  INTEGER(i4)        :: wiso_nofraclitter !
   ! (0) normal leaf water isotope fractionation ! (1) test code with no fractionation during leaf transpiration
-  INTEGER(i4)        :: wiso_nofracleaf ! 
+  INTEGER(i4)        :: wiso_nofracleaf !
   ! (0) normal rain water isotopes ! (1) test code with rain water isotopes same as initial soil water isotopes
-  INTEGER(i4)        :: wiso_nofracin ! 
+  INTEGER(i4)        :: wiso_nofracin !
   ! Calc water isotopes iteratively in loop or just once after the
   ! normal water iteration loop: (0) Once ! (1) In loop
-  INTEGER(i4)        :: wiso_implicit ! 
+  INTEGER(i4)        :: wiso_implicit !
   INTEGER(i4)        :: merlivat ! (0) Cappa et al., (1) Merlivat kinetic fractionation factors
   ! delta-18O initial values
   REAL(wp), DIMENSION(nsoilmax) :: theta1_in
@@ -279,7 +282,7 @@ MODULE parameters
   ! Vcmax(25C) carboxylation rate at 25°C, [umol m-2 s-1]
   REAL(wp)           :: vc25_up ! upper canopy
   REAL(wp)           :: vc25_down ! understory
-  ! Jmax/Vcmax(25C) ratio of jmax to vcmax at 25 deg C, jmax = electron transport rate at 25 deg C, [umol m-2 s-1] 
+  ! Jmax/Vcmax(25C) ratio of jmax to vcmax at 25 deg C, jmax = electron transport rate at 25 deg C, [umol m-2 s-1]
   REAL(wp)           :: jm_vc_up ! upper canopy
   REAL(wp)           :: jm_vc_down ! understory
   ! Rd/Vcmax ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
@@ -289,7 +292,7 @@ MODULE parameters
   ! g0, intercept of Leuning stomata model for water vapor [mol(H2O) m-2 s-1]
   REAL(wp)           :: g0_up ! upper canopy
   REAL(wp)           :: g0_down ! understory
-  ! a1, slope of Leuning stomata model for water vapor [-] 
+  ! a1, slope of Leuning stomata model for water vapor [-]
   REAL(wp)           :: a1_up ! upper canopy
   REAL(wp)           :: a1_down ! understory
   ! Do, empirical coefficient for humidity sensitivity of Leuning stomata model [Pa]
@@ -336,11 +339,11 @@ CONTAINS
     ! sets soil respiration reference temperature to
     !   (1) input soil temperature or
     !   (0) modeled soil temperature at 5 cm
-    switch_soil_resp_temp = 0   ! 
+    switch_soil_resp_temp = 0   !
     ! set coupled stomata-photosynthesis model to
     !   (0) Ball Berry (Baldocchi analytical solution) or
     !   (1) Leuning and mesophyll conductance (Knohl analytical solution)
-    switch_ball = 1             ! 
+    switch_ball = 1             !
     ! Isoprene
     switch_isoprene = 1         ! (1) calc isoprene ! (0) no isoprene
     ! 13CO2
@@ -350,7 +353,7 @@ CONTAINS
     ! How to determine autotrophic respiration
     !   (0) total = 50% auto + 50% hetero
     !   (1) from BETHY (Knorr 1997)
-    switch_bethy_resp = 0       ! 
+    switch_bethy_resp = 0       !
     ! Debug by not allowing condensation
     switch_no_negative_water_flux = 0 ! (1) all water fluxes >= 0 ! (0) no restriction, <0 possible
     ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -359,6 +362,8 @@ CONTAINS
     latitude = 35.85_wp   ! latitude  N
     longitude = 106.27_wp ! longitude E
     ! Eastern Standard Time
+    perc_up = 1.1_wp          ! range of parameter variation for sensitivity analysis Yuan 2017.10.26
+    perc_dn = 0.9_wp
     zone = 7.0_wp         ! delay from GMT
     ht = 2.66_wp          ! Canopy height [m]
     pai = 0.1_wp          ! Plant area index [m2 m-2]
@@ -366,9 +371,9 @@ CONTAINS
     vc25_in = 45_wp          ! carboxylation rate at 25 deg C, [umol m-2 s-1], old = 66.3
     ! ratios of x to vcmax
     !   jmax = electron transport rate at 25 deg C, [umol m-2 s-1] old = 127.5
-    jm_vc_in = 1.6_wp        ! 
+    jm_vc_in = 1.6_wp        !
     !  ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
-    rd_vc_in = 0.011_wp      ! 
+    rd_vc_in = 0.011_wp      !
     ustar_ref = 1._wp     ! reference ustar for Dij [umol m-2 s-1]
     ncl   = 40      ! canopy layers
     nsky  = 16      ! # of sky angle classes
@@ -485,7 +490,7 @@ CONTAINS
     ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
     ! --- Litter ---
     z_litter = 0.037_wp ! depth of litter layer [m] ! 0 = no litter
-    ! z_litter = 0 ! 
+    ! z_litter = 0 !
     ! litter density
     !   Hainich: annual litter=200 gC/m2 =400 gTG/m2 = 0.04 g/cm3
     !   for 1 cm litter height = 40 kg/m3
@@ -521,16 +526,16 @@ CONTAINS
     ! --- Water Isotopes ---
     ! For water isotope test purposes
     ! (0) normal soil water isotope fractionation ! (1) test code with no fractionation during soil evaporation
-    wiso_nofracsoil   = 0 ! 
+    wiso_nofracsoil   = 0 !
     ! (0) normal litter water isotope fractionation ! (1) test code with no fractionation during litter evaporation
-    wiso_nofraclitter = 0 ! 
+    wiso_nofraclitter = 0 !
     ! (0) normal leaf water isotope fractionation ! (1) test code with no fractionation during leaf transpiration
-    wiso_nofracleaf   = 0 ! 
+    wiso_nofracleaf   = 0 !
     ! (0) normal rain water isotopes ! (1) test code with rain water isotopes same as initial soil water isotopes
-    wiso_nofracin     = 0 ! 
+    wiso_nofracin     = 0 !
     ! Calc water isotopes iteratively in loop or just once after the
     ! normal water iteration loop: (0) Once ! (1) In loop
-    wiso_implicit = 1 ! 
+    wiso_implicit = 1 !
     merlivat = 0 ! (0) Cappa et al., (1) Merlivat kinetic fractionation factors
     ! delta-18O initial values
     theta1_in(:) = -2._wp
@@ -549,7 +554,7 @@ CONTAINS
     ! Vcmax(25C) carboxylation rate at 25°C, [umol m-2 s-1]
     vc25_up   = 35._wp ! upper canopy
     vc25_down = 35._wp ! understory
-    ! Jmax/Vcmax(25C) ratio of jmax to vcmax at 25 deg C, jmax = electron transport rate at 25 deg C, [umol m-2 s-1] 
+    ! Jmax/Vcmax(25C) ratio of jmax to vcmax at 25 deg C, jmax = electron transport rate at 25 deg C, [umol m-2 s-1]
     jm_vc_up   = 1.6_wp ! upper canopy
     jm_vc_down = 1.6_wp ! understory
     ! Rd/Vcmax ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
@@ -559,7 +564,7 @@ CONTAINS
     ! g0, intercept of Leuning stomata model for water vapor [mol(H2O) m-2 s-1]
     g0_up   = 0.001_wp ! upper canopy
     g0_down = 0.001_wp ! understory
-    ! a1, slope of Leuning stomata model for water vapor [-] 
+    ! a1, slope of Leuning stomata model for water vapor [-]
     a1_up   = 4._wp ! upper canopy
     a1_down = 7._wp ! understory
     ! Do, empirical coefficient for humidity sensitivity of Leuning stomata model [Pa]
@@ -596,7 +601,8 @@ CONTAINS
          workdir, indir, metinfile, laiinfile, wisoinfile, outdir, outsuffix, dispfile, &
          netcdf_in, netcdf_out, netcdf_disp, year0, start_run, end_run, start_profiles, &
          end_profiles, time_step, switch_soil_resp_temp, switch_ball, switch_isoprene, switch_d13c, &
-         switch_wiso, switch_bethy_resp, switch_no_negative_water_flux, latitude, longitude, zone, ht, pai, lai, vc25_in, &
+         switch_wiso, switch_bethy_resp, switch_no_negative_water_flux, latitude, longitude, &
+         perc_up, perc_dn, zone, ht, pai, lai, vc25_in, &
          jm_vc_in, rd_vc_in, ustar_ref, ncl, nsky, nl, nsoil, nbeta, ndaysc13, nwiso, zm, hkin, skin, ejm, evc, kc25, ko25, &
          o2, tau25, ekc, eko, erd, ektau, toptvc, toptjm, curvature, qalpha, g0_in, a1_in, D0_in, gm_vc, &
          fthreshold, fslope, kball_in, bprime_in, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, &
@@ -607,23 +613,19 @@ CONTAINS
          gravel_in, theta_in, wiso_nofracsoil, wiso_nofraclitter, wiso_nofracleaf, wiso_nofracin, wiso_implicit, merlivat, &
          theta1_in, theta2_in, theta3_in, extra_nate, nup, vc25_up, vc25_down, jm_vc_up, jm_vc_down, rd_vc_up, rd_vc_down, &
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down
-
     call ini_namelist()
-
     call open_nml(namelist_file, ninnml, quiet=1)
-
     call position_nml('canctl', status=ierr)
     select case (ierr)
      case (POSITIONED)
        read(nnml, canctl)
     end select
-
     call close_nml()
 
     ! Setup model
     ntl  = 3*ncl
-    if (switch_wiso == 0) nwiso=1
-    if (nwiso < 1) then
+    if (switch_wiso == 0) nwiso=0 !originally 1, Yuan changed based on C4.0 line 1619. 2017.08.23
+    if (nwiso < 1) then !2017.10.04
        nwiso = 1
 #ifdef DEBUG
        call message('READ_NAMELIST: ','nwiso set to 1 because it includes normal water.')
@@ -673,14 +675,16 @@ CONTAINS
     if (.not. allocated(D0)) allocate(D0(ncl))
     if (.not. allocated(kball)) allocate(kball(ncl))
     if (.not. allocated(bprime)) allocate(bprime(ncl))
-    vc25(:)   = vc25_in
-    jm_vc(:)  = jm_vc_in
-    rd_vc(:)  = rd_vc_in
-    g0(:)     = g0_in
-    a1(:)     = a1_in
-    D0(:)     = D0_in
-    kball(:)  = kball_in
-    bprime(:) = bprime_in
+    vc25(:)   = vc25_in*perc_up ! 10% up for sensitivity analysis
+ !   print *, "perc_up = ",perc_up
+!    print *, "vc25 = ",vc25
+    jm_vc(:)  = jm_vc_in*perc_up
+    rd_vc(:)  = rd_vc_in*perc_up
+    g0(:)     = g0_in*perc_up
+    a1(:)     = a1_in*perc_up
+    D0(:)     = D0_in*perc_up
+    kball(:)  = kball_in*perc_up
+    bprime(:) = bprime_in*perc_up
 
     ! Calc derived variables
     zd        = twothird*ht ! displacement height [m]
@@ -688,26 +692,28 @@ CONTAINS
     izref     = ceiling(zm*real(ncl,kind=wp)/ht,kind=i4) ! array value of reference height = measurement height*ncl/ht
     delz      = ht/ncl ! height of each layer, ht/ncl
     zh65      = 0.65_wp/ht
-    epsigma   = ep * sigma
-    epsigma2  = 2.0_wp * ep * sigma
+    epsigma   = ep * sigma !2017.10.04
+    epsigma2  = 2.0_wp * ep * sigma !2017.10.04
     epsigma4  = 4.0_wp * ep * sigma
     epsigma6  = 6.0_wp * ep * sigma
     epsigma8  = 8.0_wp * ep * sigma
     epsigma12 = 12.0_wp * ep * sigma
-    qalpha2   = qalpha*qalpha
+    qalpha2   = qalpha*qalpha*perc_up*perc_up
 
     ! Set parameters in type arrays
-    soil%z_soil(0:nsoil)       = z_soil_in(0:nsoil)
-    soil%bulk_density(1:nsoil) = bulk_density_in(1:nsoil)
-    soil%clay_in(1:nsoil)      = clay_in(1:nsoil)
-    soil%sand_in(1:nsoil)      = sand_in(1:nsoil)
-    soil%om(1:nsoil)           = om_in(1:nsoil)
-    soil%gravel(1:nsoil)       = gravel_in(1:nsoil)
-    soil%theta(1:nsoil,1)      = theta_in(1:nsoil)
-    wiso%dtheta(1:nsoil,1)     = theta_in(1:nsoil)
-    if (nwiso >= 2) wiso%dtheta(1:nsoil,2) = theta1_in(1:nsoil) ! 18O
-    if (nwiso >= 3) wiso%dtheta(1:nsoil,3) = theta2_in(1:nsoil) ! 2H
-    if (nwiso >= 4) wiso%dtheta(1:nsoil,4) = theta3_in(1:nsoil) ! Normal water
+    soil%z_soil(0:nsoil)       = z_soil_in(0:nsoil) *perc_up!2017.10.04
+!    print *, "z_soil_in ",z_soil_in
+!    print *, "z_soil", soil%z_soil
+    soil%bulk_density(1:nsoil) = bulk_density_in(1:nsoil)*perc_up
+    soil%clay_in(1:nsoil)      = clay_in(1:nsoil)*perc_up
+    soil%sand_in(1:nsoil)      = sand_in(1:nsoil)*perc_up
+    soil%om(1:nsoil)           = om_in(1:nsoil)*perc_up
+    soil%gravel(1:nsoil)       = gravel_in(1:nsoil)*perc_up
+    soil%theta(1:nsoil,1)      = theta_in(1:nsoil)*perc_up
+    wiso%dtheta(1:nsoil,1)     = theta_in(1:nsoil)*perc_up
+    if (nwiso >= 2) wiso%dtheta(1:nsoil,2) = theta1_in(1:nsoil)*perc_up ! 18O
+    if (nwiso >= 3) wiso%dtheta(1:nsoil,3) = theta2_in(1:nsoil)*perc_up ! 2H
+    if (nwiso >= 4) wiso%dtheta(1:nsoil,4) = theta3_in(1:nsoil)*perc_up ! Normal water
 
     ! LAI beta distribution
     if (.not. allocated(ht_midpt)) allocate(ht_midpt(nbeta))
@@ -716,7 +722,7 @@ CONTAINS
     ht_midpt(1:nbeta) = ht_midpt_in(1:nbeta)
     lai_freq(1:nbeta) = lai_freq_in(1:nbeta)
     pai_freq(1:nbeta) = pai_freq_in(1:nbeta)
-    
+
     ! Leaf optical properties
     nlop = nleafopticalmax
     if (.not. allocated(par_reflect)) allocate(par_reflect(nlop))
@@ -725,12 +731,14 @@ CONTAINS
     if (.not. allocated(nir_reflect)) allocate(nir_reflect(nlop))
     if (.not. allocated(nir_trans)) allocate(nir_trans(nlop))
     if (.not. allocated(nir_soil_refl_dry)) allocate(nir_soil_refl_dry(nlop))
-    par_reflect(1:nlop)       = par_reflect_in(1:nlop)
-    par_trans(1:nlop)         = par_trans_in(1:nlop)
-    par_soil_refl_dry(1:nlop) = par_soil_refl_dry_in(1:nlop)
-    nir_reflect(1:nlop)       = nir_reflect_in(1:nlop)
-    nir_trans(1:nlop)         = nir_trans_in(1:nlop)
-    nir_soil_refl_dry(1:nlop) = nir_soil_refl_dry_in(1:nlop)
+    par_reflect(1:nlop)       = par_reflect_in(1:nlop)*perc_up
+ !   print *, par_reflect
+    par_trans(1:nlop)         = par_trans_in(1:nlop)*perc_up
+ !   print *, par_trans
+    par_soil_refl_dry(1:nlop) = par_soil_refl_dry_in(1:nlop)*perc_up
+    nir_reflect(1:nlop)       = nir_reflect_in(1:nlop)*perc_up
+    nir_trans(1:nlop)         = nir_trans_in(1:nlop)*perc_up
+    nir_soil_refl_dry(1:nlop) = nir_soil_refl_dry_in(1:nlop)*perc_up
 
     ! Extra Nate has two layers of vegetation: 1:nup-1 and nup:ncl
     if (extra_nate == 1) then
@@ -749,7 +757,7 @@ CONTAINS
        a1(nup:ncl)     = a1_up
        D0(nup:ncl)     = D0_up
        kball(nup:ncl)  = kball_up
-       bprime(nup:ncl) = bprime_up       
+       bprime(nup:ncl) = bprime_up
     end if
 
     ! Variables per layer
@@ -775,9 +783,9 @@ CONTAINS
     REAL(wp),               INTENT(IN) :: tl
     REAL(wp),               INTENT(IN) :: hkin_in
     REAL(wp), DIMENSION(1:size(rate))  :: inv_boltz
-    
+
     REAL(wp) :: dtlopt, prodt, denom, numm
-    
+
     dtlopt    = tl - topt
     prodt     = rugc * topt * tl
     denom     = hkin_in * exp(eakin * (dtlopt) / (prodt))

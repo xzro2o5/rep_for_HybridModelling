@@ -4,7 +4,7 @@ MODULE transport
 
   ! Written Jan 2011, Mathias Cuntz - Ported C-Code
 
-  USE kinds, ONLY: wp, i4
+  USE kinds, ONLY: wp, rp, i4
 
   IMPLICIT NONE
 
@@ -18,7 +18,7 @@ MODULE transport
   ! ------------------------------------------------------------------
 
 CONTAINS
-  
+
   ! ------------------------------------------------------------------
   SUBROUTINE boundary_resistance(zzz, tlf, cws, jlay)
     ! BOUNDARY_RESISTANCE
@@ -38,7 +38,7 @@ CONTAINS
 
     ! Diffusivities have been corrected using the temperature/Pressure algorithm in Massman (1998)
     USE types,      ONLY: prof, non_dim, input, bound_lay_res
-    USE constants,  ONLY: zero, half, one, ddc, ddv, ddh, nnu, TN0
+    USE constants,  ONLY: zero, half, one, ddc, ddv, ddh, nnu, TN0, e15
     USE parameters, ONLY: lleaf, betfact
     USE messages,   ONLY: message
 
@@ -66,6 +66,7 @@ CONTAINS
     end if
     nnu_T_P      = nnu * (1013._wp/input%press_mb) * (T_kelvin/TN0)**1.81_wp
     prof%u(jlay) = uz(zzz)
+!    print *, prof%u(jlay)
     Re           = lleaf * prof%u(jlay) / nnu_T_P
     if (Re > zero) then
        Re5 = sqrt(Re)
@@ -92,7 +93,7 @@ CONTAINS
        Sh_heat    = Res_factor * non_dim%pr33
        Sh_vapor   = Res_factor * non_dim%sc33
        Sh_CO2     = Res_factor * non_dim%scc33
-       if (cws > zero) Sh_vapor = 0.66_wp * non_dim%sc33 * Re**0.4_wp
+       if (cws > zero) Sh_vapor = 0.66_wp * non_dim%sc33 * Re**0.4_wp ! originally cws > 0, Yuan changed 2017.0901 1e-15_wp
        !   Sh_vapor = 0.66 * non_dim%sc33 * pow(Re, 0.4) * betfact
     end if
     ! If there is free convection
@@ -130,7 +131,7 @@ CONTAINS
     IMPLICIT NONE
 
     REAL(wp), DIMENSION(:), INTENT(IN)  :: source   ! canopy sources
-    REAL(wp), DIMENSION(:), INTENT(OUT) :: cncc     ! 
+    REAL(wp), DIMENSION(:), INTENT(OUT) :: cncc     !
     REAL(wp),               INTENT(IN)  :: cref     ! ref concentration = upper boundary
     REAL(wp),               INTENT(IN)  :: soilflux ! soil efflux = lower boundary
     REAL(wp),               INTENT(IN)  :: factor   !
@@ -175,7 +176,7 @@ CONTAINS
     cc(1:ntl)      = sumcc(1:ntl) / factor + soilbnd(1:ntl)
     ! Compute scalar profile below reference
     cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
-    
+
   END SUBROUTINE conc
 
 

@@ -1,32 +1,12 @@
 # -*- Makefile -*-
 
 #
-# Setup file for GNU compiler 4.8 on cygwin on Windows
+# Setup file for GNU compiler on cygwin on Windows
 #
-
-# The Makefile assumes the standard bin, include and lib directories for instaled libraries,
-# i.e. if SOMEDIR = /path/to/library, the make file will define the two dirs if not given:
-#   SOMEINC ?= SOMEDIR/include
-#   SOMELIB ?= SOMEDIR/lib
-# It also looks for SOMEFLAG and SOMEDEF for library linker and CPP flags, resp.
-
-# LICENSE
-#    This file is part of the JAMS makefile project.
+# This file is part of the JAMS Makefile system, distributed under the MIT License.
 #
-#    The JAMS makefile project is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Lesser General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
+# Copyright (c) 2011-2019 Matthias Cuntz - mc (at) macu (dot) de
 #
-#    The JAMS makefile project is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-#    GNU Lesser General Public License for more details.
-#
-#    You should have received a copy of the GNU Lesser General Public License
-#    along with the JAMS makefile project. If not, see <http://www.gnu.org/licenses/>.
-#
-#    Copyright 2012-2016 Matthias Cuntz
 
 # Paths
 GNUDIR := /usr
@@ -49,7 +29,7 @@ else
     CFLAGS   += -O3
 endif
 F90FLAGS += -cpp -ffree-form -ffixed-line-length-132
-FCFLAGS  += -ffixed-form -ffixed-line-length-132
+FCFLAGS  += -ffixed-form -ffixed-line-length-132 -x f77-cpp-input
 CFLAGS   +=
 MODFLAG  := -J# space significant
 DEFINES  += -DGFORTRAN -DgFortran -DCYGWIN
@@ -68,7 +48,7 @@ RPATH += -Wl,-rpath,$(GNULIB)
 # NETCDF
 ifeq ($(netcdf),netcdf3)
     NCDIR  := /usr/local/netcdf/3.6.3_gcc46
-    NCFLAG := -lnetcdf -lnetcdff
+    NCFLAG := -lnetcdff -lnetcdf
     NCDEF  := -DNETCDF -DNETCDF3
 else
     NCDIR    := /usr

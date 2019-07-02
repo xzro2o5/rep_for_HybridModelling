@@ -33,7 +33,7 @@ CONTAINS
 
     ! leaf level flux per leaf area
     ! This gave always 0 in C-Code: zz = (int)(delz * j);
-    ! TODO: forall(i=1:ncl) zz(i) = delz*real(i,wp)
+    ! ToDo: forall(i=1:ncl) zz(i) = delz*real(i,wp)
     forall(i=1:ncl) zz(i) = floor(delz*real(i,wp))
     hh(1:ncl) = ht
     prof%iso_sun(1:ncl) = isoprene_leaf_flux(solar%quantum_sun(1:ncl), prof%sun_tleaf_filter(1:ncl), zz(1:ncl), hh(1:ncl))

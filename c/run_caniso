@@ -1,0 +1,6 @@
+# debug
+gcc -DDEBUG -pedantic-errors -Wall -W -O -g -o caniso canisotope_v3.4.c && ./caniso
+
+
+# release
+gcc -O3 -o caniso canisotope_v3.4.c && ./caniso

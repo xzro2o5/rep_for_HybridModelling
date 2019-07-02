@@ -4,7 +4,7 @@ MODULE transport
 
   ! Written Jan 2011, Mathias Cuntz - Ported C-Code
 
-  USE kinds, ONLY: wp, rp, i4
+  USE kinds, ONLY: wp, i4
 
   IMPLICIT NONE
 
@@ -38,7 +38,7 @@ CONTAINS
 
     ! Diffusivities have been corrected using the temperature/Pressure algorithm in Massman (1998)
     USE types,      ONLY: prof, non_dim, input, bound_lay_res
-    USE constants,  ONLY: zero, half, one, ddc, ddv, ddh, nnu, TN0, e15
+    USE constants,  ONLY: zero, half, one, ddc, ddv, ddh, nnu, TN0
     USE parameters, ONLY: lleaf, betfact
     USE messages,   ONLY: message
 
@@ -66,7 +66,6 @@ CONTAINS
     end if
     nnu_T_P      = nnu * (1013._wp/input%press_mb) * (T_kelvin/TN0)**1.81_wp
     prof%u(jlay) = uz(zzz)
-!    print *, prof%u(jlay)
     Re           = lleaf * prof%u(jlay) / nnu_T_P
     if (Re > zero) then
        Re5 = sqrt(Re)
@@ -93,8 +92,8 @@ CONTAINS
        Sh_heat    = Res_factor * non_dim%pr33
        Sh_vapor   = Res_factor * non_dim%sc33
        Sh_CO2     = Res_factor * non_dim%scc33
-       if (cws > zero) Sh_vapor = 0.66_wp * non_dim%sc33 * Re**0.4_wp ! originally cws > 0, Yuan changed 2017.0901 1e-15_wp
-       !   Sh_vapor = 0.66 * non_dim%sc33 * pow(Re, 0.4) * betfact
+       if (cws > zero) Sh_vapor = 0.66_wp * non_dim%sc33 * Re**0.4_wp
+       ! Sh_vapor = 0.66 * non_dim%sc33 * pow(Re, 0.4) * betfact
     end if
     ! If there is free convection
     if (graf/(Re*Re) > one) then

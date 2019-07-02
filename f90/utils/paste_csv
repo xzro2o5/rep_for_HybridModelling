@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -e
+
+if [[ -$# -lt 2 ]] ; then
+    echo "Usage: ./paste_csv f90_output_dir c_output_dir"
+    exit
+fi
+
+dirf90=${1}
+dirc=${2}
+
+for ffile in ${dirf90}/*.csv ; do
+    ff=${ffile##*/}
+    cfile=${dirc}/${ff%.csv}-2006.csv
+    pfile=${dirf90}/cf_${ff%.csv}.txt
+    echo $ffile $cfile
+    if [[ -f ${pfile} ]] ; then rm ${pfile} ; fi
+    paste -d ',' ${cfile} ${ffile} > ${pfile}
+done
+
+echo "Examples"
+echo dfgui.py -f \"%j\" -s \',\' ${dirf90}/cf_daily_ave.txt 
+echo dfgui.py -f \"%j%H%M\" -s \',\' ${dirf90}/cf_h2osoil.txt 
+ 
+exit 0

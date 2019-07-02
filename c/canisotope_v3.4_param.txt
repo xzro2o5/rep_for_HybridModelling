@@ -39,7 +39,8 @@ dispfile = ../input/DIJHainich._C; location and name of disperion matrix
 
 year0 = 2006;             Year
 start_run      = 0010000; start of model run, [dddhhmm] > 0010100
-end_run        = 0050100; end of model run, [dddhhmm] < 3662400
+end_run        = 2732330; end of model run, [dddhhmm] < 3662400
+# end_run        = 2732330; end of model run, [dddhhmm] < 3662400
 start_profiles = 0020000; start of profile output, [dddhhmm]
 end_profiles   = 0050000; end of profile output, [dddhhmm]
 

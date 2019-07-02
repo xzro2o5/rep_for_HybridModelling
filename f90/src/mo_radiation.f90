@@ -5,7 +5,6 @@ MODULE radiation
   ! Written Jan 2011, Mathias Cuntz - Ported C-Code
 
   USE kinds, ONLY: wp, i4
-  USE types,         ONLY: input ! Yuan 2017.08.18
 
   IMPLICIT NONE
 
@@ -280,12 +279,13 @@ CONTAINS
     end if
 
     if (extra_nate == 1) then
-       MEAN = 57.3_wp
-       STD = 21.5_wp
-       !MC !!! v2
-       MEAN = 45._wp
-       STD = 18._wp
-       !MC !!! smallest netrad error
+       ! !MC - v1
+       ! MEAN = 57.3_wp
+       ! STD = 21.5_wp
+       ! !MC - v2
+       ! MEAN = 45._wp
+       ! STD = 18._wp
+       !MC - smallest netrad error
        MEAN = 35._wp
        STD = 18._wp
     end if
@@ -583,13 +583,7 @@ CONTAINS
     SUP(2:ncl+1)       = IR_source(1:ncl) * (one-solar%exxpdir(1:ncl))
     ! Intercepted IR that is radiated downward
     SDN(:)             = IR_source(:) * (one-solar%exxpdir(:))
-!print *, "Tk_sun_filt\n", Tk_sun_filt(:)
-!print *, "Tk_shade_filt\n", Tk_shade_filt(:)
-!print *, "IR_source_sun\n", IR_source_sun(:)
-!print *, "IR_source_shade\n", IR_source_shade(:)
-!print *, "IR_source\n", IR_source(:)
-!print *, "SUP\n", SUP(2:ncl+1)
-!print *, "SDN\n", SDN(:)
+
     ! First guess of up and down values
 
     ! Downward IR radiation, sum of that from upper layer that is transmitted
@@ -601,8 +595,6 @@ CONTAINS
     do j=2, ncl+1
        solar%ir_up(j) = solar%exxpdir(j-1) * solar%ir_up(j-1) + SUP(j)
     end do
-  !  print *, "solar ir up \n", solar%ir_up
- !   print *, "solar ir dn \n", solar%ir_dn
     ! ground emission
     emiss_IR_soil  = epsoil*sigma &
          * (soil%tsrf_filter+TN0)*(soil%tsrf_filter+TN0) &
@@ -635,8 +627,6 @@ CONTAINS
        i_check = i_check+1
        if (i_check > 10) write(nerr,*) "Bad irflux"
     end do
-!print *, "up \n", solar%ir_up
-!print *, "dn \n", solar%ir_dn
 
   END SUBROUTINE irflux
 
@@ -663,7 +653,6 @@ CONTAINS
     REAL(wp) :: cum_lai, sumlai, cum_ht, ztmp
     INTEGER(i4) :: i
 
-!    PRINT *, MU1
     ! seasonal update of model parameters
     ! Winter 1
     if (time%days < time%leafout) then
@@ -754,24 +743,13 @@ CONTAINS
     ! ENTER THE HEIGHT AT THE MIDPOINT OF THE LAYER
     ! Normalize height
     ztmp = one / ht
-    !ht_midpt_local(1:nbeta) = ht_midpt_local(1:nbeta) * ztmp
-   ! print *, ht_midpt_local
-   ! print *, lai_freq_local
+    ht_midpt_local(1:nbeta) = ht_midpt_local(1:nbeta) * ztmp
     ! TOTAL F IN EACH LAYER, TF SHOULD SUM TO EQUAL lai
-    !TF  = sum(lai_freq_local(1:nbeta))
+    TF  = sum(lai_freq_local(1:nbeta))
     ! weighted mean lai
-    TF  = zero
-    MU1 = zero
-    MU2 = zero
-    DO i=1, nbeta ! calculate array elements instead of the whole array Yuan 2017.08.29
-        TF  = TF + lai_freq_local(i)
-        ht_midpt_local(i) = ht_midpt_local(i) * ztmp
-        MU1 = MU1+ ht_midpt_local(i)*lai_freq_local(i)
-        MU2 = MU2 + ht_midpt_local(i)*ht_midpt_local(i)*lai_freq_local(i)
-    END DO
-    !MU1 = sum(ht_midpt_local(1:nbeta)*lai_freq_local(1:nbeta))
+    MU1 = sum(ht_midpt_local(1:nbeta)*lai_freq_local(1:nbeta))
     ! weighted variance
-    !MU2 = sum(ht_midpt_local(1:nbeta)*ht_midpt_local(1:nbeta)*lai_freq_local(1:nbeta))
+    MU2 = sum(ht_midpt_local(1:nbeta)*ht_midpt_local(1:nbeta)*lai_freq_local(1:nbeta))
     ! normalize mu by lai
     MU1 = MU1 / TF
     MU2 = MU2 / TF
@@ -790,7 +768,7 @@ CONTAINS
     DX2 = half * dx
     DX4 = dx / 4._wp
     X   = DX4
-    F2  = X**P_beta * (one-X)**Q_beta !!!
+    F2  = X**P_beta * (one-X)**Q_beta
     X   = X + DX4
     F3  = X**P_beta * (one-X)**Q_beta
     ! start integration at lowest boundary
@@ -817,9 +795,6 @@ CONTAINS
     lai_z(1)       = beta_fnc(1) * time%lai / integr_beta
     lai_z(1:ncl-1) = beta_fnc(1:ncl-1) * (time%lai / integr_beta)
     lai_z(ncl)     = beta_fnc(ncl) * time%lai / integr_beta
-  !  print *, beta_fnc
-  !  print *, "---"
-   ! print *, integr_beta
     ! re-index layers of lai_z.
     ! layer 1 is between ground and 1st level
     ! layer jtot is between level ncl and top of canopy (ncl+1)
@@ -878,7 +853,7 @@ CONTAINS
     ! Itegrated probability of diffuse sky radiation penetration for each layer
     solar%exxpdir(1:ncl) = two * XX(1:ncl) * DA(1:ncl)
     where (solar%exxpdir(1:ncl) > one) solar%exxpdir(1:ncl) = one
-!   print *, "exx", solar%exxpdir(1:ncl)
+
   END SUBROUTINE lai_time
 
 
@@ -894,8 +869,8 @@ CONTAINS
     ! Modification of the Aerial Environment of Crops.
     ! B. Barfield and J. Gerber, Eds. American Society of Agricultural Engineers, 249-280.
     USE setup,      ONLY: ncl
-    USE constants,  ONLY: zero, one, e1, e2, isnight, judgenight
-    USE types,      ONLY: solar, prof
+    USE constants,  ONLY: zero, one, e1, e2, isnight
+    USE types,      ONLY: solar, prof, input
     USE parameters, ONLY: markov
 
     IMPLICIT NONE
@@ -915,7 +890,7 @@ CONTAINS
     TBEAM(ncl+1)        = fraction_beam
     solar%nir_dn(ncl+1) = one - fraction_beam
 
-    if (solar%nir_total > one .and. solar%sine_beta > isnight .and. input%parin>0) then
+    if (solar%nir_total > one .and. solar%sine_beta > isnight .and. input%parin > zero) then
        SDN(1) = 0
        ! Compute probability of penetration for direct and
        ! diffuse radiation for each layer in the canopy
@@ -1002,7 +977,7 @@ CONTAINS
        solar%nir_dn(1:ncl+1)  = solar%nir_dn(1:ncl+1)  * solar%nir_total
        where (solar%nir_dn(1:ncl+1) < e1) solar%nir_dn(1:ncl+1) = e1
        ! normal radiation on sunlit leaves
-       if (.NOT.judgenight) then ! ORIGINALLY  (solar%sine_beta > isnight) YUAN 2017.08.18
+       if (solar%sine_beta > isnight .and. input%parin > zero) then
           nir_normal(1:ncl) = solar%nir_beam * prof%Gfunc_solar(1:ncl) * ztmp
        else
           nir_normal(1:ncl) = zero
@@ -1015,7 +990,7 @@ CONTAINS
        solar%nir_shd(1:ncl) = solar%nir_shd(1:ncl)  * solar%nir_absorbed
        ! plus diffuse component
        solar%nir_sun(1:ncl) = NSUNEN(1:ncl) + solar%nir_shd(1:ncl)
-    else ! solar%nir_total < one .or. solar%sine_beta < isnight .or.  input.parin<=0
+    else ! solar%nir_total <= one .or. solar%sine_beta <= isnight .or. input%parin <= zero
        solar%nir_up(1:ncl)        = zero
        solar%nir_dn(1:ncl)        = zero
        solar%nir_shd(1:ncl)       = zero
@@ -1042,7 +1017,7 @@ CONTAINS
     ! Modification of the Aerial Environment of Crops.
     ! B. Barfield and J. Gerber, Eds. American Society of Agricultural Engineers, 249-280.
     USE setup,      ONLY: ncl
-    USE constants,  ONLY: zero, one, e2, e3, isnight, judgenight
+    USE constants,  ONLY: zero, one, e2, e3, isnight
     USE types,      ONLY: solar, input, prof
     USE parameters, ONLY: markov
 
@@ -1059,7 +1034,7 @@ CONTAINS
     INTEGER(i4) :: j, jp1, jm1
     INTEGER(i4) :: IREP, ITER
 
-    if (.NOT.judgenight) then
+    if (solar%sine_beta > isnight .and. input%parin > zero) then
        fraction_beam = solar%par_beam / input%parin
        beam(ncl+1)   = fraction_beam
        TBEAM(ncl+1)  = fraction_beam
@@ -1116,7 +1091,7 @@ CONTAINS
           ! beam PAR that is transmitted downward
           SDN(j) = (TBEAM(jp1) - TBEAM(j)) * solar%par_trans
        end do
-!       print *, prof%dLAIdz(0),prof%dLAIdz(1)
+
        ! initiate scattering using the technique of NORMAN (1979).
        ! scattering is computed using an iterative technique.
        ! Here Adum is the ratio up/down diffuse radiation.
@@ -1175,7 +1150,7 @@ CONTAINS
        if (solar%par_beam < e3) solar%par_beam = e3
        ! PSUN is the radiation incident on the mean leaf normal
 
-       if (.NOT.judgenight) then
+       if (solar%sine_beta > isnight .and. input%parin > zero) then
           ztmp = one / solar%sine_beta
           ! PAR received normal to a leaf on a sunlit spot
           par_normal_quanta(1:ncl) = solar%par_beam * prof%Gfunc_solar(1:ncl) * ztmp
@@ -1196,13 +1171,12 @@ CONTAINS
        ! PAR
        solar%quantum_shd(1:ncl) = (solar%par_down(1:ncl) + solar%par_up(1:ncl)) * solar%par_absorbed ! umol m-2 s-1
        solar%quantum_sun(1:ncl) = solar%quantum_shd(1:ncl) + par_normal_abs_quanta(1:ncl)
-!       print *, solar%quantum_sun , solar%quantum_shd , par_normal_abs_quanta
        ! calculate absorbed par
        solar%par_shd(1:ncl)     = solar%quantum_shd(1:ncl) / 4.6_wp ! W m-2
        ! solar%par_sun is the total absorbed radiation on a sunlit leaf,
        ! which consists of direct and diffuse radiation
        solar%par_sun(1:ncl) = par_normal_abs_energy(1:ncl) + solar%par_shd(1:ncl)
-    else ! solar%sine_beta <= isnight
+    else ! solar%sine_beta <= isnight .or. input%parin <= zero
        solar%prob_shd(1:ncl)      = one
        solar%prob_beam(1:ncl)     = zero
        solar%par_up(1:ncl)        = zero
@@ -1249,8 +1223,7 @@ CONTAINS
     ! Sunlit, shaded values
     solar%rnet_sun(1:ncl) = solar%par_sun(1:ncl) + solar%nir_sun(1:ncl) + ir_shade(1:ncl)
     solar%rnet_shd(1:ncl) = solar%par_shd(1:ncl) + solar%nir_shd(1:ncl) + ir_shade(1:ncl)
-!print *, "sun \n", solar%rnet_sun
-!print *, "shd \n", solar%rnet_shd
+
   END SUBROUTINE rnet
 
 

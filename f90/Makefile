@@ -1,9 +1,53 @@
 # -*- Makefile -*-
 #
 # PURPOSE
-#     JAMS Makefile for Fortran, C and mixed projects
+# -------
+#     JAMS Makefile for Fortran, C, C++, and mixed projects
+#
+#
+# DESCRIPTION
+# -----------
+#     Compiling a program from source code is an elaborate process. The compiler has to find all
+#     source files, of course. It has to know all dependencies between the source files. For C programs,
+#     it has to find all the header (.h) files. For Fortran programs, it has to find the module (.mod)
+#     files, which are produced by the compiler itself, which means that the files have to be compiled
+#     in a certain order. Last but not least, the compiler and linker have to find external libraries
+#     and use appropriate compiler options.
+#
+#     Different solutions exist for this problem, the two most prominent being GNU's configure and
+#     Kitware's CMake. One amost always gives non-standard directories on the command line, e.g.
+#         configure --with-netcdf=/path/to/netcdf
+#         cmake -DCMAKE_NETCDF_DIR:STRING=/path/to/netcdf
+#     Therefore, one has to know all installation directories etc. for the current computer (system) or
+#     load the appropriate, matching modules, which is tedious if you work on several computers such as
+#     your local computer for development and one or two clusters or supercomputers for production.
+#     This can be externalised in CMake by giving a script with -C or -P once all information was gathered.
+#
+#     This Makefile follows a similar idea that the information about the current computer (system)
+#     must only be gathered once and stored in a config file. The user can then easily compile the same code
+#     on different computer (systems) with different compilers in debug or release mode, by simply
+#     telling on the command line
+#         make system=mcinra compiler=gnu release=debug
+#     This uses the system specific files mcinra.alias to look for the default gnu compiler, which is
+#     version 6.1 in this case and then uses all variables set in the file mcinra.gnu61. The user has
+#     to provide these mcinra.alias and mcinra.gnu61 populated with the directories and specific compiler
+#     options for the GNU compiler suite 6.1 on the macOS system mcinra. The files can then be reused for
+#     every other project on the computer (system) mcinra.
+#
+#     The project includes examples for different operating systems, i.e. Unix (e.g. pearcey),
+#     Linux (e.g. explor), macOS (e.g. mcinra), and Windows (e.g. uwin).
+#     The computer system mcinra provides examples for different compilers, i.e. the GNU compiler suite,
+#     the Intel compiler suite, the NAG Fortran compiler, and the PGI Fortran compiler.
+#
+#     The project provides some standard configurations for the GNU compiler suite such as
+#     homebrew on macOS, ubuntu on Linux, and cygwin and ubuntu (uwin) on Windows.
+#
+#     The README.md includes a section how to add a new compiler and how to setup the Makefile project
+#     on a new computer (system).
+#     
 #
 # CALLING SEQUENCE
+# ----------------
 #     make [options] [VARIABLE=VARIABLE ...] [targets]
 #
 #     Variables can be set on the command line [VAR=VAR] or in the section SWITCHES below.
@@ -13,79 +57,107 @@
 #
 #     Sources are in $(SRCPATH), which can be several directories separated by whitespace.
 #
-#     File suffixes can be given in $(F90SUFFIXES), $(F77SUFFIXES), and $(CSUFFIXES)
-#     Default Fortran 90 is: .f90, .F90, .f95, .F95, .f03, .F03, .f08, .F08
-#     Default Fortran 77 is: .f,   .F,   .for, .FOR, .f77, .F77, .ftn, .FTN
-#     Default C is:          .c,   .C
+#     File suffixes can be given in $(F90SUFFIXES), $(F77SUFFIXES), $(CSUFFIXES), $(CXXSUFFIXES), and $(LIBSUFFIXES)
+#     Defaults are:
+#         Fortran 90: .f90, .F90, .f95, .F95, .f03, .F03, .f08, .F08
+#         Fortran 77: .f,   .F,   .for, .FOR, .f77, .F77, .ftn, .FTN
+#         C:          .c,   .C,   .cc,  .CC
+#         C++:        .cpp, .CPP, .cxx, .CXX, .cp,  .CP,  .c++, .C++
+#         Library:    .a .so .dylib
+#     Note that .F and .FOR are Fortran 77 by default.
+#
 #
 # TARGETS
-#     all (default), check (=test), clean, cleanclean (=distclean), cleancheck (=cleantest=checkclean=testclean),
-#     cleancleancheck (=cleancleantest=checkcleanclean=testcleanclean), dependencies (=depend),
-#     html, pdf, latex, doxygen, info
+# -------
+#     all (default), check (=test), dependencies (=depend), html, pdf, latex, doxygen, info
+#     clean, cleanclean (=distclean), cleancheck (=cleantest=checkclean=testclean),
+#     cleancleancheck (=cleancleantest=checkcleanclean=testcleanclean),
+#
 #
 # OPTIONS
+# -------
 #     All make options such as -f makefile. See 'man make'.
 #
+#
 # VARIABLES
+# ---------
 #     All variables defined in this makefile.
 #     This makefile has lots of conditional statements depending on variables.
 #     If the variable works as a switch then the condition checks for variable = true,
-#     i.e. ifeq ($(variable),true)
-#     otherwise the variable can have any other value.
+#     i.e. ifeq ($(variable),true), otherwise the variable can have any other value.
 #     See individual variables in section SWITCHES below or type 'make info'.
 #
 #     Variables can be empty for disabling a certain behaviour,
-#     e.g. if you do not want to use IMSL, set:  imsl=no  or  imsl=
+#     e.g. if you do not want to use LAPACK, set:  lapack=no  or  lapack=
 #
 #     For main variables see 'make info'.
 #
+#
 # DEPENDENCIES
+# ------------
 #    This makefile uses the following files:
 #        $(MAKEDPATH)/make.d.py, $(CONFIGPATH)/$(system).$(compiler), $(CONFIGPATH)/$(system).alias
-#    The default $(MAKEDPATH) and $(CONFIGPATH) is make.config
-#    The makefile can use doxygen for html and pdf automatic documentation.
-#        It is then using $(DOXCONFIG).
+#    The default $(MAKEDPATH) and $(CONFIGPATH) is make.config.
+#    The makefile can use doxygen for html and pdf automatic documentation. It is then using $(DOXCONFIG).
 #    If this is not available, it uses the perl script f2html for html documentation:
 #        $(TOOLPATH)/f2html, $(TOOLPATH)/f2html.fgenrc
 #
+#
 # RESTRICTIONS
-#    Not all packages work with or are compiled for all compilers.
-#    The static switch is maintained like a red-headed stepchild. Libraries might be not ordered correctly
-#    if static linking and --begin-group/--end-group is not supported.
+# ------------
+#    1. The makefile provides dependency generation. This process must be done in serial. Parallel make (-j)
+#       does hence not work from scratch.
+#       One can split dependency generation and compilation by
+#       first calling make with a dummy target, which creates all dependencies, and then
+#       second calling parallel make with the -j switch, i.e.
+#           make      system=mcinra compiler=intel release=release  dum
+#           make -j 8 system=mcinra compiler=intel release=release
 #
-#    C-file dependencies are generated with
-#        $(CC) -E $(DEFINES) -MM
+#    2. The static switch is maintained like a red-headed stepchild. Libraries might be not ordered correctly
+#       if static linking and --begin-group/--end-group is not supported by the linker.
 #
-# EXAMPLE
-#    make system=eve compiler=intel release=debug mkl=mkl95 PROGNAME=prog
+#    3. C- and C++-file dependencies are generated with:
+#           $(CC) -E $(DEFINES) -MM
+#
+#
+# EXAMPLES
+# --------
+#    make system=eve release=true
+#    make system=mcinra compiler=gcc release=debug lapack=true mpi=openmpi
+#
 #
 # NOTES
-#    Further information is given in the README, for example on
+# -----
+#    Further information is given in the README.md, for example on
 #    the repository of the makefile,
 #    further reading,
 #    how to add a new compiler on a given system, or
 #    how to add a new system.
 #
+#
 # LICENSE
-#    This file is part of the JAMS makefile project.
+# -------
+#    This file is part of the JAMS Makefile system, distributed under the MIT License.
 #
-#    The JAMS makefile project is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Lesser General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
+#    Copyright (c) 2011-2019 Matthias Cuntz - mc (at) macu (dot) de
 #
-#    The JAMS makefile project is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-#    GNU Lesser General Public License for more details.
+#    Permission is hereby granted, free of charge, to any person obtaining a copy
+#    of this software and associated documentation files (the "Software"), to deal
+#    in the Software without restriction, including without limitation the rights
+#    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#    copies of the Software, and to permit persons to whom the Software is
+#    furnished to do so, subject to the following conditions:
 #
-#    You should have received a copy of the GNU Lesser General Public License
-#    along with the JAMS makefile project (cf. gpl.txt and lgpl.txt).
-#    If not, see <http://www.gnu.org/licenses/>.
+#    The above copyright notice and this permission notice shall be included in all
+#    copies or substantial portions of the Software.
 #
-#    Copyright 2011-2017 Matthias Cuntz
-#
-# Written and maintained Matthias Cuntz, Nov. 2011 - mc (at) macu.de
+#    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#    SOFTWARE.
 
 SHELL = /bin/bash
 
@@ -94,29 +166,34 @@ SHELL = /bin/bash
 #
 
 # . is current directory, .. is parent directory
-SRCPATH    := src # where are the source files; use test_??? to
+SRCPATH    := src                # where are the source files; whitespace separated list
 PROGPATH   := .                  # where shall be the executable
 CONFIGPATH := make.config        # where are the $(system).$(compiler) files
-MAKEDPATH  := $(CONFIGPATH)      # where is the make.d.sh script
-CHECKPATH  := ../fortran/test    # path for $(CHECKPATH)/test* and $(CHECKPATH)/check* directories if target is check
+MAKEDPATH  := $(CONFIGPATH)      # where is the make.d.py script
+CHECKPATH  := test               # path for $(CHECKPATH)/test* and $(CHECKPATH)/check* directories if target is check
 TOOLPATH   := tools              # tools such as f2html
 DOXCONFIG  := ./doxygen.config   # the doxygen config file
 #
 PROGNAME := canveg # Name of executable
 LIBNAME  := # Name of library, e.g. libminpack.a
+# Program should be linked using the compiler of the main file (-> fortran: program prog, C: void main()).
+# Default: $(F90) if source files include fortran files, otherwise $(CC).
+# Possible values: fortran Fortran FORTRAN for For FOR, c C, c++ C++ cxx CXX
+LINKER   :=
 #
 # Options
-# Systems: eve and personal computers such as mcair for Matthias' MacBook Air; look in $(MAKEDPATH) or type 'make info'
-system   := mcair
+# Systems: computer (system) name given during installation such as mcair for Matthias' MacBook Air, for example.
+# Look in $(MAKEDPATH) or type 'make info' for available computer systems.
+system   := mcinra
 # Compiler: e.g. gnuX where X stands for version number, e.g. intel13;
 #   look at $(MAKEDPATH)/$(system).alias for shortcuts such as gnu for gnuX or type 'make info'
 compiler := gnu
 # Releases: debug, release, true (last two are equal)
 release  := debug
-# Netcdf versions (Network Common Data Form): netcdf3, netcdf4, [anything else]
-netcdf   := netcdf4
+# netCDF versions (Network Common Data Form): netcdf3, netcdf4, [anything else]
+netcdf   :=
 # LAPACK (Linear Algebra Pack): true, [anything else]
-lapack   := true
+lapack   :=
 # MKL (Intel's Math Kernel Library): mkl, mkl95, [anything else]
 mkl      :=
 # Proj4 (Cartographic Projections Library): true, [anything else]
@@ -125,14 +202,14 @@ proj     :=
 imsl     :=
 # OpenMP parallelization: true, [anything else]
 openmp   := 
-# MPI parallelization - experimental: true, [anything else]
+# MPI parallelization - experimental: openmpi mpich [anything else]
 mpi      :=
 # Linking: static, shared, dynamic (last two are equal)
 static   := shared
 
 # The Makefile sets the following variables depending on the above options:
 # FC, FCFLAGS, F90, F90FLAGS, CC, CFLAGS, CPP, DEFINES, INCLUDES, LD, LDFLAGS, LIBS
-# flags, defines, etc. will be set incremental. They will be initialised with
+# Flags, defines, etc. will be set incremental. They will be initialised with
 # the following EXTRA_* variables. This allows for example to set an extra compiler
 # option or define a preprocessor variable such as: EXTRA_DEFINES := -DNOGUI -DDPREC
 
@@ -154,8 +231,8 @@ static   := shared
 #      0_10708
 #     : catastrophic error: **Internal compiler error: internal abort** Please report this error along with the
 #     circumstances in which it occurred in a Software Problem Report.
-#      Note: File and line given may not be explicit cause of this error.
-# then you probably assume the F2003 feature that arrays can be allocated as a result of a function.
+#     Note: File and line given may not be explicit cause of this error.
+# then you probably assume the F2003 feature that arrays can be (re-)allocated as a result of a function.
 # Add the affected file to the list
 #     INTEL_EXCLUDE
 # below. This will not set the compiler flag -assume realloc-lhs.
@@ -187,6 +264,7 @@ EXTRA_INCLUDES :=
 EXTRA_LDFLAGS  :=
 EXTRA_LIBS     :=
 EXTRA_CFLAGS   :=
+EXTRA_CXXFLAGS :=
 
 # Intel F2003 -assume realloc-lhs
 INTEL_EXCLUDE  :=
@@ -198,18 +276,27 @@ EXCLUDE_FILES  :=
 F90SUFFIXES := .f90 .F90 .f95 .F95 .f03 .F03 .f08 .F08
 # Fortran 77 suffixes: .f .F .for .FOR .f77 .F77 .ftn .FTN
 F77SUFFIXES := .f .F .for .FOR .f77 .F77 .ftn .FTN
-# C suffixes: .c .C
-CSUFFIXES   := .c .C
+# C suffixes: .c .C .cc .CC
+CSUFFIXES   := .c .C .cc .CC
+# C++ suffixes: .cpp .CPP .cxx .CXX .cp .CP .c++ .C++
+# often .C and .cc are also taken as C++, e.g. in gcc compiler suite
+CXXSUFFIXES   := .cpp .CPP .cxx .CXX .cp .CP .c++ .C++
 # Library suffixes: .a .so .dylib
 LIBSUFFIXES := .a .so .dylib
+
+#
+# ----------------------------------------------------------
+# END OF USER SECTION
+# ----------------------------------------------------------
+#
 
 #
 # --- PATHS ------------------------------------------------
 #
 
 # Make absolute paths from relative paths - there should be no space nor comment at the end of the next lines
-SRCPATH1   := $(word 1, $(SRCPATH))
-SRCPATH1   := $(abspath $(SRCPATH1:~%=${HOME}%))
+SRCPATH1 := $(word 1, $(SRCPATH))
+SRCPATH1 := $(abspath $(SRCPATH1:~%=${HOME}%))
 override SRCPATH    := $(abspath $(SRCPATH:~%=${HOME}%))
 override PROGPATH   := $(abspath $(PROGPATH:~%=${HOME}%))
 override CONFIGPATH := $(abspath $(CONFIGPATH:~%=${HOME}%))
@@ -251,10 +338,10 @@ MAKEDPROG   := $(MAKEDPATH)/$(MAKEDSCRIPT)
 iphony    := False
 iphonyall := False
 ifneq ($(strip $(MAKECMDGOALS)),)
-    ifneq ($(findstring /$(strip $(MAKECMDGOALS))/,/check/ /test/ /html/ /latex/ /pdf/ /doxygen/),)
+    ifneq ($(filter $(strip $(MAKECMDGOALS)),check test html latex pdf doxygen),)
         iphony := True
     endif
-    ifneq (,$(findstring $(strip $(MAKECMDGOALS))/,/check/ /test/ /html/ /latex/ /pdf/ /doxygen/ /info/ /clean/ /cleanclean/ /distclean/ /cleancheck/ /checkclean/ /cleantest/ /testclean/ /cleancleancheck/ /checkcleanclean/ /cleancleantest/ /testcleanclean/))
+    ifneq (,$(filter $(strip $(MAKECMDGOALS)),check test html latex pdf doxygen info clean cleanclean distclean cleancheck checkclean cleantest testclean cleancleancheck checkcleanclean cleancleantest testcleanclean))
         iphonyall := True
     endif
 endif
@@ -263,8 +350,8 @@ endif
 # --- CHECK SYSTEM ----------------------------------------------
 #
 
-systems := $(shell ls -1 $(CONFIGPATH) | sed -e "/$(MAKEDSCRIPT)/d" -e '/f2html/d' | cut -d '.' -f 1 | sort | uniq)
-ifeq (,$(findstring $(system),$(systems)))
+systems := $(shell ls -1 $(CONFIGPATH) | sed -e "/$(MAKEDSCRIPT)/d" -e '/f2html/d' -e '/^old/d' | cut -d '.' -f 1 | sort | uniq)
+ifeq (,$(filter $(system),$(systems)))
     $(error Error: system '$(system)' not found: known systems are $(systems))
 endif
 
@@ -283,17 +370,23 @@ endif
 # --- CHECK COMPILER --------------------------------------------
 #
 
-compilers := $(shell ls -1 $(CONFIGPATH) | sed -e "/$(MAKEDSCRIPT)/d" -e '/f2html/d' -e '/alias/d' -e '/~$$/d' | grep $(system) | cut -d '.' -f 2 | sort | uniq)
+compilers := $(shell ls -1 $(CONFIGPATH) | sed -e "/$(MAKEDSCRIPT)/d" -e '/f2html/d' -e '/alias/d' -e '/~$$/d' | grep $(system) | cut -d '.' -f 2- | sort | uniq)
 gnucompilers := $(filter gnu%, $(compilers))
 nagcompilers := $(filter nag%, $(compilers))
 intelcompilers := $(filter intel%, $(compilers))
-ifeq (,$(findstring $(icompiler),$(compilers)))
+ifeq (,$(filter $(icompiler),$(compilers)))
     $(error Error: compiler '$(icompiler)' not found: configured compilers for system $(system) are $(compilers))
 endif
 
 #
 # --- SOURCE FILES ---------------------------------------------------
 #
+
+# System specific files
+ifeq (False,$(iphony))
+    SSRCS := $(foreach suff,$(system),$(wildcard $(addsuffix /*$(suff), $(SRCPATH))))
+endif
+SOBJS := $(foreach suff, $(system), $(patsubst %.$(suff), %, $(filter %$(suff), $(SSRCS))))
 
 # Available Fortran90 source files
 ifeq (False,$(iphony))
@@ -329,6 +422,15 @@ COSRCS := $(foreach suff, $(CSUFFIXES), $(patsubst %$(suff), %.o, $(filter %$(su
 COBJS  := $(join $(dir $(COSRCS)), $(addprefix .$(strip $(icompiler)).$(strip $(irelease))/,$(notdir $(COSRCS))))
 CDOBJS := $(COBJS:.o=.d)
 
+# C++
+ifeq (False,$(iphony))
+    CXXSRCS1 := $(foreach suff,$(CXXSUFFIXES),$(wildcard $(addsuffix /*$(suff), $(SRCPATH))))
+endif
+CXXSRCS  := $(foreach f,$(CXXSRCS1),$(if $(findstring $(f),$(abspath $(EXCLUDE_FILES))),,$(f)))
+CXXOSRCS := $(foreach suff, $(CXXSUFFIXES), $(patsubst %$(suff), %.o, $(filter %$(suff), $(CXXSRCS))))
+CXXOBJS  := $(join $(dir $(CXXOSRCS)), $(addprefix .$(strip $(icompiler)).$(strip $(irelease))/,$(notdir $(CXXOSRCS))))
+CXXDOBJS := $(CXXOBJS:.o=.d)
+
 # Libraries
 ifeq (False,$(iphony))
     LSRCS1 := $(foreach suff,$(LIBSUFFIXES),$(wildcard $(addsuffix /*$(suff), $(SRCPATH))))
@@ -351,6 +453,9 @@ F90FLAGS := $(EXTRA_F90FLAGS)
 # C
 CC       :=
 CFLAGS   := $(EXTRA_CFLAGS)
+# C++
+CXX      :=
+CXXFLAGS := $(EXTRA_CXXFLAGS)
 # all
 CPP      :=
 DEFINES  := $(EXTRA_DEFINES)
@@ -373,35 +478,43 @@ OBJPATH := $(addsuffix /.$(strip $(icompiler)).$(strip $(irelease)), $(SRCPATH))
 
 # Files with lists of file names
 OBJPATH1 := $(addsuffix /.$(strip $(icompiler)).$(strip $(irelease)), $(SRCPATH1))
-SRCSFILE := $(OBJPATH1)/make.d.srcs
-OBJSFILE := $(OBJPATH1)/make.d.objs
+SRCSFILE  := $(OBJPATH1)/make.d.srcs
+OBJSFILE  := $(OBJPATH1)/make.d.objs
 DOBJSFILE := $(OBJPATH1)/make.d.dobjs
-FSRCSFILE := $(OBJPATH1)/make.d.fsrcs
-FOBJSFILE := $(OBJPATH1)/make.d.fobjs
+FSRCSFILE  := $(OBJPATH1)/make.d.fsrcs
+FOBJSFILE  := $(OBJPATH1)/make.d.fobjs
 FDOBJSFILE := $(OBJPATH1)/make.d.fdobjs
-CSRCSFILE := $(OBJPATH1)/make.d.csrcs
-COBJSFILE := $(OBJPATH1)/make.d.cobjs
+CSRCSFILE  := $(OBJPATH1)/make.d.csrcs
+COBJSFILE  := $(OBJPATH1)/make.d.cobjs
 CDOBJSFILE := $(OBJPATH1)/make.d.cdobjs
+CXXSRCSFILE  := $(OBJPATH1)/make.d.cxxsrcs
+CXXOBJSFILE  := $(OBJPATH1)/make.d.cxxobjs
+CXXDOBJSFILE := $(OBJPATH1)/make.d.cxxdobjs
 LSRCSFILE := $(OBJPATH1)/make.d.lsrcs
 LOBJSFILE := $(OBJPATH1)/make.d.lobjs
-$(shell if [[ ! -d $(OBJPATH1) ]] ; then mkdir -p $(OBJPATH1) ; fi)
-$(shell if [[ -f $(SRCSFILE) ]]   ; then rm $(SRCSFILE)   ; fi ; echo $(SRCS)   | tr ' ' '\n' >> $(SRCSFILE))
-$(shell if [[ -f $(OBJSFILE) ]]   ; then rm $(OBJSFILE)   ; fi ; echo $(OBJS)   | tr ' ' '\n' >> $(OBJSFILE))
-$(shell if [[ -f $(DOBJSFILE) ]]  ; then rm $(DOBJSFILE)  ; fi ; echo $(DOBJS)  | tr ' ' '\n' >> $(DOBJSFILE))
-$(shell if [[ -f $(FSRCSFILE) ]]  ; then rm $(FSRCSFILE)  ; fi ; echo $(FSRCS)  | tr ' ' '\n' >> $(FSRCSFILE))
-$(shell if [[ -f $(FOBJSFILE) ]]  ; then rm $(FOBJSFILE)  ; fi ; echo $(FOBJS)  | tr ' ' '\n' >> $(FOBJSFILE))
-$(shell if [[ -f $(FDOBJSFILE) ]] ; then rm $(FDOBJSFILE) ; fi ; echo $(FDOBJS) | tr ' ' '\n' >> $(FDOBJSFILE))
-$(shell if [[ -f $(CSRCSFILE) ]]  ; then rm $(CSRCSFILE)  ; fi ; echo $(CSRCS)  | tr ' ' '\n' >> $(CSRCSFILE))
-$(shell if [[ -f $(COBJSFILE) ]]  ; then rm $(COBJSFILE)  ; fi ; echo $(COBJS)  | tr ' ' '\n' >> $(COBJSFILE))
-$(shell if [[ -f $(CDOBJSFILE) ]] ; then rm $(CDOBJSFILE) ; fi ; echo $(CDOBJS) | tr ' ' '\n' >> $(CDOBJSFILE))
-$(shell if [[ -f $(LSRCSFILE) ]]  ; then rm $(LSRCSFILE)  ; fi ; echo $(LSRCS)  | tr ' ' '\n' >> $(LSRCSFILE))
-$(shell if [[ -f $(LOBJSFILE) ]]  ; then rm $(LOBJSFILE)  ; fi ; echo $(LOBJS)  | tr ' ' '\n' >> $(LOBJSFILE))
+ifeq (False,$(iphonyall))
+    $(shell if [[ ! -d $(OBJPATH1) ]] ; then mkdir -p $(OBJPATH1) ; fi)
+    $(shell if [[ -f $(SRCSFILE) ]]   ; then rm $(SRCSFILE)   ; fi ; echo $(SRCS)   | tr ' ' '\n' >> $(SRCSFILE))
+    $(shell if [[ -f $(OBJSFILE) ]]   ; then rm $(OBJSFILE)   ; fi ; echo $(OBJS)   | tr ' ' '\n' >> $(OBJSFILE))
+    $(shell if [[ -f $(DOBJSFILE) ]]  ; then rm $(DOBJSFILE)  ; fi ; echo $(DOBJS)  | tr ' ' '\n' >> $(DOBJSFILE))
+    $(shell if [[ -f $(FSRCSFILE) ]]  ; then rm $(FSRCSFILE)  ; fi ; echo $(FSRCS)  | tr ' ' '\n' >> $(FSRCSFILE))
+    $(shell if [[ -f $(FOBJSFILE) ]]  ; then rm $(FOBJSFILE)  ; fi ; echo $(FOBJS)  | tr ' ' '\n' >> $(FOBJSFILE))
+    $(shell if [[ -f $(FDOBJSFILE) ]] ; then rm $(FDOBJSFILE) ; fi ; echo $(FDOBJS) | tr ' ' '\n' >> $(FDOBJSFILE))
+    $(shell if [[ -f $(CSRCSFILE) ]]  ; then rm $(CSRCSFILE)  ; fi ; echo $(CSRCS)  | tr ' ' '\n' >> $(CSRCSFILE))
+    $(shell if [[ -f $(COBJSFILE) ]]  ; then rm $(COBJSFILE)  ; fi ; echo $(COBJS)  | tr ' ' '\n' >> $(COBJSFILE))
+    $(shell if [[ -f $(CDOBJSFILE) ]] ; then rm $(CDOBJSFILE) ; fi ; echo $(CDOBJS) | tr ' ' '\n' >> $(CDOBJSFILE))
+    $(shell if [[ -f $(CXXSRCSFILE) ]]  ; then rm $(CXXSRCSFILE)  ; fi ; echo $(CXXSRCS)  | tr ' ' '\n' >> $(CXXSRCSFILE))
+    $(shell if [[ -f $(CXXOBJSFILE) ]]  ; then rm $(CXXOBJSFILE)  ; fi ; echo $(CXXOBJS)  | tr ' ' '\n' >> $(CXXOBJSFILE))
+    $(shell if [[ -f $(CXXDOBJSFILE) ]] ; then rm $(CXXDOBJSFILE) ; fi ; echo $(CXXDOBJS) | tr ' ' '\n' >> $(CXXDOBJSFILE))
+    $(shell if [[ -f $(LSRCSFILE) ]]  ; then rm $(LSRCSFILE)  ; fi ; echo $(LSRCS)  | tr ' ' '\n' >> $(LSRCSFILE))
+    $(shell if [[ -f $(LOBJSFILE) ]]  ; then rm $(LOBJSFILE)  ; fi ; echo $(LOBJS)  | tr ' ' '\n' >> $(LOBJSFILE))
+endif
 
-# Mac OS X is special, there is (almost) no static linking.
-# Mac OS X does not work with -rpath. Set DYLD_LIBRARY_PATH if needed.
+# macOS is special, there is (almost) no static linking.
+# macOS does not work with -rpath. Set DYLD_LIBRARY_PATH if needed.
 iOS := $(shell uname -s)
 istatic := $(static)
-ifneq (,$(findstring $(iOS),Darwin))
+ifneq (,$(filter $(iOS),Darwin))
     istatic := dynamic
 endif
 
@@ -420,32 +533,49 @@ iLIBS :=
 ifeq ($(istatic),static)
     iLIBS += -Bstatic -Wl,--start-group
 else
-    ifneq (,$(findstring $(iOS),Darwin))
+    ifneq (,$(filter $(iOS),Darwin))
         iLIBS += -Wl,-dynamic
     else
         iLIBS += -Bdynamic
     endif
 endif
 
+ifneq (,$(SOBJS))
+    $(foreach ff,$(SOBJS),$(shell if [[ -f $(ff) ]] ; then isdiff=`diff $(ff) $(ff).$(system)` ; if [[ "$${isdiff}z" != "z" ]] ; then cp $(ff).$(system) $(ff) ; fi ; else cp $(ff).$(system) $(ff) ; fi))
+endif
+
 # --- LINKER ---------------------------------------------------
-# Link with the fortran compiler if fortran code
-ifneq ($(SRCS)$(FSRCS),)
-    LD := $(F90)
+# Link with compiler for main file
+ifneq ($(LINKER),)
+    ifneq ($(filter $(strip $(LINKER)),fortran Fortran FORTRAN for For FOR),)
+        LD := $(F90)
+    endif
+    ifneq ($(filter $(strip $(LINKER)),c C),)
+        LD := $(CC)
+    endif
+    ifneq ($(filter $(strip $(LINKER)),c++ C++ cxx CXX),)
+        LD := $(CXX)
+    endif
 else
-    LD := $(CC)
+    # Link with the fortran compiler if fortran code
+    ifneq ($(SRCS)$(FSRCS),)
+        LD := $(F90)
+    else
+        LD := $(CC)
+    endif
 endif
 
 # --- INCLUDES/LIBS/FLAGS/DEFINES/RPATH --------------------------
 SDIRS :=
-ifneq (,$(findstring $(mkl),mkl mkl95))
+ifneq (,$(filter $(mkl),mkl mkl95))
     # First mkl95 then mkl for .mod files other then intel
     ifeq ($(mkl),mkl95)
         SDIRS += MKL95DIR
     endif
     SDIRS += MKLDIR
 endif
-ifneq (,$(findstring $(netcdf),netcdf3 netcdf4))
-    SDIRS += NCDIR NCFDIR
+ifneq (,$(filter $(netcdf),netcdf3 netcdf4))
+    SDIRS += NCFDIR NCDIR
     ifeq ($(netcdf),netcdf4)
         SDIRS += HDF5DIR SZDIR CURLDIR ZDIR
     endif
@@ -457,10 +587,15 @@ ifeq ($(lapack),true)
     SDIRS += LAPACKDIR
     SDIRS += BLASDIR
 endif
-ifeq ($(mpi),true)
-    SDIRS += MPIDIR
+ifneq (,$(filter $(mpi),openmpi mpich))
+    ifeq ($(netcdf),openmpi)
+        SDIRS += OPENMPIDIR
+    endif
+    ifeq ($(netcdf),mpich)
+        SDIRS += MPICHDIR
+    endif
 endif
-ifneq (,$(findstring $(imsl),vendor imsl))
+ifneq (,$(filter $(imsl),vendor imsl))
     SDIRS += IMSLDIR
 endif
 # function (=) used below to set flag if given
@@ -477,44 +612,40 @@ RPATH    += $(foreach dir,$(SDIRS),$(if $($(dir:DIR=LIB)),$(WL)$($(dir:DIR=LIB))
 # defines
 DEFINES  += $(foreach dir,$(SDIRS),$(if $($(dir:DIR=DEF)),$($(dir:DIR=DEF))))
 
-
-# # --- MKL ---------------------------------------------------
-# ifneq (,$(findstring $(mkl),mkl mkl95))
-#     ifneq (,$(findstring $(imsl),vendor imsl))
-#        iLIBS += -lmkl_intel_thread #-lpthread
-#     else
-#         ifeq ($(openmp),true)
-#             iLIBS += -lmkl_intel_thread #-lpthread
-#         else
-#             iLIBS += -lmkl_sequential #-lpthread
-#         endif
-#     endif
-#     ifeq ($(openmp),true)
-# 	ifeq (,$(findstring $(icompiler),$(intelcompilers)))
-#             iLIBS += -L$(INTELLIB) -liomp5
-#             RPATH += -Wl,-rpath,$(INTELLIB)
-#         endif
-#     endif
-# endif
-
 # --- MPI ---------------------------------------------------
 MPI_F90FLAGS :=
 MPI_FCFLAGS  :=
 MPI_CFLAGS   :=
+MPI_CXXFLAGS :=
 MPI_LDFLAGS  :=
-ifeq ($(mpi),true)
-    MPIINC ?= $(MPIDIR)/include
-    MPILIB ?= $(MPIDIR)/lib
-    MPIBIN ?= $(MPIDIR)/bin
+ifeq ($(mpi),openmpi)
+    MPIINC ?= $(OPENMPIDIR)/include
+    MPILIB ?= $(OPENMPIDIR)/lib
+    MPIBIN ?= $(OPENMPIDIR)/bin
     MPI_F90FLAGS += $(shell $(MPIBIN)/mpif90 --showme:compile)
     MPI_FCFLAGS  += $(shell $(MPIBIN)/mpif77 --showme:compile)
     MPI_CFLAGS   += $(shell $(MPIBIN)/mpicc --showme:compile)
+    MPI_CXXFLAGS += $(shell $(MPIBIN)/mpicxx --showme:compile)
     ifeq ($(LD),$(F90))
         MPI_LDFLAGS += $(shell $(MPIBIN)/mpif90 --showme:link)
     else
         MPI_LDFLAGS += $(shell $(MPIBIN)/mpicc --showme:link)
     endif
-    INCLUDES += -I$(MPILIB) # mpi.h in lib and not include <- strange
+    INCLUDES += -I$(MPILIB) # mpi.h in lib and not include
+endif
+ifeq ($(mpi),mpich)
+    MPIINC ?= $(MPICHDIR)/include
+    MPILIB ?= $(MPICHDIR)/lib
+    MPIBIN ?= $(MPICHDIR)/bin
+    MPI_F90FLAGS += $(shell $(MPIBIN)/mpifort -compile_info | cut -d ' ' -f 2-)
+    MPI_FCFLAGS  += $(shell $(MPIBIN)/mpifort -compile_info | cut -d ' ' -f 2-)
+    MPI_CFLAGS   += $(shell $(MPIBIN)/mpicc -compile_info | cut -d ' ' -f 2-)
+    MPI_CXXFLAGS += $(shell $(MPIBIN)/mpicxx -compile_info | cut -d ' ' -f 2-)
+    ifeq ($(LD),$(F90))
+        MPI_LDFLAGS += $(shell $(MPIBIN)/mpif90 -link_info | cut -d ' ' -f 2-)
+    else
+        MPI_LDFLAGS += $(shell $(MPIBIN)/mpicc -link_info | cut -d ' ' -f 2-)
+    endif
 endif
 
 # --- OPENMP ---------------------------------------------------
@@ -523,21 +654,22 @@ ifeq ($(openmp),true)
     F90FLAGS += $(F90OMPFLAG)
     FCFLAGS  += $(FCOMPFLAG)
     CFLAGS   += $(COMPFLAG)
+    CXXFLAGS += $(CXXOMPFLAG)
     LDFLAGS  += $(LDOMPFLAG)
     DEFINES  += $(OMPDEFINE)
-else ifneq (,$(findstring $(imsl),vendor imsl))
+else ifneq (,$(filter $(imsl),vendor imsl))
     # IMSL needs openmp during linking in any case
     LDFLAGS  += $(LDOMPFLAG)
 endif
 
 # --- DOXYGEN ---------------------------------------------------
 DOXYGEN  := $(if $(DOXYGENDIR),$(strip $(DOXYGENDIR))/doxygen,$(shell which doxygen 2>/dev/null))
-DOTPATH  := $(if $(DOTDIR),$(strip $(DOTDIR)),$(dir $(shell which dot)))
-TEXPATH  := $(if $(TEXDIR),$(strip $(TEXDIR)),$(dir $(shell which latex)))
-PERLPATH := $(if $(PERLDIR),$(strip $(PERLDIR)),$(dir $(shell which perl)))
+DOTPATH  := $(if $(DOTDIR),$(strip $(DOTDIR)),$(dir $(shell which dot 2>/dev/null)))
+TEXPATH  := $(if $(TEXDIR),$(strip $(TEXDIR)),$(dir $(shell which latex 2>/dev/null)))
+PERLPATH := $(if $(PERLDIR),$(strip $(PERLDIR)),$(dir $(shell which perl 2>/dev/null)))
 
 # --- INTEL F2003 REALLOC-LHS ---------------------------------------
-ifneq (,$(findstring $(icompiler),$(intelcompilers)))
+ifneq (,$(filter $(icompiler),$(intelcompilers)))
     F90FLAGS1 := $(subst -assume realloc-lhs,,"$(F90FLAGS)")
 else
     F90FLAGS1 := $(F90FLAGS)
@@ -558,7 +690,7 @@ endif
 
 # The NAG compiler links via gcc so that one has to give -Wl twice and double commas for the option
 # i.e. instead of  -Wl,rpath,/path   you need   -Wl,-Wl,,rpath,,/path
-ifneq (,$(findstring $(icompiler),$(nagcompilers)))
+ifneq (,$(filter $(icompiler),$(nagcompilers)))
     comma  := ,
     iiLIBS := $(subst -Wl,-Wl$(comma)-Wl,$(subst $(comma),$(comma)$(comma),$(iLIBS)))
     iRPATH := $(subst -Wl,-Wl$(comma)-Wl,$(subst $(comma),$(comma)$(comma),$(RPATH)))
@@ -568,7 +700,7 @@ else
 endif
 LIBS += $(iiLIBS)
 # Only Linux and Solaris can use -rpath in executable
-ifeq (,$(findstring $(iOS),Darwin))
+ifeq (,$(filter $(iOS),Darwin))
     LIBS += $(iRPATH)
 endif
 
@@ -585,7 +717,7 @@ INCLUDES += $(addprefix -I,$(OBJPATH))
 # --- TARGETS ---------------------------------------------------
 #
 
-#.SUFFIXES: .f90 .F90 .f95 .F95 .f03 .F03 .f08 .F08 .f .F .for .FOR .ftn .FTN .c .C .d .o .a .so .dylib
+#.SUFFIXES: .f90 .F90 .f95 .F95 .f03 .F03 .f08 .F08 .f .F .for .FOR .ftn .FTN .c .C .cc .CC .d .o .a .so .dylib
 .SUFFIXES:
 
 .PHONY: clean cleanclean distclean cleantest testclean checkclean cleancheck cleancleantest testcleanclean checkcleanclean cleancleancheck html latex pdf doxygen check test info
@@ -593,14 +725,14 @@ INCLUDES += $(addprefix -I,$(OBJPATH))
 all: $(PROGNAME) $(LIBNAME)
 
 # Link program
-$(PROGNAME): $(OBJS) $(FOBJS) $(COBJS)
+$(PROGNAME): $(OBJS) $(FOBJS) $(COBJS) $(CXXOBJS)
 	@echo "Linking program"
-	$(LD) $(MPI_LDFLAGS) $(LDFLAGS) -o $(PROGNAME) $(OBJS) $(FOBJS) $(COBJS) $(LIBS) $(LOBJS)
+	$(LD) $(LDFLAGS) -o $(PROGNAME) $(OBJS) $(FOBJS) $(COBJS) $(CXXOBJS) $(LIBS) $(LOBJS) $(MPI_LDFLAGS)
 
 # Link library
-$(LIBNAME): $(DOBJS) $(FDOBJS) $(CDOBJS) $(OBJS) $(FOBJS) $(COBJS)
+$(LIBNAME): $(DOBJS) $(FDOBJS) $(CDOBJS) $(CXXDOBJS) $(OBJS) $(FOBJS) $(COBJS) $(CXXOBJS)
 	@echo "Linking library"
-	$(AR) $(ARFLAGS) $(LIBNAME) $(OBJS) $(FOBJS) $(COBJS)
+	$(AR) $(ARFLAGS) $(LIBNAME) $(OBJS) $(FOBJS) $(COBJS) $(CXXOBJS)
 	$(RANLIB) $(LIBNAME)
 
 # Get dependencies
@@ -627,9 +759,16 @@ $(CDOBJS):
 	pobj=$(dir $@) ; psrc=$(dir $$src) ; \
 	$(CC) -E $(DEFINES) $(INCLUDES) -MM $$src | sed "s|.*:|$(patsubst %.d,%.o,$@) $@ :|" > $@
 
+$(CXXDOBJS):
+	@if [[ ! -d $(dir $@) ]] ; then mkdir -p $(dir $@) ; fi
+	@nobj=$$(grep -n -w -F $@ $(CXXDOBJSFILE) | sed 's/:.*//') ; \
+	src=$$(sed -n $${nobj}p $(CXXSRCSFILE)) ; \
+	pobj=$(dir $@) ; psrc=$(dir $$src) ; \
+	$(CXX) -E $(DEFINES) $(INCLUDES) -MM $$src | sed "s|.*:|$(patsubst %.d,%.o,$@) $@ :|" > $@
+
 # Compile
 $(OBJS):
-ifneq (,$(findstring $(icompiler),gnu41 gnu42))
+ifneq (,$(filter $(icompiler),gnu41 gnu42))
 	@nobj=$$(grep -n -w -F $@ $(OBJSFILE) | sed 's/:.*//') ; \
 	src=$$(sed -n $${nobj}p $(SRCSFILE)) ; \
 	ssrc=$$(basename $$(sed -n $${nobj}p $(SRCSFILE))) ; \
@@ -652,7 +791,7 @@ else
 endif
 
 $(FOBJS):
-ifneq (,$(findstring $(icompiler),gnu41 gnu42))
+ifneq (,$(filter $(icompiler),gnu41 gnu42))
 	@nobj=$$(grep -n -w -F $@ $(FOBJSFILE) | sed 's/:.*//') ; \
 	src=$$(sed -n $${nobj}p $(FSRCSFILE)) ; \
 	tmp=$@.$$(echo $${src} | sed 's/.*\.//') ; \
@@ -674,8 +813,17 @@ $(COBJS):
 	echo $(CC) $(DEFINES) $(INCLUDES) $(MPI_CFLAGS) $(CFLAGS) -c $${src} -o $@ ; \
 	$(CC) $(DEFINES) $(INCLUDES) $(MPI_CFLAGS) $(CFLAGS) -c $${src} -o $@
 
+$(CXXOBJS):
+	@nobj=$$(grep -n -w -F $@ $(CXXOBJSFILE) | sed 's/:.*//') ; \
+	src=$$(sed -n $${nobj}p $(CXXSRCSFILE)) ; \
+	echo $(CXX) $(DEFINES) $(INCLUDES) $(MPI_CXXFLAGS) $(CXXFLAGS) -c $${src} -o $@ ; \
+	$(CXX) $(DEFINES) $(INCLUDES) $(MPI_CXXFLAGS) $(CXXFLAGS) -c $${src} -o $@
+
 # Helper Targets
 clean:
+ifneq (,$(SOBJS))
+	for ff in $(SOBJS) ; do if [[ -f $${ff}.default ]] ; then cp $${ff}.default $${ff} ; fi ; done
+endif
 ifneq ($(strip $(OBJS)),)
 	rm -f $(OBJS)
 endif
@@ -694,6 +842,12 @@ endif
 ifneq ($(strip $(CDOBJS)),)
 	rm -f $(CDOBJS)
 endif
+ifneq ($(strip $(CXXOBJS)),)
+	rm -f $(CXXOBJS)
+endif
+ifneq ($(strip $(CXXDOBJS)),)
+	rm -f $(CXXDOBJS)
+endif
 ifneq ($(strip $(GOBJS)),)
 	rm -f $(GOBJS)
 endif
@@ -703,8 +857,8 @@ endif
 	rm -f $(addsuffix /*.mod, $(OBJPATH))
 	rm -f $(addsuffix /*.pre, $(SRCPATH))
 ifneq ($(PROGNAME),)
-	rm -f "$(PROGNAME)"
-	rm -f "$(PROGNAME)".dSYM
+	rm -f  "$(PROGNAME)"
+	rm -rf "$(PROGNAME)".dSYM
 endif
 ifneq ($(LIBNAME),)
 	rm -f "$(LIBNAME)"
@@ -759,28 +913,47 @@ ifeq ($(PROGNAME),)
 endif
 	for i in $(shell ls -d $(CHECKPATH)/test* $(CHECKPATH)/check* 2> /dev/null) ; do \
 	    rm -f "$(PROGNAME)" ; \
-	    j=$${i/minpack/maxpack} ; \
+	    j=$$(echo $${i} | grep -E '(minpack|netcdf3|qhull)$$') ; \
+	    inetcdf=$(netcdf) ; \
 	    libextra= ; \
-	    if [ $$i != $$j ] ; then \
+	    incextra= ; \
+	    defextra= ; \
+	    if [ "$${j}z" != "z" ] ; then \
+	        ldir=$${i##*_} ; \
+	        lname="lib$${ldir}.a" ; \
+	        libextra="-L. -l$${ldir}" ; \
+	        case $${i} in \
+	            *minpack) true ;; \
+	            *netcdf3) inetcdf= ; \
+	                      incextra="-I$${i}/../../netcdf3/.$(strip $(icompiler)).$(strip $(irelease))" ; \
+	                      defextra='-DNETCDF3' ;; \
+	            *qhull)   true ;; \
+	        esac ; \
 	        $(MAKE) -f $(THISMAKEFILE) -s \
-	            MAKEDPATH=$(MAKEDPATH) SRCPATH="$$i"/../../minpack PROGPATH=$(PROGPATH) \
-	    	    CONFIGPATH=$(CONFIGPATH) PROGNAME= LIBNAME=libminpack.a system=$(system) \
-	    	    release=$(irelease) netcdf=$(netcdf) static=$(static) proj=$(proj) \
-	    	    imsl=$(imsl) mkl=$(mkl) lapack=$(lapack) compiler=$(compiler) \
-	    	    openmp=$(openmp) > /dev/null ; \
-                libextra="-L. -lminpack" ; \
+	            MAKEDPATH=$(MAKEDPATH) SRCPATH="$${i}"/../../$${ldir} PROGPATH=$(PROGPATH) \
+	            CONFIGPATH=$(CONFIGPATH) PROGNAME= LIBNAME=$${lname} \
+	            system=$(system) release=$(irelease) compiler=$(compiler) \
+	            netcdf=$${inetcdf} static=$(static) proj=$(proj) imsl=$(imsl) mkl=$(mkl) \
+	            lapack=$(lapack) openmp=$(openmp) > /dev/null ; \
 	    fi ; \
 	    $(MAKE) -f $(THISMAKEFILE) -s \
-		MAKEDPATH=$(MAKEDPATH) SRCPATH=$$i PROGPATH=$(PROGPATH) \
-		CONFIGPATH=$(CONFIGPATH) PROGNAME=$(PROGNAME) system=$(system) \
-		release=$(irelease) netcdf=$(netcdf) static=$(static) proj=$(proj) \
-		imsl=$(imsl) mkl=$(mkl) lapack=$(lapack) compiler=$(compiler) \
-		openmp=$(openmp) EXTRA_LIBS="$$libextra" > /dev/null \
+	        MAKEDPATH=$(MAKEDPATH) SRCPATH="$${i}" PROGPATH=$(PROGPATH) \
+	        CONFIGPATH=$(CONFIGPATH) PROGNAME=$(PROGNAME) \
+	        system=$(system) release=$(irelease) compiler=$(compiler) \
+	        netcdf=$${inetcdf} static=$(static) proj=$(proj) imsl=$(imsl) mkl=$(mkl) \
+	        lapack=$(lapack) openmp=$(openmp) \
+	        EXTRA_LIBS="$${libextra}" EXTRA_DEFINES="$${defextra}" EXTRA_INCLUDES="$${incextra}" > /dev/null \
 	    && { $(PROGNAME) 2>&1 | grep -E '(o\.k\.|failed)' ;} ; status=$$? ; \
-	    if [ $$status != 0 ] ; then echo "$$i failed!" ; fi ; \
-	    $(MAKE) -f $(THISMAKEFILE) -s system=$(system) release=$(irelease) compiler=$(compiler) SRCPATH=$$i clean ; \
-	    if [ $$i != $$j ] ; then \
-	        $(MAKE) -f $(THISMAKEFILE) -s SRCPATH="$$i"/../../minpack PROGNAME= LIBNAME=libminpack.a clean ; \
+	    if [ $${status} != 0 ] ; then echo "$${i} failed!" ; fi ; \
+	    $(MAKE) -f $(THISMAKEFILE) -s \
+	        MAKEDPATH=$(MAKEDPATH) SRCPATH="$${i}" PROGPATH=$(PROGPATH) \
+	        CONFIGPATH=$(CONFIGPATH) PROGNAME=$(PROGNAME) \
+	        system=$(system) release=$(irelease) compiler=$(compiler) clean ; \
+	    if [ "$${j}z" != "z" ] ; then \
+	        $(MAKE) -f $(THISMAKEFILE) -s \
+	            MAKEDPATH=$(MAKEDPATH) SRCPATH="$${i}"/../../$${ldir} PROGPATH=$(PROGPATH) \
+	            CONFIGPATH=$(CONFIGPATH) PROGNAME= LIBNAME=$${lname} \
+	            system=$(system) release=$(irelease) compiler=$(compiler) clean ; \
 	    fi ; \
 	done
 
@@ -805,6 +978,12 @@ dependencies:
 	    nobj=$$(grep -n -w -F $${i} $(CDOBJSFILE) | sed 's/:.*//') ; \
 	    src=$$(sed -n $${nobj}p $(CSRCSFILE)) ; \
 	    obj=$$(sed -n $${nobj}p $(COBJSFILE)) ; \
+	    if [ $${src} -nt $${obj} ] ; then rm $${i} ; fi ; \
+	done
+	@for i in $(CXXDOBJS) ; do \
+	    nobj=$$(grep -n -w -F $${i} $(CXXDOBJSFILE) | sed 's/:.*//') ; \
+	    src=$$(sed -n $${nobj}p $(CXXSRCSFILE)) ; \
+	    obj=$$(sed -n $${nobj}p $(CXXOBJSFILE)) ; \
 	    if [ $${src} -nt $${obj} ] ; then rm $${i} ; fi ; \
 	done
 	@rm -f $(addsuffix /$(MAKEDSCRIPT:.py=.dict), $(OBJPATH))
@@ -843,6 +1022,7 @@ info:
 	@echo "proj     = $(proj)"
 	@echo "imsl     = $(imsl)"
 	@echo "openmp   = $(openmp)"
+	@echo "mpi      = $(mpi)"
 	@echo "static   = $(static)"
 	@echo ""
 	@echo "Files/Paths"
@@ -851,6 +1031,8 @@ info:
 	@echo "CONFIGPATH = $(CONFIGPATH)"
 	@echo "MAKEDPATH  = $(MAKEDPATH)"
 	@echo "CHECKPATH  = $(CHECKPATH)"
+	@echo "TOOLPATH   = $(TOOLPATH)"
+	@echo "DOXCONFIG  = $(DOXCONFIG)"
 	@echo "PROGNAME   = $(basename $(PROGNAME))"
 	@echo "LIBNAME    = $(basename $(LIBNAME))"
 	@echo "FILES      = $(SRCS) $(FORSRCS) $(CSRCS) $(LASRCS)"
@@ -862,6 +1044,8 @@ info:
 	@echo "F90FLAGS  = $(F90FLAGS)"
 	@echo "CC        = $(CC)"
 	@echo "CFLAGS    = $(CFLAGS)"
+	@echo "CXX       = $(CXX)"
+	@echo "CXXFLAGS  = $(CXXFLAGS)"
 	@echo "DEFINES   = $(DEFINES)"
 	@echo "INCLUDES  = $(INCLUDES)"
 	@echo "LD        = $(LD)"
@@ -875,9 +1059,9 @@ info:
 ifneq ($(strip $(ALIASINC)),)
 	@echo ""
 	@echo "Compiler aliases for $(system)"
-	@sed -n '/ifneq (,$$(findstring $$(compiler)/,/endif/p' $(ALIASINC) | \
+	@sed -n '/ifneq (,$$(filter $$(compiler)/,/endif/p' $(ALIASINC) | \
 	 sed -e '/endif/d' -e 's/icompiler ://' | \
-	 sed -e 's/ifneq (,$$(findstring $$(compiler),//' -e 's/))//' | \
+	 sed -e 's/ifneq (,$$(filter $$(compiler),//' -e 's/))//' | \
 	 paste - - | tr -d '\t' | tr -s ' '
 endif
 	@echo ""
@@ -892,17 +1076,17 @@ endif
 	@echo "depend         alias for dependencies"
 	@echo "dependencies   Redo dependencies"
 	@echo "distclean      alias for cleanclean"
-	@echo "doxygen        Run doxygen html with $(DOXPATH)/doxygen.config"
-	@echo "html           Run either doxygen html with $(DOXPATH)/doxygen.config or f2html of Jean-Marc Beroud"
+	@echo "doxygen        Run doxygen html with $(DOXCONFIG)"
+	@echo "html           Run either doxygen html with $(DOXCONFIG) or f2html of Jean-Marc Beroud"
 	@echo "info           Prints info about current settings and possibilities"
 	@echo "latex          alias for pdf"
-	@echo "pdf            Run doxygen PDF with $(DOXPATH)/doxygen.config"
+	@echo "pdf            Run doxygen PDF with $(DOXCONFIG)"
 	@echo "test           alias for check"
 	@echo "testclean      alias for cleancheck"
 	@echo ""
 	@echo "All possibilities"
-	@echo "system      $(shell ls -1 $(CONFIGPATH) | sed -e '/"$(MAKEDSCRIPT)"/d' -e '/f2html/d' | cut -d '.' -f 1 | sort | uniq)"
-	@echo "compiler    $(shell ls -1 $(CONFIGPATH) | sed -e '/"$(MAKEDSCRIPT)"/d' -e '/f2html/d' -e '/alias/d' | cut -d '.' -f 2 | sort | uniq)"
+	@echo "system      $(shell ls -1 $(CONFIGPATH) | sed -e '/^$(MAKEDSCRIPT)/d' -e '/f2html/d' -e '/^old/d' | cut -d '.' -f 1 | sort | uniq)"
+	@echo "compiler    $(shell ls -1 $(CONFIGPATH) | sed -e '/^$(MAKEDSCRIPT)/d' -e '/f2html/d' -e '/^old/d' -e '/alias/d' | cut -d '.' -f 2- | sort | uniq)"
 	@echo "release     debug release (=true)"
 	@echo "netcdf      netcdf3 netcdf4 [anything else]"
 	@echo "lapack      true [anything else]"
@@ -910,10 +1094,11 @@ endif
 	@echo "proj        true [anything else]"
 	@echo "imsl        vendor imsl [anything else]"
 	@echo "openmp      true [anything else]"
+	@echo "mpi         openmpi mpich [anything else]"
 	@echo "static      static shared (=dynamic)"
 
 # All dependencies created by python script make.d.py
 ifeq (False,$(iphonyall))
     $(info Checking dependencies ...)
-    -include $(DOBJS) $(FDOBJS) $(CDOBJS)
+    -include $(DOBJS) $(FDOBJS) $(CDOBJS) $(CXXDOBJS)
 endif

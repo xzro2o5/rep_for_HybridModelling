@@ -7,7 +7,7 @@ MODULE types
   ! Written Jan 2011, Matthias Cuntz - Ported C-Code
   !
 
-  USE kinds, ONLY: wp, rp, i4, i8
+  USE kinds, ONLY: wp, i4, i8
   USE setup, ONLY: ncl, ntl, nsoil, nl, nwiso, ndaysc13!, nsky
 
   IMPLICIT NONE
@@ -412,7 +412,6 @@ MODULE types
   ! Structure for Profile information,fluxes and concentrations
   TYPE profile
      ! microclimate profiles
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: test ! this is to test any variable from the model Yuan 2017.09.22
      REAL(wp), DIMENSION(:), ALLOCATABLE :: tair ! air temp (C) ! [ntl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: tair_filter ! numerical filter of Tair ! [ntl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: tair_filter_save ! save for later calculations ! [ntl]
@@ -835,8 +834,6 @@ CONTAINS
   SUBROUTINE alloc_prof()
 
     IMPLICIT NONE
-    ! Yuan 2017.09.22 This prof%test is to output a variable I want to test in the model
-    if (.not. allocated(prof%test)) allocate(prof%test(ncl))
     if (.not. allocated(prof%tair)) allocate(prof%tair(ntl))
     if (.not. allocated(prof%tair_filter)) allocate(prof%tair_filter(ntl))
     if (.not. allocated(prof%tair_filter_save)) allocate(prof%tair_filter_save(ntl))
@@ -1478,7 +1475,7 @@ CONTAINS
     USE constants, ONLY: zero
 
     IMPLICIT NONE
-    prof%test = zero ! Yuan 2017.09.22 This is to output a variable I want to test in the model
+
     !prof%tair = zero
     !prof%tair_filter = zero
     prof%tair_filter_save = zero

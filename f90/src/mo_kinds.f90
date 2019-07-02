@@ -22,12 +22,11 @@ MODULE kinds
 
   PRIVATE
 
-  PUBLIC :: sp, dp, rp, wp, i4, i8
+  PUBLIC :: sp, dp, wp, i4, i8
 
   ! Floating point section
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND(6,37)
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(15,307)
-  INTEGER, PARAMETER :: rp = SELECTED_REAL_KIND(24,307)
   INTEGER, PARAMETER :: wp = dp   ! working precision
 
   ! Integer section

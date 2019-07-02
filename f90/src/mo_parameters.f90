@@ -21,10 +21,10 @@ MODULE parameters
        vc25, jm_vc, rd_vc, g0, a1, D0, kball, bprime, vcopt, jmopt, ht_midpt, lai_freq, pai_freq, &
        par_reflect, par_trans, par_soil_refl_dry, nir_reflect, nir_trans, nir_soil_refl_dry, workdir, &
        indir, metinfile, laiinfile, wisoinfile, outdir, outsuffix, dispfile, netcdf_in, netcdf_out, netcdf_disp, &
-       start_run, end_run, start_profiles, end_profiles, latitude, longitude, perc_up, perc_dn, zone, ht, pai, lai, ustar_ref, &
+       start_run, end_run, start_profiles, end_profiles, latitude, longitude, zone, ht, pai, lai, ustar_ref, &
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
-       leaf_fall, leaf_fall_complete, attfac, eabole, epsoil, water_film_thickness, tau_water, extra_nate, nup ! add perc_up and down for sensitivity analysis Yuan 2017.10.26
+       leaf_fall, leaf_fall_complete, attfac, eabole, epsoil, water_film_thickness, tau_water, extra_nate, nup
 
   ! Derived parameters
   INTEGER(i4) :: izref     ! array value of reference height = measurement height*ncl/ht
@@ -102,8 +102,6 @@ MODULE parameters
   ! Site location = Mesita del Buey, NM, USA
   REAL(wp)           :: latitude          ! latitude  N
   REAL(wp)           :: longitude         ! longitude E
-  REAL(wp)           :: perc_up           ! range of parameter variation for sensitivity analysis Yuan 2017.10.26
-  REAL(wp)           :: perc_dn           ! range of parameter variation for sensitivity analysis Yuan 2017.10.26
 
   ! Eastern Standard Time
   REAL(wp)           :: zone              ! delay from GMT
@@ -362,8 +360,6 @@ CONTAINS
     latitude = 35.85_wp   ! latitude  N
     longitude = 106.27_wp ! longitude E
     ! Eastern Standard Time
-    perc_up = 1.1_wp          ! range of parameter variation for sensitivity analysis Yuan 2017.10.26
-    perc_dn = 0.9_wp
     zone = 7.0_wp         ! delay from GMT
     ht = 2.66_wp          ! Canopy height [m]
     pai = 0.1_wp          ! Plant area index [m2 m-2]
@@ -602,7 +598,7 @@ CONTAINS
          netcdf_in, netcdf_out, netcdf_disp, year0, start_run, end_run, start_profiles, &
          end_profiles, time_step, switch_soil_resp_temp, switch_ball, switch_isoprene, switch_d13c, &
          switch_wiso, switch_bethy_resp, switch_no_negative_water_flux, latitude, longitude, &
-         perc_up, perc_dn, zone, ht, pai, lai, vc25_in, &
+         zone, ht, pai, lai, vc25_in, &
          jm_vc_in, rd_vc_in, ustar_ref, ncl, nsky, nl, nsoil, nbeta, ndaysc13, nwiso, zm, hkin, skin, ejm, evc, kc25, ko25, &
          o2, tau25, ekc, eko, erd, ektau, toptvc, toptjm, curvature, qalpha, g0_in, a1_in, D0_in, gm_vc, &
          fthreshold, fslope, kball_in, bprime_in, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, &
@@ -623,9 +619,9 @@ CONTAINS
     call close_nml()
 
     ! Setup model
-    ntl  = 3*ncl
-    if (switch_wiso == 0) nwiso=0 !originally 1, Yuan changed based on C4.0 line 1619. 2017.08.23
-    if (nwiso < 1) then !2017.10.04
+    ntl = 3*ncl
+    if (switch_wiso == 0) nwiso=1
+    if (nwiso < 1) then
        nwiso = 1
 #ifdef DEBUG
        call message('READ_NAMELIST: ','nwiso set to 1 because it includes normal water.')
@@ -675,45 +671,41 @@ CONTAINS
     if (.not. allocated(D0)) allocate(D0(ncl))
     if (.not. allocated(kball)) allocate(kball(ncl))
     if (.not. allocated(bprime)) allocate(bprime(ncl))
-    vc25(:)   = vc25_in*perc_up ! 10% up for sensitivity analysis
- !   print *, "perc_up = ",perc_up
-!    print *, "vc25 = ",vc25
-    jm_vc(:)  = jm_vc_in*perc_up
-    rd_vc(:)  = rd_vc_in*perc_up
-    g0(:)     = g0_in*perc_up
-    a1(:)     = a1_in*perc_up
-    D0(:)     = D0_in*perc_up
-    kball(:)  = kball_in*perc_up
-    bprime(:) = bprime_in*perc_up
+    vc25(:)   = vc25_in
+    jm_vc(:)  = jm_vc_in
+    rd_vc(:)  = rd_vc_in
+    g0(:)     = g0_in
+    a1(:)     = a1_in
+    D0(:)     = D0_in
+    kball(:)  = kball_in
+    bprime(:) = bprime_in
 
     ! Calc derived variables
     zd        = twothird*ht ! displacement height [m]
-    z0        = 0.1_wp*ht     ! rougness lenght [m]
+    z0        = 0.1_wp*ht   ! rougness lenght [m]
     izref     = ceiling(zm*real(ncl,kind=wp)/ht,kind=i4) ! array value of reference height = measurement height*ncl/ht
     delz      = ht/ncl ! height of each layer, ht/ncl
     zh65      = 0.65_wp/ht
-    epsigma   = ep * sigma !2017.10.04
-    epsigma2  = 2.0_wp * ep * sigma !2017.10.04
+    epsigma   = ep * sigma
+    epsigma2  = 2.0_wp * ep * sigma
     epsigma4  = 4.0_wp * ep * sigma
     epsigma6  = 6.0_wp * ep * sigma
     epsigma8  = 8.0_wp * ep * sigma
     epsigma12 = 12.0_wp * ep * sigma
-    qalpha2   = qalpha*qalpha*perc_up*perc_up
+    qalpha2   = qalpha*qalpha
 
     ! Set parameters in type arrays
-    soil%z_soil(0:nsoil)       = z_soil_in(0:nsoil) *perc_up!2017.10.04
-!    print *, "z_soil_in ",z_soil_in
-!    print *, "z_soil", soil%z_soil
-    soil%bulk_density(1:nsoil) = bulk_density_in(1:nsoil)*perc_up
-    soil%clay_in(1:nsoil)      = clay_in(1:nsoil)*perc_up
-    soil%sand_in(1:nsoil)      = sand_in(1:nsoil)*perc_up
-    soil%om(1:nsoil)           = om_in(1:nsoil)*perc_up
-    soil%gravel(1:nsoil)       = gravel_in(1:nsoil)*perc_up
-    soil%theta(1:nsoil,1)      = theta_in(1:nsoil)*perc_up
-    wiso%dtheta(1:nsoil,1)     = theta_in(1:nsoil)*perc_up
-    if (nwiso >= 2) wiso%dtheta(1:nsoil,2) = theta1_in(1:nsoil)*perc_up ! 18O
-    if (nwiso >= 3) wiso%dtheta(1:nsoil,3) = theta2_in(1:nsoil)*perc_up ! 2H
-    if (nwiso >= 4) wiso%dtheta(1:nsoil,4) = theta3_in(1:nsoil)*perc_up ! Normal water
+    soil%z_soil(0:nsoil)       = z_soil_in(0:nsoil)
+    soil%bulk_density(1:nsoil) = bulk_density_in(1:nsoil)
+    soil%clay_in(1:nsoil)      = clay_in(1:nsoil)
+    soil%sand_in(1:nsoil)      = sand_in(1:nsoil)
+    soil%om(1:nsoil)           = om_in(1:nsoil)
+    soil%gravel(1:nsoil)       = gravel_in(1:nsoil)
+    soil%theta(1:nsoil,1)      = theta_in(1:nsoil)
+    wiso%dtheta(1:nsoil,1)     = theta_in(1:nsoil)
+    if (nwiso >= 2) wiso%dtheta(1:nsoil,2) = theta1_in(1:nsoil) ! 18O
+    if (nwiso >= 3) wiso%dtheta(1:nsoil,3) = theta2_in(1:nsoil) ! 2H
+    if (nwiso >= 4) wiso%dtheta(1:nsoil,4) = theta3_in(1:nsoil) ! Normal water
 
     ! LAI beta distribution
     if (.not. allocated(ht_midpt)) allocate(ht_midpt(nbeta))
@@ -731,14 +723,14 @@ CONTAINS
     if (.not. allocated(nir_reflect)) allocate(nir_reflect(nlop))
     if (.not. allocated(nir_trans)) allocate(nir_trans(nlop))
     if (.not. allocated(nir_soil_refl_dry)) allocate(nir_soil_refl_dry(nlop))
-    par_reflect(1:nlop)       = par_reflect_in(1:nlop)*perc_up
+    par_reflect(1:nlop)       = par_reflect_in(1:nlop)
  !   print *, par_reflect
-    par_trans(1:nlop)         = par_trans_in(1:nlop)*perc_up
+    par_trans(1:nlop)         = par_trans_in(1:nlop)
  !   print *, par_trans
-    par_soil_refl_dry(1:nlop) = par_soil_refl_dry_in(1:nlop)*perc_up
-    nir_reflect(1:nlop)       = nir_reflect_in(1:nlop)*perc_up
-    nir_trans(1:nlop)         = nir_trans_in(1:nlop)*perc_up
-    nir_soil_refl_dry(1:nlop) = nir_soil_refl_dry_in(1:nlop)*perc_up
+    par_soil_refl_dry(1:nlop) = par_soil_refl_dry_in(1:nlop)
+    nir_reflect(1:nlop)       = nir_reflect_in(1:nlop)
+    nir_trans(1:nlop)         = nir_trans_in(1:nlop)
+    nir_soil_refl_dry(1:nlop) = nir_soil_refl_dry_in(1:nlop)
 
     ! Extra Nate has two layers of vegetation: 1:nup-1 and nup:ncl
     if (extra_nate == 1) then

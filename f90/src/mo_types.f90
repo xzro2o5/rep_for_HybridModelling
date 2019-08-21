@@ -7,7 +7,7 @@ MODULE types
   ! Written Jan 2011, Matthias Cuntz - Ported C-Code
   !
 
-  USE kinds, ONLY: wp, rp, i4, i8
+  USE kinds, ONLY: wp, i4, i8
   USE setup, ONLY: ncl, ntl, nsoil, nl, nwiso, ndaysc13!, nsky
 
   IMPLICIT NONE
@@ -18,13 +18,45 @@ MODULE types
             meteorology, surface_resistances, factors, bole_respiration_structure, &
             canopy_architecture, non_dimensional_variables, boundary_layer_resistances, &
             solar_radiation_variables, soil_variables, profile, switch_variables, &
-            isotope_variables, water_isotope_variables
-  PUBLIC :: output, flux, input, time, met, srf_res, fact, bole, canopy, &                ! Type variables
+            isotope_variables, water_isotope_variables, debug_variables ! Yuan added 2018.05.09, store variables to be debug
+  PUBLIC :: debug, output, flux, input, time, met, srf_res, fact, bole, canopy, &                ! Type variables
             non_dim, bound_lay_res, solar, soil, prof, iswitch, ciso, wiso
   PUBLIC :: alloc_type_vars, zero_new_timestep, zero_initial                              ! Subroutines
 
   ! -----------------------------------------------------------------------------------------------
   ! Type definitions
+  ! debug variables: to store variables for debug use
+    TYPE debug_variables
+     REAL(wp) :: R1
+     REAL(wp) :: R2
+     REAL(wp) :: R3
+     REAL(wp) :: R4
+     REAL(wp) :: R5
+     REAL(wp) :: R6
+     REAL(wp) :: R7
+     REAL(wp) :: R8
+     REAL(wp) :: R9
+     INTEGER(i8) :: in1
+     INTEGER(i8) :: in2
+     INTEGER(i8) :: in3
+     INTEGER(i8) :: in4
+     INTEGER(i8) :: in5
+     INTEGER(i8) :: in6
+     INTEGER(i8) :: in7
+     INTEGER(i8) :: in8
+     INTEGER(i8) :: in9
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D1
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D2
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D3
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D4
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D5
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D6
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D7
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D8
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: D9
+
+  END TYPE debug_variables
+
   TYPE output_variables
      REAL(wp) :: c1
      REAL(wp) :: c2
@@ -81,6 +113,15 @@ MODULE types
      REAL(wp) :: sumdisc13C
      REAL(wp) :: sumdisc13C_long_day
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dLAIdz ! ! [ncl]
+     ! oxygen output Yuan 2018.01.30
+     REAL(wp) :: sumo ! sum*** means daily output
+     REAL(wp) :: sumneto
+     REAL(wp) :: sumROC
+     REAL(wp) :: sumresp_o
+     REAL(wp) :: hour_canrespo ! O2 via leaf respiration
+     REAL(wp) :: houro
+     REAL(wp) :: hourneto
+     REAL(wp) :: hourROC ! Yuan added hourly ROC 2018.05.07
   END TYPE output_variables
 
 
@@ -117,12 +158,13 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dvapour ! delta value of vapour [per mi] ! [nwiso]
      REAL(wp) :: co2air       ! CO2 concentration, ppm
      REAL(wp) :: press_mb     ! air pressure, mb
-     REAL(wp) :: tsoil        ! soil temperature in 50 cm, degree C
+     REAL(wp) :: tsoil        ! soil temperature in 50 cm, degree C ! Yuan's correction 2018.07.30. soil T at 5cm depth!!! refer to paper Astrid R. B. Søe  Nina Buchmann
      REAL(wp) :: soilmoisture ! soil moisture in 15 cm, %
      INTEGER(i4) :: flag      ! input coding
      REAL(wp) :: longwave     ! long wave irradiannce, Wm-2
      REAL(wp) :: d13CO2       ! d13C of atmospheric CO2 [permille]
      REAL(wp) :: d18CO2       ! d18O of atmospheric CO2 [permille]
+     REAL(wp) :: o2air        ! O2 concentration, ppm Yuan 2018.02.14
   END TYPE input_variables
 
 
@@ -142,6 +184,8 @@ MODULE types
      INTEGER(i4) :: leaffall ! date of leaf shedding
      INTEGER(i4) :: leaffallcomplete ! date of leaf shedding completed
      REAL(wp) :: lai ! lai as a function of time
+     REAL(wp) :: pai ! pai as wai+lai Yuan 2018.03.02
+     REAL(wp) :: wai ! daily wai as a constant 1.1
      REAL(wp) :: time_step ! time between subsequent computation times
   END TYPE time_variables
 
@@ -183,6 +227,7 @@ MODULE types
      REAL(wp) :: heatcoef ! factor for sensible heat flux density
      REAL(wp) :: a_filt ! filter coefficients
      REAL(wp) :: co2 ! CO2 factor, ma/mc * rhoa (mole m-3)
+     REAL(wp) :: o2  ! O2 factor, ma/mc * rhoa (mole m-3)
   END TYPE factors
 
 
@@ -406,13 +451,15 @@ MODULE types
      INTEGER(i4) :: drain0 ! Switch to write out drainage <0 exactly once
      ! Lose water
      INTEGER(i4) :: lost0 ! Switch to write out when losing water starts
+     ! oxygen module Yuan 2018.01.18
+     REAL(wp) :: ROC_soil_air ! ROC during soil-air O2 exchange
+     REAL(wp) :: o2 ! soil O2 sink
   END TYPE soil_variables
 
 
   ! Structure for Profile information,fluxes and concentrations
   TYPE profile
      ! microclimate profiles
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: test ! this is to test any variable from the model Yuan 2017.09.22
      REAL(wp), DIMENSION(:), ALLOCATABLE :: tair ! air temp (C) ! [ntl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: tair_filter ! numerical filter of Tair ! [ntl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: tair_filter_save ! save for later calculations ! [ntl]
@@ -479,6 +526,7 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dLEdz_shd ! layer latent heat flux of shaded area (W m-2) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dRNdz ! layer net radiation flux (W m-2) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dLoutdz ! layer radiation flux ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dboledz ! layer bole respiration ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dRESPdz ! layer respiration (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dRESPdz_sun ! layer respiration of sunlit area (micromol m-2 s-1) = rd sun ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dRESPdz_shd ! layer respiration of shaded area (micromol m-2 s-1) = rd shd ! [ncl]
@@ -575,6 +623,7 @@ MODULE types
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: sun_alpha_equ !  ! [ncl,nwiso]
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: shd_alpha_equ !  ! [ncl,nwiso]
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: rvapour !  ! [ntl,nwiso]
+     REAL(wp), DIMENSION(:,:), ALLOCATABLE :: dvapour !  ! [ntl,nwiso] ! Yuan 2015.05.28
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: sun_peclet !  ! [ncl,nwiso]
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: shd_peclet !  ! [ncl,nwiso]
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: sun_fem !  ! [ncl,nwiso]
@@ -595,7 +644,24 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ht ! layer height (m) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dLAIdz ! leaf area index of layer (m2/m2) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dPAIdz ! plant area index of layer ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dWAIdz ! plant wood index of layer ! [ncl] Yuan 2018.03.01
+
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: Gfunc_sky ! leaf-sky sector direction cosine function ! [ncl,nl]
+     ! oxygen profiles Yuan 2018.01.17
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: O2_air ! O2 concentration (ppm) ! [ntl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: O2_soil ! dispersion of soil O2 flux ! [ntl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: CO2_soil ! dispersion of soil CO2 flux ! [ntl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: O2_disp ! dispersion of canopy O2 flux ! [ntl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: CO2_disp ! dispersion of canopy CO2 flux ! [ntl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: O2_air_filter ! filtered O2 concentration (ppm) ! [ntl] Yuan 2018.07.02
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: source_O2 ! source/sink strength of O2 ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: gpp_O2 ! gross O2 flux
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: rd_O2 ! dark leaf respiration [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_layer ! ROC  of the layer Yuan 2018.02.26
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_leaf_air !ROC during leaf-air O2 exchange [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_bole_air !ROC during bole-air O2 exchange [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_sun    ! respiratory quotient of sunlit leaves
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_shade    ! respiratory quotient of shaded leaves
   END TYPE profile
 
 
@@ -607,6 +673,8 @@ MODULE types
      INTEGER(i4) :: wiso ! 1: calc water isotopes
      INTEGER(i4) :: bethy_resp ! 0: auto/hetero=50/50 1: Bethy
      INTEGER(i4) :: no_neg_water_flux ! 1: restrict water fluxes >= 0
+     INTEGER(i4) :: oxygen ! 1: calc oxygen flux
+     INTEGER(i4) :: wai_new ! to switch between default wai distribution and Yuan's field measurement. 2018.07.16
   END TYPE switch_variables
 
 
@@ -636,6 +704,7 @@ MODULE types
 
   ! -----------------------------------------------------------------------------------------------
   ! Assign type variables
+  TYPE(debug_variables)            :: debug
   TYPE(output_variables)           :: output
   TYPE(flux_variables)             :: flux
   TYPE(input_variables)            :: input
@@ -664,6 +733,7 @@ CONTAINS
 
     IMPLICIT NONE
 
+    call alloc_debug()
     call alloc_output()
     call alloc_flux()
     call alloc_input()
@@ -682,6 +752,21 @@ CONTAINS
 
   ! -----------------------------------------------------------------------------------------------
   ! Allocate arrays in type variables - individual routines
+    SUBROUTINE alloc_debug()
+
+    IMPLICIT NONE
+
+    if (.not. allocated(debug%D1)) allocate(debug%D1(ncl))
+    if (.not. allocated(debug%D2)) allocate(debug%D2(ncl))
+    if (.not. allocated(debug%D3)) allocate(debug%D3(ncl))
+    if (.not. allocated(debug%D4)) allocate(debug%D4(ncl))
+    if (.not. allocated(debug%D5)) allocate(debug%D5(ncl))
+    if (.not. allocated(debug%D6)) allocate(debug%D6(ncl))
+    if (.not. allocated(debug%D7)) allocate(debug%D7(ncl))
+    if (.not. allocated(debug%D8)) allocate(debug%D8(ncl))
+    if (.not. allocated(debug%D9)) allocate(debug%D9(ncl))
+
+  END SUBROUTINE alloc_debug
   SUBROUTINE alloc_output()
 
     IMPLICIT NONE
@@ -835,8 +920,7 @@ CONTAINS
   SUBROUTINE alloc_prof()
 
     IMPLICIT NONE
-    ! Yuan 2017.09.22 This prof%test is to output a variable I want to test in the model
-    if (.not. allocated(prof%test)) allocate(prof%test(ncl))
+
     if (.not. allocated(prof%tair)) allocate(prof%tair(ntl))
     if (.not. allocated(prof%tair_filter)) allocate(prof%tair_filter(ntl))
     if (.not. allocated(prof%tair_filter_save)) allocate(prof%tair_filter_save(ntl))
@@ -899,6 +983,7 @@ CONTAINS
     if (.not. allocated(prof%dLEdz_shd)) allocate(prof%dLEdz_shd(ncl))
     if (.not. allocated(prof%dRNdz)) allocate(prof%dRNdz(ncl))
     if (.not. allocated(prof%dLoutdz)) allocate(prof%dLoutdz(ncl))
+    if (.not. allocated(prof%dboledz)) allocate(prof%dboledz(ncl)) ! bole resp, Yuan 2018.02.12
     if (.not. allocated(prof%dRESPdz)) allocate(prof%dRESPdz(ncl))
     if (.not. allocated(prof%dRESPdz_sun)) allocate(prof%dRESPdz_sun(ncl))
     if (.not. allocated(prof%dRESPdz_shd)) allocate(prof%dRESPdz_shd(ncl))
@@ -992,6 +1077,7 @@ CONTAINS
     if (.not. allocated(prof%sun_alpha_equ)) allocate(prof%sun_alpha_equ(ncl,nwiso))
     if (.not. allocated(prof%shd_alpha_equ)) allocate(prof%shd_alpha_equ(ncl,nwiso))
     if (.not. allocated(prof%rvapour)) allocate(prof%rvapour(ntl,nwiso))
+    if (.not. allocated(prof%dvapour)) allocate(prof%dvapour(ntl,nwiso))
     if (.not. allocated(prof%sun_peclet)) allocate(prof%sun_peclet(ncl,nwiso))
     if (.not. allocated(prof%shd_peclet)) allocate(prof%shd_peclet(ncl,nwiso))
     if (.not. allocated(prof%sun_fem)) allocate(prof%sun_fem(ncl,nwiso))
@@ -1011,7 +1097,23 @@ CONTAINS
     if (.not. allocated(prof%ht)) allocate(prof%ht(ncl))
     if (.not. allocated(prof%dLAIdz)) allocate(prof%dLAIdz(ncl))
     if (.not. allocated(prof%dPAIdz)) allocate(prof%dPAIdz(ncl))
+    if (.not. allocated(prof%dWAIdz)) allocate(prof%dWAIdz(ncl)) ! YUAN 2018.03.01
     if (.not. allocated(prof%Gfunc_sky)) allocate(prof%Gfunc_sky(ncl,nl))
+ ! oxygen module Yuan 2018.01.17
+    if (.not. allocated(prof%O2_air)) allocate(prof%O2_air(ntl))
+    if (.not. allocated(prof%O2_air_filter)) allocate(prof%O2_air_filter(ntl))
+    if (.not. allocated(prof%O2_soil)) allocate(prof%O2_soil(ntl))
+    if (.not. allocated(prof%CO2_soil)) allocate(prof%CO2_soil(ntl))
+    if (.not. allocated(prof%O2_disp)) allocate(prof%O2_disp(ntl))
+    if (.not. allocated(prof%CO2_disp)) allocate(prof%CO2_disp(ntl))
+    if (.not. allocated(prof%source_O2)) allocate(prof%source_O2(ncl))
+    if (.not. allocated(prof%gpp_O2)) allocate(prof%gpp_O2(ncl))
+    if (.not. allocated(prof%rd_O2)) allocate(prof%rd_O2(ncl))
+    if (.not. allocated(prof%RQ_sun)) allocate(prof%RQ_sun(ncl))
+    if (.not. allocated(prof%RQ_shade)) allocate(prof%RQ_shade(ncl))
+    if (.not. allocated(prof%ROC_layer)) allocate(prof%ROC_layer(ncl))
+    if (.not. allocated(prof%ROC_leaf_air)) allocate(prof%ROC_leaf_air(ncl))
+    if (.not. allocated(prof%ROC_bole_air)) allocate(prof%ROC_bole_air(ncl))
 
   END SUBROUTINE alloc_prof
 
@@ -1048,6 +1150,7 @@ CONTAINS
 
     IMPLICIT NONE
 
+    call zero_new_timestep_debug()
     call zero_new_timestep_output()
     call zero_new_timestep_flux()
     call zero_new_timestep_input()
@@ -1088,6 +1191,35 @@ CONTAINS
 
   ! -----------------------------------------------------------------------------------------------
   ! Zero all type variables for new timestep - individual routines
+  SUBROUTINE zero_new_timestep_debug()
+
+  USE constants, ONLY: undef, zero
+
+  IMPLICIT NONE
+
+  debug%R1 = undef
+  debug%R2 = undef
+  debug%R3 = undef
+  debug%R4 = undef
+  debug%R5 = undef
+  debug%R6 = undef
+  debug%R7 = undef
+  debug%R8 = undef
+  debug%R9 = undef
+
+  debug%in1 = int(zero)
+  debug%in2 = int(zero)
+  debug%in3 = int(zero)
+  debug%in4 = int(zero)
+  debug%in5 = int(zero)
+  debug%in6 = int(zero)
+  debug%in7 = int(zero)
+  debug%in8 = int(zero)
+  debug%in9 = int(zero)
+
+  END SUBROUTINE zero_new_timestep_debug
+
+
   SUBROUTINE zero_new_timestep_output()
 
     USE constants, ONLY: zero
@@ -1203,6 +1335,7 @@ CONTAINS
     input%longwave = zero
     input%d13CO2 = zero
     input%d18CO2 = zero
+    input%o2air = zero ! atom o2 ppm Yuan 2018.02.14
 
   END SUBROUTINE zero_new_timestep_input
 
@@ -1478,7 +1611,7 @@ CONTAINS
     USE constants, ONLY: zero
 
     IMPLICIT NONE
-    prof%test = zero ! Yuan 2017.09.22 This is to output a variable I want to test in the model
+
     !prof%tair = zero
     !prof%tair_filter = zero
     prof%tair_filter_save = zero
@@ -1541,6 +1674,7 @@ CONTAINS
     prof%dLEdz_shd = zero
     prof%dRNdz = zero
     prof%dLoutdz = zero
+    prof%dboledz = zero ! Yuan 2018.02.12
     prof%dRESPdz = zero
     prof%dRESPdz_sun = zero
     prof%dRESPdz_shd = zero
@@ -1555,7 +1689,7 @@ CONTAINS
     prof%sun_gs_mol = zero
     !prof%sun_rs = zero
     !prof%sun_rs_filter = zero
-    prof%sun_rs_save = zero
+    prof%sun_rs_save = zero !Yuan swich off 2018.05.15
     prof%sun_rbh = zero
     prof%sun_rbv = zero
     prof%sun_rbco2 = zero
@@ -1590,7 +1724,7 @@ CONTAINS
     prof%shd_gs_mol = zero
     !prof%shd_rs = zero
     !prof%shd_rs_filter = zero
-    prof%shd_rs_save = zero
+    prof%shd_rs_save = zero !Yuan swich off 2018.05.15
     prof%shd_rbh = zero
     prof%shd_rbv = zero
     prof%shd_rbco2 = zero
@@ -1654,6 +1788,20 @@ CONTAINS
     !prof%dLAIdz = zero
     !prof%dPAIdz = zero
     !prof%Gfunc_sky = zero
+    ! oxygen module: Yuan 2018.01.17
+    !prof%O2_air = zero
+    prof%source_O2 = zero
+    prof%O2_soil = zero
+    prof%CO2_soil = zero
+    prof%O2_disp = zero
+    prof%CO2_disp = zero
+    prof%gpp_O2 = zero
+    prof%rd_O2 = zero
+    prof%ROC_layer = zero
+    prof%RQ_sun = zero
+    prof%RQ_shade = zero
+    !prof%ROC_leaf_air = zero
+    !prof%ROC_bole_air = zero
 
   END SUBROUTINE zero_new_timestep_prof
 
@@ -1682,7 +1830,13 @@ CONTAINS
     output%sumF13C             = zero
     output%sumdisc13C          = zero
     output%sumdisc13C_long_day = zero
-
+    ! total and net oxygen flux Yuan 2018.01.30
+    output%sumo                = zero
+    output%sumneto             = zero
+    output%sumresp_o           = zero
+    output%hour_canrespo       = zero
+    output%houro               = zero
+    output%hourneto            = zero
   END SUBROUTINE zero_initial_output
 
 
@@ -1851,6 +2005,8 @@ CONTAINS
     prof%rhov_air_filter = zero
     prof%co2_air = zero
     prof%co2_air_filter = zero
+    prof%O2_air = zero
+    prof%O2_air_filter = zero
     prof%cws = zero
     prof%d13Cair = zero
     prof%R13_12_air = zero
@@ -1863,11 +2019,13 @@ CONTAINS
     prof%shd_rs_filter = zero
     prof%shd_tleaf_filter = zero
     prof%rvapour = zero
+    prof%dvapour = zero
     prof%sun_leafwater_e_old = zero
     prof%shd_leafwater_e_old = zero
     prof%ht = zero
     prof%dLAIdz = zero
     prof%dPAIdz = zero
+    prof%dWAIdz = zero
     prof%Gfunc_sky = zero
 
   END SUBROUTINE zero_initial_prof

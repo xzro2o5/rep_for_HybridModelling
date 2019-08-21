@@ -4,7 +4,7 @@ MODULE transport
 
   ! Written Jan 2011, Mathias Cuntz - Ported C-Code
 
-  USE kinds, ONLY: wp, rp, i4
+  USE kinds, ONLY: wp, i4
 
   IMPLICIT NONE
 
@@ -12,7 +12,7 @@ MODULE transport
 
   PUBLIC :: boundary_resistance ! leaf boundary layer resistances for heat, water, CO2
   PUBLIC :: friction_velocity   ! updates friction velocity with new z/L
-  PUBLIC :: conc                ! Concentration calculation routines for q, T and CO2
+  PUBLIC :: conc, conc_seperate ! Concentration calculation routines for q, T and CO2
   PUBLIC :: uz                  ! wind speed computation as a function of z
 
   ! ------------------------------------------------------------------
@@ -37,8 +37,8 @@ CONTAINS
     ! Schuepp. 1993 New Phytologist 125: 477-507
 
     ! Diffusivities have been corrected using the temperature/Pressure algorithm in Massman (1998)
-    USE types,      ONLY: prof, non_dim, input, bound_lay_res
-    USE constants,  ONLY: zero, half, one, ddc, ddv, ddh, nnu, TN0, e15
+    USE types,      ONLY: prof, non_dim, input, bound_lay_res,solar
+    USE constants,  ONLY: zero, half, one, ddc, ddv, ddh, nnu, TN0
     USE parameters, ONLY: lleaf, betfact
     USE messages,   ONLY: message
 
@@ -57,6 +57,7 @@ CONTAINS
     REAL(wp) :: nnu_T_P, ddh_T_P, ddv_T_P, ddc_T_P, T_kelvin
 
     ! Difference between leaf and air temperature
+    ! call message('BOUNDARY_RESISTANCE start!')
     deltlf   = (tlf - prof%tair_filter(jlay))
     T_kelvin = prof%tair_filter(jlay) + TN0
     if (deltlf > zero) then
@@ -66,12 +67,25 @@ CONTAINS
     end if
     nnu_T_P      = nnu * (1013._wp/input%press_mb) * (T_kelvin/TN0)**1.81_wp
     prof%u(jlay) = uz(zzz)
-!    print *, prof%u(jlay)
     Re           = lleaf * prof%u(jlay) / nnu_T_P
     if (Re > zero) then
        Re5 = sqrt(Re)
     else
        Re5 = 100._wp
+!    print *, prof%u(jlay)
+!    print *, nnu_T_P
+!    print *, input%press_mb
+!    print *, input%ta
+!    print *, T_kelvin
+!    print *, prof%tair_filter(jlay)
+!    print *, "4\n"
+!    print *, prof%tair(jlay)
+!    print *, TN0
+!       print *, prof%dHdz(jlay)
+!       print *, prof%dLAIdz(jlay)
+!       print *, solar%prob_beam(jlay)
+!       print  *, solar%prob_shd(jlay)
+
        call message('BOUNDARY_RESISTANCE: ','bad RE in RESHEAT')
     end if
     Re8 = Re**0.8_wp
@@ -93,7 +107,7 @@ CONTAINS
        Sh_heat    = Res_factor * non_dim%pr33
        Sh_vapor   = Res_factor * non_dim%sc33
        Sh_CO2     = Res_factor * non_dim%scc33
-       if (cws > zero) Sh_vapor = 0.66_wp * non_dim%sc33 * Re**0.4_wp ! originally cws > 0, Yuan changed 2017.0901 1e-15_wp
+       if (cws > zero) Sh_vapor = 0.66_wp * non_dim%sc33 * Re**0.4_wp
        !   Sh_vapor = 0.66 * non_dim%sc33 * pow(Re, 0.4) * betfact
     end if
     ! If there is free convection
@@ -114,13 +128,17 @@ CONTAINS
     ddc_T_P = ddc * (1013._wp/input%press_mb) * (T_kelvin/TN0)**1.81_wp
     bound_lay_res%heat  = lleaf / (ddh_T_P * Sh_heat)
     bound_lay_res%vapor = lleaf / (ddv_T_P * Sh_vapor)
+    if (bound_lay_res%vapor==zero) then
+!        print *, bound_lay_res%vapor
+!        print *, lleaf, ddv_T_P,Sh_vapor
+    end if
     bound_lay_res%co2   = lleaf / (ddc_T_P * Sh_CO2)
 
   END SUBROUTINE boundary_resistance
 
 
   ! ------------------------------------------------------------------
-  SUBROUTINE conc(source, cncc, cref, soilflux, factor)
+  SUBROUTINE conc(source, cncc, cref, soilflux,factor)
     ! Subroutine to compute scalar concentrations from source
     ! estimates and the Lagrangian dispersion matrix
     USE types,      ONLY: met
@@ -134,6 +152,7 @@ CONTAINS
     REAL(wp), DIMENSION(:), INTENT(OUT) :: cncc     !
     REAL(wp),               INTENT(IN)  :: cref     ! ref concentration = upper boundary
     REAL(wp),               INTENT(IN)  :: soilflux ! soil efflux = lower boundary
+!    REAL(wp), DIMENSION(:), INTENT(OUT) :: soilbnd  ! output soil contribution to the canopy profile Yuan 2018.09.20
     REAL(wp),               INTENT(IN)  :: factor   !
 
     REAL(wp), DIMENSION(1:ntl,1:ncl) :: disper, disperzl
@@ -175,10 +194,78 @@ CONTAINS
     soilbnd(1:ntl) = soilflux * disperzl1(1:ntl) / factor
     cc(1:ntl)      = sumcc(1:ntl) / factor + soilbnd(1:ntl)
     ! Compute scalar profile below reference
-    cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
+ !   cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
+    cncc(1:ntl) = cc(1:ntl) + (cref)
+!    print *, izref
+!    print *, cncc(ntl), cc(ntl), cref, cc(izref)
 
   END SUBROUTINE conc
+  ! ------------------------------------------------------------------
+    SUBROUTINE conc_seperate(source, cncc, cref, soilflux, soilbnd, sourcebnd, factor)
+    ! Subroutine to compute scalar concentrations from source
+    ! estimates and the Lagrangian dispersion matrix
+    USE types,      ONLY: met
+    USE constants,  ONLY: zero
+    USE setup,      ONLY: ncl, ntl
+    USE parameters, ONLY: delz, izref, ustar_ref
 
+    IMPLICIT NONE
+
+    REAL(wp), DIMENSION(:), INTENT(IN)  :: source   ! canopy sources
+    REAL(wp), DIMENSION(:), INTENT(OUT) :: cncc     !
+    REAL(wp),               INTENT(IN)  :: cref     ! ref concentration = upper boundary
+    REAL(wp),               INTENT(IN)  :: soilflux ! soil efflux = lower boundary
+    REAL(wp), DIMENSION(:), INTENT(OUT)  :: soilbnd ! soil contribution to the canopy profile
+    REAL(wp), DIMENSION(:), INTENT(OUT)  :: sourcebnd ! flux contribution to the canopy profile
+    REAL(wp),               INTENT(IN)  :: factor   !
+
+    REAL(wp), DIMENSION(1:ntl,1:ncl) :: disper, disperzl
+    REAL(wp), DIMENSION(1:ntl) :: disper1, disperzl1
+    REAL(wp), DIMENSION(1:ntl) :: sumcc, cc!, soilbnd, sourcebnd
+    REAL(wp) :: ustfact
+
+    ! Compute concentration profiles from Dispersion matrix
+    ustfact = ustar_ref / met%ustar ! factor to adjust Dij with alternative u* values
+    ! Note that disperion matrix was computed using u* = 0.405
+    ! CC is the differential concentration (Ci-Cref)
+    ! Ci-Cref = SUM (Dij S DELZ), units mg m-3,mole m-3, or heat m-3
+    ! S = dfluxdz/DELZ
+    ! note delz values cancel
+    ! scale dispersion matrix according to friction velocity
+    disper(1:ntl,1:ncl) = ustfact * met%dispersion(1:ntl,1:ncl) ! units s/m
+    ! scale dispersion matrix according to Z/L
+    ! if (met%zl < 0)
+    ! disperzl = disper / (1.- .812 * met%zl)
+    ! else
+    ! disperzl=disper
+    ! updated Dispersion matrix (Dec, 2002). New Tl and 1,000,000 particles Hainich
+    if (met%zl < zero) then
+       disperzl(1:ntl,1:ncl) = disper(1:ntl,1:ncl) * (0.2469_wp* met%zl -0.4701_wp)/(met%zl -0.3716_wp) !changed
+    else
+       disperzl(1:ntl,1:ncl) = disper(1:ntl,1:ncl)
+    end if
+    sumcc(1:ntl) = sum(delz * disperzl(1:ntl,1:ncl) * spread(source(1:ncl),dim=1,ncopies=ntl), dim=2)
+    ! scale dispersion matrix according to Z/L
+    ! case for j=1, soil level
+    disper1(1:ntl) = ustfact * met%dispersion(1:ntl,1)
+    if (met%zl < zero) then
+       disperzl1(1:ntl) = disper1(1:ntl) * (0.2469_wp* met%zl -0.4701_wp)/(met%zl -0.3716_wp) !changed
+    else
+       disperzl1(1:ntl) = disper1(1:ntl)
+    end if
+    ! add soil flux to the lowest boundary condition
+    ! convert to the units we need
+    soilbnd(1:ntl) = soilflux * disperzl1(1:ntl) / factor
+    cc(1:ntl)      = sumcc(1:ntl) / factor + soilbnd(1:ntl)
+    ! Compute scalar profile below reference
+    !cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
+    cncc(1:ntl) = cc(1:ntl) + (cref)
+    sourcebnd(1:ntl) = sumcc(1:ntl)/factor
+!    print *, izref
+!    print *, cncc(ntl), cc(ntl), cref, cc(izref)
+
+  END SUBROUTINE conc_seperate
+  ! ------------------------------------------------------------------
 
   ! ------------------------------------------------------------------
   SUBROUTINE friction_velocity()

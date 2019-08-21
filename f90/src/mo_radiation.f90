@@ -5,10 +5,10 @@ MODULE radiation
   ! Written Jan 2011, Mathias Cuntz - Ported C-Code
 
   USE kinds, ONLY: wp, i4
-  USE types,         ONLY: input ! Yuan 2017.08.18
 
   IMPLICIT NONE
-
+  LOGICAL judgenight ! judge if night, more complex than isnight. Yuan 2018.01.16
+  COMMON  judgenight
   PRIVATE
 
   PUBLIC :: angle                     ! computes sun angles
@@ -583,13 +583,7 @@ CONTAINS
     SUP(2:ncl+1)       = IR_source(1:ncl) * (one-solar%exxpdir(1:ncl))
     ! Intercepted IR that is radiated downward
     SDN(:)             = IR_source(:) * (one-solar%exxpdir(:))
-!print *, "Tk_sun_filt\n", Tk_sun_filt(:)
-!print *, "Tk_shade_filt\n", Tk_shade_filt(:)
-!print *, "IR_source_sun\n", IR_source_sun(:)
-!print *, "IR_source_shade\n", IR_source_shade(:)
-!print *, "IR_source\n", IR_source(:)
-!print *, "SUP\n", SUP(2:ncl+1)
-!print *, "SDN\n", SDN(:)
+
     ! First guess of up and down values
 
     ! Downward IR radiation, sum of that from upper layer that is transmitted
@@ -601,8 +595,6 @@ CONTAINS
     do j=2, ncl+1
        solar%ir_up(j) = solar%exxpdir(j-1) * solar%ir_up(j-1) + SUP(j)
     end do
-  !  print *, "solar ir up \n", solar%ir_up
- !   print *, "solar ir dn \n", solar%ir_dn
     ! ground emission
     emiss_IR_soil  = epsoil*sigma &
          * (soil%tsrf_filter+TN0)*(soil%tsrf_filter+TN0) &
@@ -635,143 +627,46 @@ CONTAINS
        i_check = i_check+1
        if (i_check > 10) write(nerr,*) "Bad irflux"
     end do
-!print *, "up \n", solar%ir_up
-!print *, "dn \n", solar%ir_dn
 
   END SUBROUTINE irflux
 
 
-  ! ------------------------------------------------------------------
-  SUBROUTINE lai_time()
-    ! Evaluate how LAI and other canopy structural variables vary with time
-    USE types,      ONLY: time, solar, prof, input
-    USE constants,  ONLY: zero, half, one, two
-    USE setup,      ONLY: ncl, nbeta
-    USE parameters, ONLY: delz, extra_nate, ht, lai, pai, markov, nup, ht_midpt, lai_freq, pai_freq, &
-         par_reflect, par_trans, par_soil_refl_dry, nir_reflect, nir_trans, nir_soil_refl_dry
+  SUBROUTINE Beta_distr(HHH,FQ,BF,III,NNN)
 
-    IMPLICIT NONE
-
-    REAL(wp), DIMENSION(1:ncl)   :: lai_z
-    REAL(wp), DIMENSION(1:ncl)   :: beta_fnc
-    REAL(wp), DIMENSION(1:nbeta) :: lai_freq_local
-    REAL(wp), DIMENSION(1:nbeta) :: ht_midpt_local
-    REAL(wp), DIMENSION(1:ncl)   :: dff, XX, AA, DA, dff_Markov
-    REAL(wp), DIMENSION(1:ncl)   :: cos_AA, sin_AA, exp_diffuse
-    REAL(wp) :: TF, MU1, MU2, integr_beta
-    REAL(wp) :: dx, DX2, DX4, X, P_beta, Q_beta, F1, F2, F3
-    REAL(wp) :: cum_lai, sumlai, cum_ht, ztmp
-    INTEGER(i4) :: i
-
-!    PRINT *, MU1
-    ! seasonal update of model parameters
-    ! Winter 1
-    if (time%days < time%leafout) then
-       time%lai                = pai
-       ! PAR wave band: after Norman (1979) and NASA report
-       solar%par_reflect       = par_reflect(1)
-       solar%par_trans         = par_trans(1)
-       solar%par_soil_refl_dry = par_soil_refl_dry(1)
-       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
-       ! NIR wave band: after Norman (1979) and NASA report
-       solar%nir_reflect       = nir_reflect(1)
-       solar%nir_trans         = nir_trans(1)
-       solar%nir_soil_refl_dry = nir_soil_refl_dry(1)
-       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
-    end if
-    ! Spring
-    if (time%days >= time%leafout .and. time%days < time%leaffull) then
-       time%lai                = pai + (time%days - time%leafout) * (lai - pai) / (time%leaffull-time%leafout)
-       ! PAR wave band: after Norman (1979) and NASA report
-       solar%par_reflect       = par_reflect(2)
-       solar%par_trans         = par_trans(2)
-       solar%par_soil_refl_dry = par_soil_refl_dry(2)
-       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
-       ! NIR wave band: after Norman (1979) and NASA report
-       solar%nir_reflect       = nir_reflect(2)
-       solar%nir_trans         = nir_trans(2)
-       solar%nir_soil_refl_dry = nir_soil_refl_dry(2)
-       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
-    end if
-    ! Summer
-    if (time%days >= time%leaffull .and. time%days < time%leaffall) then
-       time%lai                = lai
-       ! PAR wave band: after Norman (1979) and NASA report
-       solar%par_reflect       = par_reflect(3)
-       solar%par_trans         = par_trans(3)
-       solar%par_soil_refl_dry = par_soil_refl_dry(3)
-       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
-       ! NIR wave band: after Norman (1979) and NASA report
-       solar%nir_reflect       = nir_reflect(3)
-       solar%nir_trans         = nir_trans(3)
-       solar%nir_soil_refl_dry = nir_soil_refl_dry(3)
-       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
-    end if
-    ! Fall
-    if (time%days >= time%leaffall .and. time%days < time%leaffallcomplete) then
-       time%lai                = lai - (time%days - time%leaffall) * (lai-pai) / (time%leaffallcomplete-time%leaffall)
-       ! PAR wave band: after Norman (1979) and NASA report
-       solar%par_reflect       = par_reflect(4)
-       solar%par_trans         = par_trans(4)
-       solar%par_soil_refl_dry = par_soil_refl_dry(4)
-       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
-       ! NIR wave band: after Norman (1979) and NASA report
-       solar%nir_reflect       = nir_reflect(4)
-       solar%nir_trans         = nir_trans(4)
-       solar%nir_soil_refl_dry = nir_soil_refl_dry(4)
-       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
-    end if
-    ! Winter 2
-    if (time%days >= time%leaffallcomplete) then
-       time%lai                = pai
-       ! PAR wave band: after Norman (1979) and NASA report
-       solar%par_reflect       = par_reflect(1)
-       solar%par_trans         = par_trans(1)
-       solar%par_soil_refl_dry = par_soil_refl_dry(1)
-       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
-       ! NIR wave band: after Norman (1979) and NASA report
-       solar%nir_reflect       = nir_reflect(1)
-       solar%nir_trans         = nir_trans(1)
-       solar%nir_soil_refl_dry = nir_soil_refl_dry(1)
-       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
-    end if
-    ! for Nate McDowell''s juniper site read LAI instead of diffuse PAR
-    if (extra_nate == 1) time%lai = max(input%lai_up+input%lai_down, pai)
-    ! height of mid point of layer scaled to height of forest
-    ht_midpt_local(1:nbeta) = ht_midpt(1:nbeta)
-    ! use LAI distribution
-    if (time%days >= time%leafout .and. time%days <= time%leaffallcomplete) then
-       ! lai of the layers at the midpoint of height
-       lai_freq_local(1:nbeta) = lai_freq(1:nbeta)*lai
-    else ! use PAI distribution
-       lai_freq_local(1:nbeta) = pai_freq(1:nbeta)*pai
-    end if
-    ! Beta distribution
+    ! add individual B_Beta_distr subroutine to calculate beta distribution for WAI and LAI distribution
+    ! Yuan 2018.04.23
+        ! Beta distribution
     ! f(x) = x^(p-1) (1-x)^(q-1) / B(v,w)
     ! B(v,w) = int from 0 to 1 x^(p-1) (1-x)^(q-1) dx
     ! p = mean{(mean(1-mean)/var)-1}
     ! q =(1-mean){(mean(1-mean)/var)-1}
     ! ENTER THE HEIGHT AT THE MIDPOINT OF THE LAYER
     ! Normalize height
+    USE constants,  ONLY: zero, half, one, two
+    USE setup,      ONLY: ncl
+    USE parameters, ONLY: ht
+
+    IMPLICIT NONE
+    INTEGER(i4) :: i, NNN! number of elements in midpoint array
+    REAL(wp) :: ztmp
+    REAL(wp) :: TF, MU1, MU2, III ! III is beta integer
+    REAL(wp) :: dx, DX2, DX4, X, P_beta, Q_beta, F1, F2, F3
+    REAL(wp), DIMENSION(1:NNN)   :: HHH, Htmp, FQ ! midpt height and midpt frequency
+    REAL(wp), DIMENSION(1:ncl)     :: BF ! beta function
+!    print *, HHH
+!    print *, FQ
     ztmp = one / ht
-    !ht_midpt_local(1:nbeta) = ht_midpt_local(1:nbeta) * ztmp
-   ! print *, ht_midpt_local
-   ! print *, lai_freq_local
+!    print *, "HHH before: "
+!    print *, HHH
+    Htmp(1:NNN) = HHH(1:NNN) * ztmp
+!    print *, "HHH after: "
+!    print *, Htmp
     ! TOTAL F IN EACH LAYER, TF SHOULD SUM TO EQUAL lai
-    !TF  = sum(lai_freq_local(1:nbeta))
+    TF  = sum(FQ(1:NNN))
     ! weighted mean lai
-    TF  = zero
-    MU1 = zero
-    MU2 = zero
-    DO i=1, nbeta ! calculate array elements instead of the whole array Yuan 2017.08.29
-        TF  = TF + lai_freq_local(i)
-        ht_midpt_local(i) = ht_midpt_local(i) * ztmp
-        MU1 = MU1+ ht_midpt_local(i)*lai_freq_local(i)
-        MU2 = MU2 + ht_midpt_local(i)*ht_midpt_local(i)*lai_freq_local(i)
-    END DO
-    !MU1 = sum(ht_midpt_local(1:nbeta)*lai_freq_local(1:nbeta))
+    MU1 = sum(Htmp(1:NNN)*FQ(1:NNN))
     ! weighted variance
-    !MU2 = sum(ht_midpt_local(1:nbeta)*ht_midpt_local(1:nbeta)*lai_freq_local(1:nbeta))
+    MU2 = sum(Htmp(1:NNN)*Htmp(1:NNN)*FQ(1:NNN))
     ! normalize mu by lai
     MU1 = MU1 / TF
     MU2 = MU2 / TF
@@ -790,43 +685,347 @@ CONTAINS
     DX2 = half * dx
     DX4 = dx / 4._wp
     X   = DX4
-    F2  = X**P_beta * (one-X)**Q_beta !!!
+    F2  = X**P_beta * (one-X)**Q_beta
     X   = X + DX4
     F3  = X**P_beta * (one-X)**Q_beta
     ! start integration at lowest boundary
-    beta_fnc(1) = DX4 * (4._wp * F2 + F3) / 3._wp
-    integr_beta = beta_fnc(1)
+    BF(1) = DX4 * (4._wp * F2 + F3) / 3._wp
+    III = BF(1)
     do i=2, ncl-1
        F1 = F3
        X  = X + DX2
        F2 = X**P_beta * (one-X)**Q_beta
        X  = X + DX2
        F3 = X**P_beta * (one-X)**Q_beta
-       beta_fnc(i) = DX2 * (F1 + 4._wp * F2 + F3) / 3._wp
-       integr_beta = integr_beta + beta_fnc(i)
+       BF(i) = DX2 * (F1 + 4._wp * F2 + F3) / 3._wp
+       III = III + BF(i)
     end do
     F1 = F3
     X  = X + DX4
     F2 = X**P_beta * (one-X)**Q_beta
     ! compute integrand at highest boundary
-    beta_fnc(ncl) = DX4 * (F1 + 4._wp * F2) / 3._wp
-    integr_beta   = integr_beta + beta_fnc(ncl)
-    ! lai_z IS THE LEAF AREA AS A FUNCTION OF Z
-    !
-    ! beta_fnc is the pdf for the interval dx
+    BF(ncl) = DX4 * (F1 + 4._wp * F2) / 3._wp
+    III   = III + BF(ncl)
+
+!    print *, HHH
+!    print *, FQ
+!    print *, (BF)/III
+
+  END SUBROUTINE Beta_distr
+
+
+  SUBROUTINE wai_distr(wai,B_func,wai_z)
+  ! add WAI distribution Yuan 2018.03.15:
+
+  ! 1. seperate PAI into WAI and LAI: PAI = WAI + LAI
+  ! 2. WAI = stem + branch, the fraction can be set mannually.
+  ! 3. WAI% of stem layer = volume% layer to the total stem
+  ! 4. volume% layer is a function of diameter per layer (D).
+  ! 5. diameter per layer is up to the D/DBH, which is a function of total tree height and the layer height
+  ! 6. WAI% of branch layer follows beta distribution, but indipendent from beta_lai
+    USE setup,      ONLY: ncl
+    USE parameters, ONLY: delz
+    USE constants,  ONLY: zero, pi
+    USE types, ONLY: debug
+    IMPLICIT NONE
+
+    REAL(wp), DIMENSION(1:ncl)   :: B_func
+    REAL(wp), DIMENSION(1:ncl)   :: vol_perc
+    REAL(wp), DIMENSION(1:ncl)   :: wai_z
+    REAL(wp) :: h_stem, stem_wai, branch_wai, wai, htmp
+    REAL(wp) :: d_frac! diameter fraction against DBH
+    REAL(wp) :: p0, p1, p2, p3
+    INTEGER(i4) :: j, j_branch ! j_stem = layer on which stem ends and branch extension starts
+
+  h_stem = 17 ! stem height = 17m
+  stem_wai = 0.2 ! 0.2 and 0.8 ratio, from Yuan's measurement. 2018.04.23
+  branch_wai = 0.8
+  p0 = 102
+  p1 = -2.6
+  p2 = 0.08
+  p3 = -0.0023
+
+  !QD <- 0.55 ! quadratic mean diameter
+  j_branch = nint(h_stem/delz,i4)-1 ! branch starts at layer 17
+  ! calculate stem volume fraction on each layer
+  vol_perc = zero
+   ! lower layers, stems
+  do j=1, ncl
+
+    htmp = j*delz
+    ! diameter function with height
+    d_frac =p0+p1*(htmp)+p2*(htmp**2)+p3*(htmp**3)
+    vol_perc(j) = d_frac**3
+  end do
+  ! volume frac per layer stem
+  vol_perc =  vol_perc/sum(vol_perc)
+!  print *, sum(vol_perc)
+ ! print *, j_branch
+  ! wai distr of the stem based on vol%
+  j_branch = 20 ! j_branch = 18 from Yuan's measurements 2018.04.23
+  wai_z(1:j_branch) = stem_wai*wai*vol_perc(1:j_branch)/sum(vol_perc(1:j_branch))
+  ! wai of branch is scaled with lai
+  wai_z((j_branch+1):ncl)= branch_wai*wai*B_func((j_branch+1):ncl)/sum(B_func((j_branch+1):ncl))
+!  debug%R3 =sum(B_func((j_branch+1):ncl))
+!  wai_z = wai*B_func/sum(B_func)
+  END SUBROUTINE wai_distr
+
+  ! ------------------------------------------------------------------
+  SUBROUTINE lai_time()
+    ! Evaluate how LAI and other canopy structural variables vary with time
+    ! ATTENTION: We separate original LAI into PAI - WAI; old LAI = new PAI, old PAI = new WAI; New PAI = New LAI + New WAI
+    ! new lai for photosyn, new PAI for radiation, new WAI for bole resp
+    USE types,      ONLY: time, solar, prof, input, debug, iswitch
+    USE constants,  ONLY: zero, half, one, two, nbetamax
+    USE setup,      ONLY: ncl, nbeta, nbeta_w
+    USE parameters, ONLY: delz, extra_nate, ht, lai, pai, wai, markov, nup, ht_midpt, lai_freq, pai_freq, wai_freq, &
+         wai_midpt, par_reflect, par_trans, par_soil_refl_dry, nir_reflect, nir_trans, nir_soil_refl_dry
+
+    IMPLICIT NONE
+
+    REAL(wp), DIMENSION(1:ncl)   :: lai_z
+    REAL(wp), DIMENSION(1:ncl)   :: wai_z ! add wai distribution Yuan 2018.03.04
+    REAL(wp), DIMENSION(1:ncl)   :: beta_fnc, beta_fnc_w
+    REAL(wp), DIMENSION(1:nbetamax) :: lai_freq_local
+    REAL(wp), DIMENSION(1:nbetamax) :: ht_midpt_local
+    REAL(wp), DIMENSION(1:ncl)   :: dff, XX, AA, DA, dff_Markov
+    REAL(wp), DIMENSION(1:ncl)   :: cos_AA, sin_AA, exp_diffuse
+!    REAL(wp) :: TF, MU1, MU2,
+    REAL(wp) :: integr_beta, integr_beta_w
+!    REAL(wp) :: dx, DX2, DX4, X, P_beta, Q_beta, F1, F2, F3
+    REAL(wp) :: cum_lai, sumlai, cum_ht! sumpai Yuan 2018.03.02
+    INTEGER(i4) :: i ! number of elements in wai midpoint array. Yuan 2018.04.25
+
+    ! seasonal update of model parameters
+    time%wai = wai ! Yuan 2018.03.02
+    ! Winter 1
+    if (time%days < time%leafout) then
+        if (iswitch%wai_new==0) then
+            time%lai                = pai
+            else
+            time%lai                = zero!time%wai!old pai = new wai
+        end if
+
+
+       ! PAR wave band: after Norman (1979) and NASA report
+       solar%par_reflect       = par_reflect(1)
+       solar%par_trans         = par_trans(1)
+       solar%par_soil_refl_dry = par_soil_refl_dry(1)
+       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
+       ! NIR wave band: after Norman (1979) and NASA report
+       solar%nir_reflect       = nir_reflect(1)
+       solar%nir_trans         = nir_trans(1)
+       solar%nir_soil_refl_dry = nir_soil_refl_dry(1)
+       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
+    end if
+    ! Spring
+    if (time%days >= time%leafout .and. time%days < time%leaffull) then
+        if (iswitch%wai_new==0) then
+            time%lai                = pai + (time%days - time%leafout) * (lai - pai) / (time%leaffull-time%leafout) ! old LAI
+        else
+                  ! time%lai                = wai + (time%days - time%leafout) * (lai-wai) / (time%leaffull-time%leafout) !new LAI
+            time%lai                = (time%days - time%leafout) * (lai) / (time%leaffull-time%leafout) !new LAI
+        end if
+      ! PAR wave band: after Norman (1979) and NASA report
+       solar%par_reflect       = par_reflect(2)
+       solar%par_trans         = par_trans(2)
+       solar%par_soil_refl_dry = par_soil_refl_dry(2)
+       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
+       ! NIR wave band: after Norman (1979) and NASA report
+       solar%nir_reflect       = nir_reflect(2)
+       solar%nir_trans         = nir_trans(2)
+       solar%nir_soil_refl_dry = nir_soil_refl_dry(2)
+       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
+    end if
+    ! Summer
+    if (time%days >= time%leaffull .and. time%days < time%leaffall) then
+       time%lai                = lai ! NEW lai
+ !      time%pai                = time%lai + time%wai ! both leaf and wood
+       ! PAR wave band: after Norman (1979) and NASA report
+       solar%par_reflect       = par_reflect(3)
+       solar%par_trans         = par_trans(3)
+       solar%par_soil_refl_dry = par_soil_refl_dry(3)
+       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
+       ! NIR wave band: after Norman (1979) and NASA report
+       solar%nir_reflect       = nir_reflect(3)
+       solar%nir_trans         = nir_trans(3)
+       solar%nir_soil_refl_dry = nir_soil_refl_dry(3)
+       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
+    end if
+    ! Fall
+    if (time%days >= time%leaffall .and. time%days < time%leaffallcomplete) then
+        if (iswitch%wai_new==0) then
+                  time%lai   = lai - (time%days - time%leaffall) * (lai-pai) / (time%leaffallcomplete-time%leaffall)
+       else
+                ! new lai , new wai
+!      time%lai                = lai - (time%days - time%leaffall) * (lai-wai) / (time%leaffallcomplete-time%leaffall) ! Yuan 2018.03.01
+       time%lai                = lai - (time%days - time%leaffall) * (lai) / (time%leaffallcomplete-time%leaffall) ! Yuan 2018.03.02
+       !time%pai                = time%lai + time%wai
+
+        end if
+       ! PAR wave band: after Norman (1979) and NASA report
+       solar%par_reflect       = par_reflect(4)
+       solar%par_trans         = par_trans(4)
+       solar%par_soil_refl_dry = par_soil_refl_dry(4)
+       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
+       ! NIR wave band: after Norman (1979) and NASA report
+       solar%nir_reflect       = nir_reflect(4)
+       solar%nir_trans         = nir_trans(4)
+       solar%nir_soil_refl_dry = nir_soil_refl_dry(4)
+       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
+    end if
+    ! Winter 2
+    if (time%days >= time%leaffallcomplete) then
+        if (iswitch%wai_new==0) then
+         time%lai                = pai
+            else
+       ! time%lai                = wai ! YUAN 2018.03.01
+       time%lai                = zero ! YUAN 2018.03.02
+        end if
+
+
+
+       ! PAR wave band: after Norman (1979) and NASA report
+       solar%par_reflect       = par_reflect(1)
+       solar%par_trans         = par_trans(1)
+       solar%par_soil_refl_dry = par_soil_refl_dry(1)
+       solar%par_absorbed      = (one - solar%par_reflect - solar%par_trans)
+       ! NIR wave band: after Norman (1979) and NASA report
+       solar%nir_reflect       = nir_reflect(1)
+       solar%nir_trans         = nir_trans(1)
+       solar%nir_soil_refl_dry = nir_soil_refl_dry(1)
+       solar%nir_absorbed      = (one - solar%nir_reflect - solar%nir_trans)
+    end if
+    ! for Nate McDowell''s juniper site read LAI instead of diffuse PAR
+    if (extra_nate == 1) time%lai = max(input%lai_up+input%lai_down, pai)
+    ! height of mid point of layer scaled to height of forest
+    time%pai                = time%lai + time%wai
+    ht_midpt_local(1:nbeta) = ht_midpt(1:nbeta)
+    ! use LAI distribution
+!    if (time%days >= time%leafout .and. time%days <= time%leaffallcomplete) then
+       ! lai of the layers at the midpoint of height
+!       lai_freq_local(1:nbeta) = lai_freq(1:nbeta)*lai
+       lai_freq_local(1:nbeta) = lai_freq(1:nbeta)*lai
+    ! get beta function for LAI:
+    call Beta_distr(ht_midpt_local,lai_freq_local,beta_fnc,integr_beta,nbeta)
     lai_z(1)       = beta_fnc(1) * time%lai / integr_beta
     lai_z(1:ncl-1) = beta_fnc(1:ncl-1) * (time%lai / integr_beta)
     lai_z(ncl)     = beta_fnc(ncl) * time%lai / integr_beta
-  !  print *, beta_fnc
-  !  print *, "---"
-   ! print *, integr_beta
-    ! re-index layers of lai_z.
+        ! re-index layers of lai_z.
     ! layer 1 is between ground and 1st level
     ! layer jtot is between level ncl and top of canopy (ncl+1)
     cum_ht  = ncl*delz
     cum_lai = sum(lai_z(1:ncl))
     ! use prof%dLAIdz for radiative transfer model
     prof%dLAIdz(1:ncl) = lai_z(1:ncl)
+    ! Beta distribution
+    ! f(x) = x^(p-1) (1-x)^(q-1) / B(v,w)
+    ! B(v,w) = int from 0 to 1 x^(p-1) (1-x)^(q-1) dx
+    ! p = mean{(mean(1-mean)/var)-1}
+    ! q =(1-mean){(mean(1-mean)/var)-1}
+    ! ENTER THE HEIGHT AT THE MIDPOINT OF THE LAYER
+    ! Normalize height
+!    ztmp = one / ht
+!    ht_midpt_local(1:nbeta) = ht_midpt_local(1:nbeta) * ztmp
+!    ! TOTAL F IN EACH LAYER, TF SHOULD SUM TO EQUAL lai
+!    TF  = sum(lai_freq_local(1:nbeta))
+!    ! weighted mean lai
+!    MU1 = sum(ht_midpt_local(1:nbeta)*lai_freq_local(1:nbeta))
+!    ! weighted variance
+!    MU2 = sum(ht_midpt_local(1:nbeta)*ht_midpt_local(1:nbeta)*lai_freq_local(1:nbeta))
+!    ! normalize mu by lai
+!    MU1 = MU1 / TF
+!    MU2 = MU2 / TF
+!    ! compute Beta parameters
+!    P_beta = MU1 * (MU1 - MU2) / (MU2 - MU1 * MU1)
+!    Q_beta = (one - MU1) * (MU1 - MU2) / (MU2 - MU1 * MU1)
+!    P_beta = P_beta - one
+!    Q_beta = Q_beta - one
+!    ! integrate Beta function, with Simpson''s Approx.
+!    ! The boundary conditions are level 1 is height of ground
+!    ! and level ncl+1 is height of canopy. Layer 1 is between
+!    ! height levels 1 and 2. Layer ncl is between levels
+!    ! ncl and ncl+1
+!    ! Thickness of layer
+!    dx  = one / ncl
+!    DX2 = half * dx
+!    DX4 = dx / 4._wp
+!    X   = DX4
+!    F2  = X**P_beta * (one-X)**Q_beta
+!    X   = X + DX4
+!    F3  = X**P_beta * (one-X)**Q_beta
+!    ! start integration at lowest boundary
+!    beta_fnc(1) = DX4 * (4._wp * F2 + F3) / 3._wp
+!    integr_beta = beta_fnc(1)
+!    do i=2, ncl-1
+!       F1 = F3
+!       X  = X + DX2
+!       F2 = X**P_beta * (one-X)**Q_beta
+!       X  = X + DX2
+!       F3 = X**P_beta * (one-X)**Q_beta
+!       beta_fnc(i) = DX2 * (F1 + 4._wp * F2 + F3) / 3._wp
+!       integr_beta = integr_beta + beta_fnc(i)
+!    end do
+!    F1 = F3
+!    X  = X + DX4
+!    F2 = X**P_beta * (one-X)**Q_beta
+!    ! compute integrand at highest boundary
+!    beta_fnc(ncl) = DX4 * (F1 + 4._wp * F2) / 3._wp
+!    integr_beta   = integr_beta + beta_fnc(ncl)
+    ! lai_z IS THE LEAF AREA AS A FUNCTION OF Z
+    !
+    ! beta_fnc is the pdf for the interval dx
+
+
+    !!add wai distribution, Yuan 2018.03.04
+! if to switch on Yuan's wai distribution
+     if (iswitch%wai_new==0) then
+       prof%dWAIdz(1:ncl) = prof%dLAIdz(1:ncl)*(time%wai/time%lai)
+       else
+    call Beta_distr(wai_midpt,wai_freq,beta_fnc_w,integr_beta_w,nbeta_w)
+!    print *, "wai_mdpt="
+!    print *, wai_midpt
+!    print *, "wai_freq="
+!    print *, wai_freq
+!    print *, "beta_fnc_w="
+!    print *, beta_fnc_w
+!    print *, "int_beta_w="
+!    print *, integr_beta_w
+!    print *, "nbeta_w="
+!    print *, nbeta_w
+
+ !   wai_z(1)       = beta_fnc(1) * time%wai / integr_beta
+ !   wai_z(1:ncl-1) = beta_fnc(1:ncl-1) * (time%wai / integr_beta)
+ !   wai_z(ncl)     = beta_fnc(ncl) * time%wai / integr_beta
+ !   wai_z (1:ncl)        = time%wai/ncl
+
+    call wai_distr(time%wai,beta_fnc_w,wai_z)
+        prof%dWAIdz(1:ncl) = wai_z(1:ncl)
+     end if
+
+    ! get beta function for WAI:
+
+!    print *, "wai="
+!    print *, wai_z
+
+
+
+
+!debug%D1 = wai_z
+
+!debug%D2 = beta_fnc_w
+
+!debug%D3 = wai_midpt
+
+!debug%D4 = wai_freq
+
+!debug%R1 = time%wai
+
+!debug%R2 = integr_beta_w
+
+!debug%in1 = nbeta_w
+
+!print *, prof%dLAIdz
     ! for Nate McDowell''s juniper site, hardcode lai distribution for 40 layers
     if (extra_nate == 1) then
        ! equall distribution in lowest 50cm = 8 layers -> nup=9
@@ -844,11 +1043,21 @@ CONTAINS
        time%lai = sum(prof%dLAIdz(1:ncl))
     else
        ! normalise total LAI including layers with PAI
-       sumlai = sum(prof%dLAIdz(1:ncl))
-       prof%dLAIdz(1:ncl) = prof%dLAIdz(1:ncl)*(time%lai/sumlai)
+       sumlai = sum(prof%dLAIdz(1:ncl)) ! only leaves
+!       prof%dLAIdz(1:ncl) = prof%dLAIdz(1:ncl)*(time%lai/sumlai)! sumlai=0
     end if
     ! PAI
-    prof%dPAIdz(1:ncl) = prof%dLAIdz(1:ncl)*(pai/time%lai)
+    if (iswitch%wai_new==0) then
+       prof%dPAIdz(1:ncl) = prof%dLAIdz(1:ncl)*(pai/time%lai)
+       else
+            !!own distribution!!!! Yuan 2018.03.01
+     prof%dPAIdz(1:ncl) = prof%dWAIdz(1:ncl) + prof%dLAIdz(1:ncl)! use PAI for radiation
+    end if
+
+ !   print *, prof%dPAIdz(1:ncl)
+ !   print *, prof%dLAIdz(1:ncl)
+
+
     ! Direction cosine for the normal between the mean
     call gfunc_diffuse()
     ! compute the probability of diffuse radiation penetration through the
@@ -858,7 +1067,14 @@ CONTAINS
     !
     ! The probability of beam penetration is computed with a
     ! Markov distribution.
-    dff(1:ncl) = prof%dLAIdz(1:ncl) !+ prof%dPAIdz(1:ncl)
+    ! both use new PAI (leaf and wood) instead of LAI only Yuan 2018.03.01
+    if (iswitch%wai_new==0) then
+        dff(1:ncl) = prof%dLAIdz(1:ncl) !+ prof%dPAIdz(1:ncl)
+        else
+        dff(1:ncl) = prof%dPAIdz(1:ncl)
+    end if
+
+
     XX(1:ncl) = zero
     AA(1:ncl) = 0.087_wp
     DA(1:ncl) = 0.1745_wp
@@ -878,7 +1094,7 @@ CONTAINS
     ! Itegrated probability of diffuse sky radiation penetration for each layer
     solar%exxpdir(1:ncl) = two * XX(1:ncl) * DA(1:ncl)
     where (solar%exxpdir(1:ncl) > one) solar%exxpdir(1:ncl) = one
-!   print *, "exx", solar%exxpdir(1:ncl)
+
   END SUBROUTINE lai_time
 
 
@@ -894,8 +1110,8 @@ CONTAINS
     ! Modification of the Aerial Environment of Crops.
     ! B. Barfield and J. Gerber, Eds. American Society of Agricultural Engineers, 249-280.
     USE setup,      ONLY: ncl
-    USE constants,  ONLY: zero, one, e1, e2, isnight, judgenight
-    USE types,      ONLY: solar, prof
+    USE constants,  ONLY: zero, one, e1, e2, isnight
+    USE types,      ONLY: solar, prof,iswitch
     USE parameters, ONLY: markov
 
     IMPLICIT NONE
@@ -915,7 +1131,7 @@ CONTAINS
     TBEAM(ncl+1)        = fraction_beam
     solar%nir_dn(ncl+1) = one - fraction_beam
 
-    if (solar%nir_total > one .and. solar%sine_beta > isnight .and. input%parin>0) then
+    if (solar%nir_total > one .and. solar%sine_beta > isnight) then
        SDN(1) = 0
        ! Compute probability of penetration for direct and
        ! diffuse radiation for each layer in the canopy
@@ -943,7 +1159,13 @@ CONTAINS
        do j=ncl, 1, -1
           jp1 = j+1
           ! Probability of beam penetration.
+          if (iswitch%wai_new == 0) then
           dff = prof%dLAIdz(j) ! + prof%dPAIdz(j)
+            else
+          dff = prof%dPAIdz(j) ! lai+wai Yuan 2018.03.01
+          end if
+
+
           exp_direct = exp(-dff * markov*prof%Gfunc_solar(j) * ztmp)
           ! PEN1 = exp(-llai * prof%Gfunc_solar(JJ) / solar%sine_beta)
           ! exp_direct = exp(-DFF * prof%Gfunc_solar(JJ) / solar%sine_beta)
@@ -1002,7 +1224,7 @@ CONTAINS
        solar%nir_dn(1:ncl+1)  = solar%nir_dn(1:ncl+1)  * solar%nir_total
        where (solar%nir_dn(1:ncl+1) < e1) solar%nir_dn(1:ncl+1) = e1
        ! normal radiation on sunlit leaves
-       if (.NOT.judgenight) then ! ORIGINALLY  (solar%sine_beta > isnight) YUAN 2017.08.18
+       if (.NOT.judgenight) then ! YUAN 2018.01.06
           nir_normal(1:ncl) = solar%nir_beam * prof%Gfunc_solar(1:ncl) * ztmp
        else
           nir_normal(1:ncl) = zero
@@ -1015,7 +1237,7 @@ CONTAINS
        solar%nir_shd(1:ncl) = solar%nir_shd(1:ncl)  * solar%nir_absorbed
        ! plus diffuse component
        solar%nir_sun(1:ncl) = NSUNEN(1:ncl) + solar%nir_shd(1:ncl)
-    else ! solar%nir_total < one .or. solar%sine_beta < isnight .or.  input.parin<=0
+    else ! solar%nir_total > one .and. solar%sine_beta > isnight
        solar%nir_up(1:ncl)        = zero
        solar%nir_dn(1:ncl)        = zero
        solar%nir_shd(1:ncl)       = zero
@@ -1042,8 +1264,8 @@ CONTAINS
     ! Modification of the Aerial Environment of Crops.
     ! B. Barfield and J. Gerber, Eds. American Society of Agricultural Engineers, 249-280.
     USE setup,      ONLY: ncl
-    USE constants,  ONLY: zero, one, e2, e3, isnight, judgenight
-    USE types,      ONLY: solar, input, prof
+    USE constants,  ONLY: zero, one, e2, e3, isnight
+    USE types,      ONLY: solar, input, prof, debug, iswitch
     USE parameters, ONLY: markov
 
     IMPLICIT NONE
@@ -1059,7 +1281,7 @@ CONTAINS
     INTEGER(i4) :: j, jp1, jm1
     INTEGER(i4) :: IREP, ITER
 
-    if (.NOT.judgenight) then
+    if (.NOT.judgenight) then !YUAN 2018.01.16
        fraction_beam = solar%par_beam / input%parin
        beam(ncl+1)   = fraction_beam
        TBEAM(ncl+1)  = fraction_beam
@@ -1088,13 +1310,23 @@ CONTAINS
           ! Probability of beam penetration. This is that which
           ! is not umbral. Hence, this radiation
           ! is attenuated by the augmented leaf area: DF+PA.
-          dff        = prof%dLAIdz(j) ! + prof%dPAIdz(JJ)
-          sumlai     = sumlai + dff
+          ! leaf and wood Yuan 2018.03.01
+          if (iswitch%wai_new==0) then
+           dff        = prof%dLAIdz(j) ! + prof%dPAIdz(JJ)
+            else
+           dff        = prof%dPAIdz(j)
+          end if
+
+
+!          print *, "sumlai"
+!          print *, sumlai
+          sumlai     = sumlai + dff ! sumlai includes wood and leaves
           exp_direct = exp(-dff*markov*prof%Gfunc_solar(j)/ solar%sine_beta)
           PEN2       = exp(-sumlai*markov*prof%Gfunc_solar(j)/ solar%sine_beta)
           ! lai Sunlit and shaded
           prof%sun_lai(j) = solar%sine_beta * (one-PEN2)/(markov*prof%Gfunc_solar(j))
           prof%shd_lai(j) = sumlai - prof%sun_lai(j)
+!          print *, prof%sun_lai(j),prof%shd_lai(j),sumlai
           ! note that the integration of the source term time solar%prob_beam with respect to
           !   leaf area will yield the sunlit leaf area, and with respect to solar%prob_shd the
           !   shaded leaf area.
@@ -1103,6 +1335,44 @@ CONTAINS
           !   psun is equal to exp(-lai G markov/sinbet)
           !   pshade = 1 - psun
           solar%prob_beam(j) = markov*PEN2
+ !      if (ISNAN(solar%prob_beam(j))) then
+ !       print *, solar%prob_beam(j), prof%Gfunc_solar(j), solar%sine_beta, markov, PEN2, exp_direct, sumlai , dff
+
+ !       print *, prof%dWAIdz(j)
+
+!debug%D1 = wai_z
+!debug%D2 = beta_fnc_w
+!debug%D3 = wai_midpt
+!debug%D4 = wai_freq
+!debug%R1 = time%wai
+!debug%R2 = integr_beta_w
+!debug%in1 = nbeta_w
+!    print *, "debug:"
+!    print *, "wai_z="
+!        print *, debug%D1
+!print *, "beta_fnc_w_z="
+!        print *, debug%D2
+!print *, "wai_midpt="
+!        print *, debug%D3
+!print *, "wai_freq="
+!        print *, debug%D4
+!print *, "time%wai="
+!        print *, debug%R1
+!print *, "integr_beta_w="
+!        print *, debug%R2
+!print *, "sum_beta="
+!print *, debug%R3
+
+!print *, "nbeta_w="
+!        print *, debug%in1
+
+
+
+
+
+
+
+!       end if
           ! probability of beam
           beam(j) = beam(jp1) * exp_direct
           QU = one - solar%prob_beam(j)
@@ -1110,13 +1380,19 @@ CONTAINS
           if (QU < zero) QU = zero
           ! probability of umbra
           solar%prob_shd(j) = QU
+!       if (ISNAN(solar%prob_shd(j)) ) then
+!        print *, debug%D1
+!        print *, debug%D2
+!        print *, debug%R1
+!        print *, debug%R2
+!       end if
           TBEAM(j) = beam(j)
           ! beam PAR that is reflected upward by a layer
           SUP(jp1) = (TBEAM(jp1) - TBEAM(j)) * solar%par_reflect
           ! beam PAR that is transmitted downward
           SDN(j) = (TBEAM(jp1) - TBEAM(j)) * solar%par_trans
        end do
-!       print *, prof%dLAIdz(0),prof%dLAIdz(1)
+
        ! initiate scattering using the technique of NORMAN (1979).
        ! scattering is computed using an iterative technique.
        ! Here Adum is the ratio up/down diffuse radiation.
@@ -1167,6 +1443,10 @@ CONTAINS
        where (solar%par_up(1:ncl+1) < e3) solar%par_up(1:ncl+1) = e3
        ! downward beam PAR flux density, incident on the horizontal
        solar%beam_flux_par(1:ncl+1) = beam(1:ncl+1) * input%parin
+       !print *, solar%beam_flux_par
+      ! print *, input%parin
+      ! print *, beam(1:ncl+1)
+      ! print *, sum(beam(1:ncl))
        where (solar%beam_flux_par(1:ncl+1) < e3) solar%beam_flux_par(1:ncl+1) = e3
        ! Downward diffuse radiatIon flux density on the horizontal
        solar%par_down(1:ncl+1) = solar%par_down(1:ncl+1) * input%parin
@@ -1175,7 +1455,7 @@ CONTAINS
        if (solar%par_beam < e3) solar%par_beam = e3
        ! PSUN is the radiation incident on the mean leaf normal
 
-       if (.NOT.judgenight) then
+       if (.NOT.judgenight) then !YUAN 2018.01.16
           ztmp = one / solar%sine_beta
           ! PAR received normal to a leaf on a sunlit spot
           par_normal_quanta(1:ncl) = solar%par_beam * prof%Gfunc_solar(1:ncl) * ztmp
@@ -1196,7 +1476,7 @@ CONTAINS
        ! PAR
        solar%quantum_shd(1:ncl) = (solar%par_down(1:ncl) + solar%par_up(1:ncl)) * solar%par_absorbed ! umol m-2 s-1
        solar%quantum_sun(1:ncl) = solar%quantum_shd(1:ncl) + par_normal_abs_quanta(1:ncl)
-!       print *, solar%quantum_sun , solar%quantum_shd , par_normal_abs_quanta
+!    print *, solar%quantum_sun(1:ncl)
        ! calculate absorbed par
        solar%par_shd(1:ncl)     = solar%quantum_shd(1:ncl) / 4.6_wp ! W m-2
        ! solar%par_sun is the total absorbed radiation on a sunlit leaf,
@@ -1248,9 +1528,15 @@ CONTAINS
 
     ! Sunlit, shaded values
     solar%rnet_sun(1:ncl) = solar%par_sun(1:ncl) + solar%nir_sun(1:ncl) + ir_shade(1:ncl)
+ !print *, solar%rnet_sun(ncl)
+ !print *, solar%par_sun(ncl)
+ !print *, solar%nir_sun(ncl)
+ !print *, ir_shade(ncl)
+ !print *, solar%ratrad
+ !print *, solar%ir_up(ncl+1)
+ !print *, solar%ir_dn(ncl+1)
     solar%rnet_shd(1:ncl) = solar%par_shd(1:ncl) + solar%nir_shd(1:ncl) + ir_shade(1:ncl)
-!print *, "sun \n", solar%rnet_sun
-!print *, "shd \n", solar%rnet_shd
+
   END SUBROUTINE rnet
 
 

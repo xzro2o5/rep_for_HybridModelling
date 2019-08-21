@@ -4,7 +4,7 @@ MODULE messages
 
   ! Written Jul 2011, Matthias Cuntz - Inspired from Echam5 mo_exception.f90
 
-  USE constants, ONLY: nout
+  USE constants, ONLY: nout, noutdebug
 
   IMPLICIT NONE
 
@@ -44,7 +44,7 @@ CONTAINS
     if (present(uni)) then
        iout = uni
     else
-       iout = nout
+       iout = nout ! Yuan added debugfile 2018.09.14
     end if
     if (present(advance)) then
        iadv = ''

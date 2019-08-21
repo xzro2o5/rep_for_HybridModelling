@@ -14,8 +14,9 @@ MODULE setup
   INTEGER(i4) :: nl          ! # of leaf angle classes
   INTEGER(i4) :: nsoil       ! # of soil layers
   INTEGER(i4) :: nbeta       ! # of levels for beta distribution of e.g. lai
+  INTEGER(i4) :: nbeta_w     ! # of levels for beta distribution of wai
   INTEGER(i4) :: ndaysc13    ! # of days to remember for mean 13C discrimination
   INTEGER(i4) :: nwiso       ! # of maximum number of isotopic waters
   INTEGER(i4) :: nlop        ! # of leaf optical properties
-  
+
 END MODULE setup

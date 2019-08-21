@@ -12,6 +12,7 @@ MODULE io
 
   PUBLIC :: lastin
 
+  PUBLIC :: create_dir ! Yuan 2018.01.22
   PUBLIC :: close_files
   PUBLIC :: open_files
   PUBLIC :: read_disp
@@ -20,12 +21,30 @@ MODULE io
   PUBLIC :: write_daily
   PUBLIC :: write_profiles
   PUBLIC :: write_output
-  PUBLIC :: write_debug ! YUAN 2017.08.14
+  PUBLIC :: copy_code ! Yuan 2018.05.07
 
   ! ------------------------------------------------------------------
 
 CONTAINS
+  ! ------------------------------------------------------------------
+  SUBROUTINE create_dir()
+    ! create
+    USE io_text, ONLY: create_text_dir
 
+    IMPLICIT NONE
+
+    call create_text_dir()
+
+  END SUBROUTINE create_dir
+  ! ------------------------------------------------------------------
+  SUBROUTINE copy_code()
+   USE io_text, ONLY: copy_text_code
+
+   IMPLICIT NONE
+
+   call copy_text_code()
+
+  END SUBROUTINE copy_code
   ! ------------------------------------------------------------------
   SUBROUTINE close_files()
     ! Calls the routines to open input and output files
@@ -137,7 +156,6 @@ CONTAINS
     else
        continue
     end if
-  !  print *, "called"
 
   END SUBROUTINE write_daily
 
@@ -174,21 +192,6 @@ CONTAINS
     end if
 
   END SUBROUTINE write_output
-
-  SUBROUTINE write_debug()
-    ! Calls the routines to write debug file Yuan 2017.08.13
-!    USE parameters, ONLY: netcdf_out
-    USE io_text,    ONLY: write_text_debug
-
-    IMPLICIT NONE
-
- !   if (netcdf_out == 0) then
-       call write_text_debug()
-!    else
- !      continue
- !   end if
-
-  END SUBROUTINE write_debug
 
 
 END MODULE io

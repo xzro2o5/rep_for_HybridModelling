@@ -1,28 +1,29 @@
 PROGRAM canveg
-
+! start adding ROC to the model!
   ! Parameters / Types / Switches / etc.
   USE kinds,         ONLY: wp, i4, i8                          ! Precision
   USE constants,     ONLY: zero, half, one, e2, e3, e6, &      ! numerical
        version, main_file, namelist_file, &                    ! info
        TN0, P0, Gravity, rugc, cp, &                           ! physical
-       mass_air, mass_CO2, &
+       mass_air, mass_CO2, o2_ref, &
        RVSMOW_18O, RVSMOW_D, Rpdb_12C, &
        nnu, nuvisc, dc, ddh, dh, ddv, dv, &
-       isnight, undef, judgenight                                          ! computational
+       isnight, undef                                          ! computational
   USE setup,         ONLY: ncl, ntl, nsoil, nwiso, ndaysc13    ! dimensions
   USE parameters,    ONLY: read_namelist, &                    ! namelist parameters
        longitude, latitude, ht, lai, &
        indir, outdir, workdir, start_run, end_run, &
        start_profiles, end_profiles, &
-       extra_nate, lleaf, delz, bprime
+       extra_nate, lleaf, delz, bprime, &
+       ROC_leaf_in, ROC_bole_in, ROC_soil_in ! Yuan 2018.01.17
   USE types,         ONLY: time, iswitch, soil, wiso, &        ! Canveg''s types
        non_dim, bound_lay_res, input, prof, solar, met, &
-       ciso, fact, flux, output, bole, &
+       ciso, fact, flux, output, bole, debug, &
        ! Routines
        zero_new_timestep
-  USE io,            ONLY: open_files, close_files, &          ! I/O wrappers
-       read_disp, skip_input, lastin, write_daily, read_in, &
-       write_profiles, write_output,write_debug
+  USE io,            ONLY: create_dir, open_files, close_files, &          ! I/O wrappers
+       read_disp, skip_input, lastin, write_daily, read_in, &              ! Yuan 2018.01.22 to create a new directory
+       write_profiles, write_output, copy_code ! copy_code, Yuan 2018.05.07
   USE soils,         ONLY: set_litter_texture, &               ! Soil & Litter
        set_soil_moisture, set_soil_temp, set_soil_root, &      !   water & energy
        set_soil_clapp, set_soil_texture, set_soil_saxton, &
@@ -34,9 +35,10 @@ PROGRAM canveg
   USE radiation,     ONLY: set_leaf_phenology, lai_time, &     ! Phenology & Radiation
        irflux, angle, nir, par, rnet, &
        diffuse_direct_radiation, gfunc
-  USE transport,     ONLY: conc, friction_velocity             ! Dispersion
+  USE transport,     ONLY: conc, conc_seperate, friction_velocity             ! Dispersion
   USE isotopes,      ONLY: leaf_wiso, soil_flux_wiso, &        ! Isotopes
        le_wiso, canopy_flux_wiso, carbon_isotopes
+  USE  OXYGEN,       ONLY: OXYFLUX                             ! oxygen module Yuan 2018.01.19
   USE isoprene,      ONLY: isoprene_canopy_flux                ! Isoprene
   USE utils,         ONLY: es, lambda                          ! Utilities
   USE isotope_utils, ONLY: alpha_equ_h2o, delta1000, &
@@ -49,6 +51,9 @@ PROGRAM canveg
 
   IMPLICIT NONE
 
+  LOGICAL judgenight ! judge if night, more complex than isnight. Yuan 2018.01.16
+  COMMON  judgenight
+
   INTEGER(i4) :: i_count=0, i_max=0, j=0
   INTEGER(i8) :: daycnt=0, gppcnt=0
   INTEGER(i4) :: mc=0
@@ -59,6 +64,7 @@ PROGRAM canveg
   !REAL(wp) :: wue=zero
   REAL(wp) :: sumA=zero
   REAL(wp) :: sumlai=zero ! sums for daily averages and totals
+  REAL(wp) :: sumpai=zero ! YUAN 2018.03.04
   REAL(wp) :: sumh=zero, sumle=zero, sumrn=zero, sumlout=zero, sumksi=zero, sum13C=zero
   REAL(wp) :: ebalance=zero, sbalance=zero, tbalance=zero
   REAL(wp) :: sumdisc13=zero, sumdisc13_long=zero, sumdisc13_long_isotope=zero
@@ -78,10 +84,13 @@ PROGRAM canveg
   REAL(wp), DIMENSION(:), ALLOCATABLE :: tmpntl       ! ntl
   REAL(wp), DIMENSION(:), ALLOCATABLE :: tmpncl       ! ncl
   REAL(wp), DIMENSION(:), ALLOCATABLE :: rcws         ! nwiso
-  logical(kind=4) ll ! Yuan 2017.08.14
-  INTEGER(i8) :: d1=0
-  INTEGER(i8) :: d2=0
-  INTEGER(i8) :: d3=0
+
+!  CHARACTER(LEN=256),PARAMETER :: stmp
+
+  ! output of oxygen module Yuan 2018.01.30
+  REAL(wp) :: can_gpp_o=zero, canresp_o = zero, sumo=zero, sumneto=zero, sumcanresp_o=zero
+
+
 #ifndef QUIET
   REAL :: ctime1=zero, ctime2=zero
   INTEGER, DIMENSION(8) :: dtime
@@ -103,7 +112,8 @@ PROGRAM canveg
   call message('    This is Canveg version ', trim(version))
   call message('    Using main file ', trim(main_file), ' and namelist ', trim(namelist_file))
 #endif
-
+! copy source code:
+! Copy_Folder (trim(old_file), trim(new_file))
   !
   ! Read namelist
   !
@@ -112,7 +122,7 @@ PROGRAM canveg
   call message()
   call message('    Read namelist file: ', trim(namelist_file))
 #endif
-  call read_namelist()!key 1 = C 1606-1630 READ_PARAMETER()& SET_PARAMETER()
+  call read_namelist()
 
   ! Show model setup
 #ifndef QUIET
@@ -148,13 +158,12 @@ PROGRAM canveg
   call message('    Switch Bethy resp:   ', trim(num2str(iswitch%bethy_resp)))
   call message('    Extra Nate:          ', trim(num2str(extra_nate)))
 #endif
-
   !
   ! Further model setup
   !
 
   ! Vienna Standard Mean Ocean Water (VSMOW) for water isotopes
-   wiso%vsmow(:) = one !in C model it is set to be zero Yuan 2017.09.25
+  wiso%vsmow(:) = one
   if (nwiso >= 2) wiso%vsmow(2) = RVSMOW_18O ! 18O/16O
   if (nwiso >= 3) wiso%vsmow(3) = RVSMOW_D   ! 2H/1H
 
@@ -173,8 +182,9 @@ PROGRAM canveg
   soil%T_base = min(max(soil%T_base, -10._wp), 50._wp)
   ! 0: layered soil water 1: no soil water model
   if (nsoil==0) soil%camillo = 1
+
   ! Misc
-  i_max = 101            ! maximum number of iterations for energy balance
+  i_max = 501            ! maximum number of iterations for energy balance
   time%year = time%year0 ! Save first year
   if (.not. allocated(sun_A))  allocate(sun_A(ncl))
   if (.not. allocated(shd_A))  allocate(shd_A(ncl))
@@ -182,10 +192,14 @@ PROGRAM canveg
   if (.not. allocated(tmpncl)) allocate(tmpncl(ncl))
   if (.not. allocated(rcws))   allocate(rcws(nwiso))
 
+  ! create a new directory for output Yuan 2018.01.22
+  call create_dir()
+!  PRINT *, outdir
+! copy source code
+  call copy_code()
   !
   ! Open files
   call open_files()
- ! call write_debug()
   !
   ! Setup leaves
   call set_leaf_phenology() ! set leaf onset and full
@@ -200,7 +214,7 @@ PROGRAM canveg
   call set_litter_texture()
   call set_litter_temp()
   call set_litter_moisture()
-  if (soil%saxton==1) then  ! set hydraulic soil parameters
+    if (soil%saxton==1) then  ! set hydraulic soil parameters
      call set_soil_saxton()
   else
      call set_soil_clapp()
@@ -267,7 +281,8 @@ PROGRAM canveg
      prof%sun_leafwater_e_old(1:ncl,mc) = wiso%vsmow(mc)
      prof%shd_leafwater_e_old(1:ncl,mc) = wiso%vsmow(mc)
   end forall
-!  print *, wiso%vsmow ! study later. Yuan 2017.09.24
+!  print *, wiso%vsmow
+!  print *,prof%sun_leafwater_e(1:ncl,2:nwiso)
   ! initialise leaf area index
   input%lai = lai
   if (extra_nate==1) then
@@ -285,10 +300,13 @@ PROGRAM canveg
   tmpncl(1:ncl)                = one/(bprime(1:ncl)*(rugc*TN0/P0))
   prof%sun_rs(1:ncl)           = tmpncl(1:ncl)
   prof%sun_rs_filter(1:ncl)    = tmpncl(1:ncl)
+!  print *, prof%sun_rs_filter
   prof%shd_rs(1:ncl)           = tmpncl(1:ncl)
   prof%shd_rs_filter(1:ncl)    = tmpncl(1:ncl)
 
   prof%tair(1:ntl)                 = 25._wp
+!  print *, "1\n"
+!  print *, prof%tair
   prof%tair_filter(1:ntl)          = 25._wp
   prof%tair_filter_save(1:ntl)     = 25._wp
   prof%rhov_air(1:ntl,1)           = 0.02_wp
@@ -297,20 +315,30 @@ PROGRAM canveg
   prof%rhov_air_filter_save(1:ntl) = 0.02_wp
   prof%co2_air(1:ntl)              = 380._wp
   prof%co2_air_filter(1:ntl)       = 380._wp
+  prof%O2_air(1:ntl)              = o2_ref
+  prof%O2_air_filter(1:ntl)       = o2_ref
 
   ! Initialise atmospheric d13C
   if (iswitch%d13c==1) then
      prof%R13_12_air(1:ntl) = invdelta1000(-8._wp)*Rpdb_12C ! ratio of 13C relative to 12C
      prof%d13Cair(1:ntl)    = -8.0_wp
   end if
-
   ! Initialise atmospheric water isotopes
-  forall(mc=2:nwiso)!2017.10.04
+  forall(mc=2:nwiso)
      prof%rhov_air(1:ntl,mc)        = 0.02_wp*wiso%vsmow(mc)
      prof%rhov_air_filter(1:ntl,mc) = 0.02_wp*wiso%vsmow(mc)
      prof%rvapour(1:ntl,mc)         = wiso%vsmow(mc)
   end forall
-  !print *, "wiso%vsmow", wiso%vsmow
+!print *, prof%rhov_air(1:ntl,2:nwiso)
+!print *, prof%rvapour(1,2:nwiso)
+  ! initialize O2: CO2 Yuan 2018.01.17
+  if (iswitch%oxygen==1) then
+     prof%ROC_leaf_air(1:ncl) =  ROC_leaf_in!
+     prof%ROC_bole_air(1:ncl) =  ROC_bole_in!
+     soil%ROC_soil_air =  ROC_soil_in!
+!     print *, ROC_leaf_in, ROC_bole_in, ROC_soil_in
+ !    print *, prof%ROC_leaf_air, prof%ROC_bole_air, soil%ROC_soil_air
+  end if
   ! initialize soil surface temperature with air temperature
   soil%tsrf        = 25._wp
   soil%tsrf_filter = 25._wp
@@ -381,7 +409,13 @@ PROGRAM canveg
      end if
      call zero_new_timestep() ! zero variables
      call read_in()           ! input new time step
-  !  if (time%daytime==1241200) then  !Yuan 2017.09.20
+       ! print doy and hours"
+     call message('    day and time:          ', trim(num2str(time%daytime)))
+!    call message('    hours:          ', trim(num2str(time%daytime)))
+!     print *, time%daytime
+!     print *, input%co2air
+!     print *, input%o2air
+!    if (time%daytime==1771200) then  !Yuan 2017.09.20
 
 !	      print *, "what an hour!!!\n"
 !	      print *, "daytime = ", time%daytime
@@ -389,8 +423,6 @@ PROGRAM canveg
 !	 end if
      ! for Nate McDowell''s juniper site read LAI instead of diffuse PAR
      ! update LAI in each time step
- !    d3 = time%daytime-(int(time%time_step,kind=i8)*100_i8/3600_i8)
-     d3 = int(time%time_step,kind=i8)*100_i8/3600_i8
      if (extra_nate==1) then
         call lai_time()
      else
@@ -403,7 +435,7 @@ PROGRAM canveg
 
      ! Compute solar elevation angle
      call angle()
-     judgenight =((solar%sine_beta <= isnight) .OR. (input%parin <=0))
+     judgenight =((solar%sine_beta <= isnight) .OR. (input%parin <=zero)) !Yuan 2018.01.16
      ! make sure PAR is zero at night. Some data have negative offset, which causes numerical problems
      if (judgenight) input%parin = zero
      ! Compute the fractions of beam and diffuse radiation from incoming measurements
@@ -413,12 +445,12 @@ PROGRAM canveg
         call diffuse_direct_radiation()
      else
         solar%ratrad      = solar%ratradnoon
-  !      solar%nir_beam    = 0.1_wp ! Should not be here, to agree with C version. Yuan 2017.09.24
-  !      solar%nir_diffuse = 0.1_wp
+        solar%nir_beam    = 0.1_wp
+        solar%nir_diffuse = 0.1_wp
      end if
      ! computes leaf inclination angle distribution function, the mean direction cosine
      ! between the sun zenith angle and the angle normal to the mean leaf
-     ! for CANOAK we use the leaf inclination angle data of Hutchison et al. 1983, J Ecology
+     ! for CANOAK we use the leaf inclination angle data of Hutchison et al. 1986, J Ecology
      ! for other canopies we assume the leaf angle distribution is spherical
      if (.NOT.judgenight) then
         call gfunc()
@@ -466,7 +498,7 @@ PROGRAM canveg
         prof%tair_filter_save(1:ntl) = prof%tair_filter(1:ntl)
         prof%rhov_air_filter_save(1:ntl) = prof%rhov_air_filter(1:ntl,1)
         prof%rhov_air_save(1:ntl) = prof%rhov_air(1:ntl,1)
-!print *, prof%rhov_air_save(1:ntl)
+!print *, prof%rhov_air_filter_save(1)
         call irflux() ! first guess
         call friction_velocity()
         ! compute net radiation balance on sunlit and shaded leaves
@@ -479,8 +511,11 @@ PROGRAM canveg
         ! print*, 'CA16 ', i_count, solar%ir_dn(40), solar%ir_up(40)
         ! print*, 'CA17 ', i_count, solar%rnet_sun(1), solar%rnet_shd(1)
         ! print*, 'CA18 ', i_count, solar%rnet_sun(40), solar%rnet_shd(40)
+!if (input%hhrr==12) then
+!    print *, "is here"
+!end if
+        ! Compute leaf energy balance, leaf temperature, photosynthesis and stomatal conductance.
         call energy_and_carbon_fluxes()
-        ! Compute leaf energy balance, leaf temperature, photosynthesis and stomatal conductance        call energy_and_carbon_fluxes()
         ! print*, 'CA01 ', i_count, prof%dLEdz(1,1), prof%dLEdz(40,1)
         ! print*, 'CA02 ', i_count, prof%dHdz(1), prof%dHdz(40)
         ! print*, 'CA03 ', i_count, prof%dRNdz(1), prof%dRNdz(40)
@@ -503,12 +538,22 @@ PROGRAM canveg
            prof%shd_LEstoma_save(1:ncl) = prof%shd_LEstoma(1:ncl,1)
            prof%sun_LEstoma(1:ncl,1)    = prof%sun_LEstoma_new(1:ncl) &
                 * lambda(prof%tair_filter(1:ncl)+TN0)
+!                print *, prof%sun_LEstoma_new(1:ncl)
+ !               print *, prof%tair_filter(1:ncl)
            prof%shd_LEstoma(1:ncl,1)    = prof%shd_LEstoma_new(1:ncl) &
                 * lambda(prof%tair_filter(1:ncl)+TN0)
            prof%dLEdz(1:ncl,1)          = &
                 (solar%prob_beam(1:ncl) * (prof%sun_LEstoma(1:ncl,1)+prof%sun_LEwet(1:ncl,1)) &
                 + solar%prob_shd(1:ncl) * (prof%shd_LEstoma(1:ncl,1)+prof%shd_LEwet(1:ncl,1))) &
                 *  prof%dLAIdz(1:ncl)
+  !              print *, prof%dLEdz(1:ncl,1)
+  !              print *, solar%prob_beam(1:ncl)
+  !              print *, prof%sun_LEstoma(1:ncl,1)
+ !               print *, prof%sun_LEwet(1:ncl,1)
+ !               print *, solar%prob_shd(1:ncl)
+ !               print *, prof%shd_LEstoma(1:ncl,1)
+ !               print *, prof%shd_LEwet
+ !               print *, prof%dLAIdz(1:ncl)
         end if
 
         ! compute canopy transpiration and evaporation
@@ -535,13 +580,12 @@ PROGRAM canveg
         ! filter temperatures with each interation to minimize numerical instability
 
         ! Matthias, constant filter
-          fact%a_filt = 0.85_wp !Yuan2017.10.05
+        !   fact%a_filt = 0.85_wp
         ! Matthias, force conversion with narrowing filter
         !   fact%a_filt = 0.99_wp - 0.98_wp*real(i_count,wp)/real(i_max-1,wp)
         ! Matthias, narrowing filter to 0.5 at i_max/2
-         fact%a_filt = 0.85_wp - 0.7_wp*real(i_count,wp)/real(i_max-1,wp)!Yuan 2017.10.05
-        !fact%a_filt = 0.85_wp - 0.7_wp*real(i_count,wp)/real(i_max-1,wp)!replace 0.85 and 0.7 with two parameters that calibrated by Yuan 2017.11.02
-        !fact%a_filt = fact%a_filt*0.7_wp
+        fact%a_filt = 0.85_wp - 0.7_wp*real(i_count,wp)/real(i_max-1,wp)
+!       fact%a_filt = fact%a_filt*0.7_wp
         ! Matthias, a_filt=0 from 10 steps before max iteration
         ! the noise one sees should be filtered off as well
         !   fact%a_filt = max(0.99_wp - one*real(i_count,wp)/real(i_max-10,wp), zero)
@@ -554,9 +598,18 @@ PROGRAM canveg
 
         ! conc, for temperature profiles using source/sinks
         ! inputs are source/sink(), scalar_profile(), ref_val, boundary_flux, unit conversions
+! print *, "1.5\n"
+!         print *, prof%tair
+!        call message('conc Tair')
         call conc(prof%dHdz, prof%tair, input%ta, soil%heat, fact%heatcoef)
-
-
+!        print *, "2\n"
+!print *, prof%tair
+!print *, "sensible heat"
+!print *, prof%dHdz
+!print *, "Tair"
+!print *, input%ta
+!print *, soil%heat
+!print *, fact%heatcoef
         ! filter temperatures to remove numerical instabilities for each iteration
         where (prof%tair(1:ntl) < -30._wp .or. prof%tair(1:ntl) > 60._wp) prof%tair(1:ntl) = input%ta
 
@@ -566,12 +619,17 @@ PROGRAM canveg
         ! dLEdZ is net latent heat exchange per unit leaf area
         ! turbulent transport of H2O
         tmpncl(1:ncl) = prof%dLEdz(1:ncl,1) / lambda(prof%tair_filter_save(1:ncl)+TN0)
-        call conc(tmpncl, tmpntl, met%rhova_kg, flux%s_evap(1), one)
+!print *,  prof%dLEdz(1:ncl,1)
+!print *, prof%tair_filter_save
+!print *, tmpncl(1:ncl)
+        call conc(tmpncl, tmpntl, met%rhova_kg, flux%s_evap(1), one) ! negetive flux%s_evap! Yuan 2018.05.29
         prof%rhov_air(1:ntl,1) = tmpntl(1:ntl)
-
+!        print *, tmpncl, flux%s_evap(1)
+!print *, prof%rhov_air(1:ntl,1)
         ! filter humidity computations
         where (prof%rhov_air(1:ntl,1) < zero .or. prof%rhov_air(1:ntl,1) > e2) &
              prof%rhov_air(1:ntl,1) = met%rhova_kg
+!             print *, prof%rhov_air(1:ntl,1)
         ! ea
         ztmp = one / 2.165_wp
         tmpntl(1:ntl) = ztmp * prof%rhov_air(1:ntl,1) * (prof%tair(1:ntl)+TN0)
@@ -599,22 +657,33 @@ PROGRAM canveg
               ztmp = alpha_equ_h2o(input%ta+TN0, mc) * invdelta1000_h2o(input%dppt(mc), mc) * met%rhova_kg ! in equi with rain
               call conc(tmpncl, tmpntl, ztmp, flux%s_evap(mc), one)
               prof%rhov_air(1:ntl,mc) = tmpntl(1:ntl)
+!              if (prof%rhov_air(1,mc) < zero ) then
+!                print *, prof%rhov_air(1,mc)
+!              end if
            end do
            ! filter humidity computations
            do mc=2, nwiso
-              where (prof%rhov_air(1:ntl-1,1) == met%rhova_kg) &
+!            print *, prof%rhov_air(1:ntl-1,1)
+! .or. prof%rhov_air(1:ntl-1,mc) < zero
+              where ((prof%rhov_air(1:ntl-1,1) == met%rhova_kg)) &
                    prof%rhov_air(1:ntl-1,mc) = prof%rhov_air(1:ntl-1,1) * prof%rvapour(1:ntl-1,mc)
+
            end do
         end if ! implicit water isotope diagnostics
 
         ! sign convention used: photosynthetic uptake is positive
         ! respiration is negative
-        ! prof%dPsdz is net photosynthesis per unit leaf area,
+        ! prof%dPsdz is net photosynthesis per unit ground area,
         ! the profile was converted to units of mg m-2 s-1 to be
         ! consistent with inputs to CONC
         ! change sign of dPsdz
-        prof%source_co2(1:ncl) = -prof%dPsdz(1:ncl)
-
+        !! NO, prof%dPsdz is positive !!!!!!!!!!! Yuan 2018.03.05
+        !! prof%source_co2 will be negetive !!!!! Yuan 2018.03.05
+        prof%source_co2(1:ncl) = -prof%dPsdz(1:ncl) ! layer photosynthesis is negetive
+!print *, "source_co2=:/n"
+!print *, prof%source_co2
+!print *, "Ps=:/n"
+!print *, prof%dPsdz
         ! compute bole respiration
         ! It is added to the prof%source_CO2 array.
         call bole_respiration()
@@ -622,29 +691,44 @@ PROGRAM canveg
         call soil_respiration()
 
         ! to convert umol m-3 to umol/mol we have to consider
-        ! Pc/Pa = (CO2)ppm = rhoc ma/ rhoa mc
+        ! Pc/Pa (CO2 density/ air density) = (CO2)ppm = rhoc ma/ rhoa mc
         fact%co2 = (mass_air/mass_CO2)*met%air_density_mole
-        call conc(prof%source_co2, prof%co2_air, input%co2air, soil%respiration_mole, fact%co2)
-
+!        call conc(prof%source_co2, prof%co2_air, input%co2air, soil%respiration_mole, fact%co2)
+     call conc_seperate(prof%source_CO2, prof%co2_air, input%co2air, soil%respiration_mole, prof%CO2_soil, prof%CO2_disp, fact%co2)
+!print *,  prof%source_co2
+!print *,  input%co2air
+!print *,  soil%respiration_mole
+!print *,  fact%co2
+        if (iswitch%oxygen==1) then
+            call OXYFLUX ()
+        end if
         ! Integrate source-sink strengths to estimate canopy flux
         sumh       = sum(prof%dHdz(1:ncl))       ! sensible heat
         sumle      = sum(prof%dLEdz(1:ncl,1))    ! latent heat
+!        print *, sumle
         sumrn      = sum(prof%dRNdz(1:ncl))      ! net radiation
         sumlout    = sum(prof%dLoutdz(1:ncl))    ! radiation
         can_ps_mol = sum(prof%dPsdz(1:ncl))      ! canopy photosynthesis
         can_gpp    = sum(prof%dGPPdz(1:ncl))     ! canopy GPP = can_ps_mol + dark respiration
+        can_gpp_o  = sum(prof%gpp_O2(1:ncl))     ! O2 emmision via gpp
         canresp    = sum(prof%dRESPdz(1:ncl))    ! canopy respiration
+        canresp_o  = sum(prof%rd_O2(1:ncl))      ! O2 via canopy respiration
         sumksi     = sum(prof%dStomCondz(1:ncl)) ! canopy stomatal conductance
         sumlai     = sum(prof%dLAIdz(1:ncl))     ! leaf area
+        sumpai     = sum(prof%dPAIdz(1:ncl))     ! use plant area Yuan 2018.03.04
+
 !        print*, 'T: ', i_count, prof%shd_tleaf(1), prof%shd_tleaf(40)
         tleaf_mean = sum(prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &
              + sum(prof%shd_tleaf(1:ncl)*solar%prob_shd(1:ncl))    ! mean leaf temperature
         ztmp = one / real(ncl,wp)
-        prof%tleaf(1:ncl) = (sum(prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &
-             + sum(prof%shd_tleaf(1:ncl)*solar%prob_shd(1:ncl))) * ztmp    ! Tleaf per layer (sun and shade)
+!        prof%tleaf(1:ncl) = (sum(prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &
+!             + sum(prof%shd_tleaf(1:ncl)*solar%prob_shd(1:ncl))) * ztmp    ! Tleaf per layer (sun and shade)
+        prof%tleaf(1:ncl) = ((prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &
+             + (prof%shd_tleaf(1:ncl)*solar%prob_shd(1:ncl)))    ! Tleaf per layer (sun and shade)
+
         ! need to weight by sun and shaded leaf areas then divide by LAI
-        tavg_sun   = sum(prof%sun_tleaf(1:ncl)*prof%dLAIdz(1:ncl)) ! avg sunlit temperature
-        tavg_shd   = sum(prof%shd_tleaf(1:ncl)*prof%dLAIdz(1:ncl)) ! avg shaded temperature
+        tavg_sun   = sum(prof%sun_tleaf(1:ncl)*prof%dPAIdz(1:ncl)) ! avg sunlit temperature USE PAI YUAN 2018.03.04
+        tavg_shd   = sum(prof%shd_tleaf(1:ncl)*prof%dPAIdz(1:ncl)) ! avg shaded temperature
 
         ebalance      = sumrn - sumle - sumh
         flux%photosyn = can_ps_mol
@@ -656,14 +740,15 @@ PROGRAM canveg
         ! mean canopy leaf temperature
         tleaf_mean = tleaf_mean / real(ncl,wp)
         ! leaf area weighted temperatures
-        tavg_sun = tavg_sun / sumlai
-        tavg_shd = tavg_shd / sumlai
+        tavg_sun = tavg_sun / sumpai
+        tavg_shd = tavg_shd / sumpai
         ! Energy exchanges at the soil
         rnet_soil = soil%rnet - soil%lout
         sbalance  = rnet_soil - soil%soilevap - soil%litterevap - soil%heat - soil%gsoil
         ! canopy scale flux densities, vegetation plus soil
         sumh     = sumh + soil%heat
         sumle    = sumle + soil%evap
+!        print *, soil%evap
         sumrn    = sumrn + rnet_soil
         sumlout  = sumlout + soil%lout
         temp3    = temp3 + soil%rnet
@@ -686,12 +771,23 @@ PROGRAM canveg
         met%H_filter     = fact%a_filt * met%H + (one-fact%a_filt) * met%H_filter
         met%ustar_filter = fact%a_filt * met%ustar + (one-fact%a_filt) * met%ustar_filter
         ! air variables
-        prof%tair_filter(1:ntl)       = fact%a_filt * prof%tair(1:ntl) & !2017.10.04
+!        print *, "3\n"
+!        print *, prof%tair
+        prof%tair_filter(1:ntl)       = fact%a_filt * prof%tair(1:ntl) &
              + (one-fact%a_filt) * prof%tair_filter(1:ntl)
+!             print *, prof%rhov_air_filter(1,1)
         prof%rhov_air_filter(1:ntl,1) = fact%a_filt * prof%rhov_air(1:ntl,1) &
              + (one-fact%a_filt) * prof%rhov_air_filter(1:ntl,1)
+ !            print *, prof%rhov_air_filter(1,1)
+             if (prof%rhov_air_filter(1,1)==zero) then
+ !            print *, prof%rhov_air
+ !            print *, fact%a_filt
+             end if
+
         prof%co2_air_filter(1:ntl)    = fact%a_filt * prof%co2_air(1:ntl) &
              + (one-fact%a_filt) * prof%co2_air_filter(1:ntl)
+        prof%O2_air_filter(1:ntl)    = fact%a_filt * prof%O2_air(1:ntl) &
+             + (one-fact%a_filt) * prof%O2_air_filter(1:ntl) ! Yuan 2018.07.02
         ! leaf variables
         prof%sun_tleaf_filter(1:ncl) = fact%a_filt * prof%sun_tleaf(1:ncl) &
              + (one-fact%a_filt) * prof%sun_tleaf_filter(1:ncl)
@@ -707,6 +803,13 @@ PROGRAM canveg
            ! isotopes in vapour
            prof%rvapour(1:ntl,2:nwiso) = isorat(prof%rhov_air_filter(1:ntl,2:nwiso), &
                 prof%rhov_air_filter(1:ntl,1), wiso%lost(2:nwiso), wiso%lost(1))
+ !               if ( abs(prof%rvapour(1,2)) < 0.0016_wp) then
+ !               print *, prof%rvapour(1,1:nwiso)
+ !               print *, prof%rhov_air_filter(1,1:nwiso)
+ !               print *, prof%rhov_air(1,1:nwiso)
+ !               print *, wiso%lost(1:nwiso)
+ !               end if
+
 #ifdef DEBUG
            if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
               call message('CANVEG', 'Lost 01 @, count ', num2str(time%daytime), ',', num2str(i_count))
@@ -744,14 +847,15 @@ PROGRAM canveg
 
         ! check for convergence
         ! if (etest <= 0.005_wp .or. i_count >= i_max) exit
-        if ((abs(etest_diff1) <= 0.001_wp .and. abs(etest_diff2) <= 0.001_wp &
-             .and. abs(itest_diff1) <= 0.01_wp .and. abs(itest_diff2) <= 0.01_wp) &
+        if ((abs(etest_diff1) <= 0.005_wp .and. abs(etest_diff2) <= 0.005_wp &
+             .and. abs(itest_diff1) <= 0.03_wp .and. abs(itest_diff2) <= 0.03_wp) &
              .or. i_count >= i_max) exit
+
         ! if ((abs(etest_diff1) <= 1e-15_wp .and. abs(etest_diff2) <= 1e-15_wp &
         !      .and. abs(itest_diff1) <= 1e-15_wp .and. abs(itest_diff2) <= 1e-15_wp) &
         !      .or. i_count >= i_max) exit
      end do ! until energy balance closure in this time step (or i_max)
-
+!     print *, etest, etest_diff1,etest_diff2,itest_diff1,itest_diff2
      totalcount = totalcount + 1
      if (judgenight) then
         ntotalcount = ntotalcount + 1
@@ -781,9 +885,16 @@ PROGRAM canveg
         ! isotopes in vapour
         ! like that, we do not have to transport isotopes all the time
         !   but take the isotopes from one time step before
+!        print *, prof%rhov_air_filter(1,1)
         prof%rhov_air_filter(1:ntl,2:nwiso) = spread(prof%rhov_air_filter_save(1:ntl),2,nwiso) * prof%rvapour(1:ntl,2:nwiso)
+if (prof%rhov_air_filter(1,1)==zero) then
+!    print *, prof%rhov_air_filter_save(1)
+end if
+
         ! isotope soil water flux
+!        print *, wiso%lost(1:nwiso)
         call soil_flux_wiso()
+!                print *, wiso%lost(1:nwiso)
         ! leaf water enrichment
         call leaf_wiso()
         ! isotope canopy transpiration and evaporation
@@ -796,16 +907,32 @@ PROGRAM canveg
            ztmp = alpha_equ_h2o(input%ta+TN0, mc) * invdelta1000_h2o(input%dppt(mc), mc) * met%rhova_kg ! in equi with rain
            call conc(tmpncl, tmpntl, ztmp, flux%s_evap(mc), one)
            prof%rhov_air(1:ntl,mc) = tmpntl(1:ntl)
+!           print *, ztmp, flux%s_evap(mc)
         end do
         ! TODO: check order of statements
         ! filter humidity computations
         do mc=2, nwiso
-           where (prof%rhov_air(1:ntl-1,1) == met%rhova_kg) &
+            ! Yuan added filter prof%rhov_air(1:ntl-1,mc) < zero
+           where ((prof%rhov_air(1:ntl-1,1) == met%rhova_kg)) &
                 prof%rhov_air(1:ntl-1,mc) = prof%rhov_air(1:ntl-1,1) * prof%rvapour(1:ntl-1,mc)
         end do
         ! isotopes in vapour
         prof%rvapour(1:ntl,2:nwiso) = isorat(prof%rhov_air(1:ntl,2:nwiso), &
              prof%rhov_air(1:ntl,1), wiso%lost(2:nwiso), wiso%lost(1))
+ !            if (wiso%lost(1)>zero) then
+ !              print *, wiso%lost(1:nwiso)
+ !              print *, prof%rhov_air(1:ntl,2:nwiso)
+ !            end if
+
+        prof%dvapour(1:ntl,2) = delta1000_h2o(prof%rhov_air(1:ntl,2),prof%rhov_air(1:ntl,1),2)
+        prof%dvapour(1:ntl,3) = delta1000_h2o(prof%rhov_air(1:ntl,3),prof%rhov_air(1:ntl,1),3)
+        ! range d18O
+        where (prof%dvapour(1:ntl,2)<-30)
+            prof%dvapour(1:ntl,2) = input%dvapour
+        end where
+
+
+
 #ifdef DEBUG
         if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
            call message('CANVEG', 'Lost 02 @  ', num2str(time%daytime))
@@ -819,6 +946,10 @@ PROGRAM canveg
         if (prof%cws(j,1) > zero) then
            if (iswitch%wiso == 1) then
               rcws(2:nwiso) = isorat(prof%cws(j,2:nwiso), prof%cws(j,1), wiso%lost(2:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+!               print *, wiso%lost(1:nwiso)
+!               print *, prof%cws(j,2:nwiso)
+             end if
 #ifdef DEBUG
               if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
                  call message('CANVEG', 'Lost 03 @  ', num2str(time%daytime))
@@ -869,7 +1000,21 @@ PROGRAM canveg
         ave_cica  = undef
         ave_gs    = undef
      end if
-
+     ! calculate total hourly O2 flux from the profile
+     if (iswitch%oxygen == 1) then
+        !sumo = can_gpp*ROC_leaf_in
+        sumo = can_gpp_o
+        sumcanresp_o = canresp_o
+        sumneto = can_ps_mol*ROC_leaf_in-soil%respiration_mole*ROC_soil_in-bole%respiration_mole*ROC_bole_in
+        output%houro = sumo ! save hourly o flux in a global variable
+        output%hourneto = sumneto
+        output%hour_canrespo = sumcanresp_o
+        if (fc_mol == zero) then
+            output%hourROC = zero ! Yuan added hourly ROC output 2018.05.07
+        else
+            output%hourROC = sumneto/fc_mol
+        end if
+     end if
      ! 13C calculations
      if (iswitch%d13c == 1) then
         ! call carbon isotope subroutine
@@ -1008,6 +1153,12 @@ PROGRAM canveg
      output%sumresp = output%sumresp + canresp ! canopy respiration
      output%sumta   = output%sumta + tleaf_mean ! mean leaf temperature
      output%sumgs   = output%sumgs + sumksi ! canopy stomatal conductance
+!     daily sums of hourly oxygen flux
+      if (iswitch%oxygen == 1) then
+         output%sumo = output%sumo + sumo
+         output%sumneto = output%sumneto + sumneto
+         output%sumresp_o = output%sumresp_o + canresp_o ! O2 via canopy respiration
+      end if
      if (iswitch%d13c == 1) output%sumF13C = output%sumF13C + fc_13C ! net 13C flux
      daycnt = daycnt + 1
      output%sumps = output%sumps + can_ps_mol ! canopy photosynthesis
@@ -1058,23 +1209,15 @@ PROGRAM canveg
         output%ave_daC13       = ave_daC13
      endif
 
-     ! output
+     ! hourly output
      call write_output()
-!     call write_debug()
+
      ! output profiles for only specified periods
-     ll = time%daytime >= start_profiles .and. time%daytime <= end_profiles
-     d1 = time%daytime-start_profiles
-     d2 = time%daytime-end_profiles
-     if (ll) then
-     call write_profiles()
-!     call write_debug()
- !    else
-!        call write_debug()
-    endif
+     if (time%daytime >= start_profiles .and. time%daytime <= end_profiles) call write_profiles()
 
      ! End of day
      if ((time%daytime+(nint(time%time_step,kind=i8)*100_i8/3600_i8)) & ! cf. mo_io_text.f90:read_text_in
-          > (int(input%dayy,kind=i8)*10000_i8+2400)) then
+          > (int(input%dayy,kind=i8)*10000_i8+2400)) then ! Yuan 20180104 >= to >
         ! compute daily averages
         if (gppcnt==0) then
            output%sumgpp   = zero
@@ -1105,6 +1248,18 @@ PROGRAM canveg
         output%sumgs   = output%sumgs   * ztmp
         output%sumresp = output%sumresp * ztmp
         output%sumps   = output%sumps   * ztmp
+        ! oxyflux
+        if (iswitch%oxygen==1) then ! write daily oxyflux and ROC
+           output%sumo               = output%sumo   * ztmp
+           output%sumneto            = output%sumneto   * ztmp
+           output%sumresp_o          = output%sumresp_o * ztmp
+           if (output%sumfc==zero) then
+            output%sumROC = zero
+           else
+            output%sumROC = output%sumneto/output%sumfc
+           end if
+
+        end if
         ! 13C
         if (iswitch%d13c==1) then
            output%sumF13C = output%sumF13C * ztmp
@@ -1150,6 +1305,12 @@ PROGRAM canveg
            output%sumdisc13C          = zero
            output%sumdisc13C_long_day = zero
         end if
+        ! zero daily oxygen varibles
+        if (iswitch%oxygen==1) then
+           output%sumo               = zero
+           output%sumresp_o          = zero
+           output%sumneto             = zero
+        end if
         gppcnt = 0
         daycnt = 0
 #ifndef QUIET
@@ -1161,7 +1322,7 @@ PROGRAM canveg
 #endif
      end if ! end if new day
 
-!     print*, 'T: ', time%daytime, prof%shd_tleaf_filter(1), prof%shd_tleaf_filter(40)
+!     print*, 'T: ', prof%shd_tleaf_filter(1), prof%shd_tleaf_filter(40)
 
      if (lastin == 1) exit ! interrupt timestep loop
 

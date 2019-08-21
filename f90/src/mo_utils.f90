@@ -19,7 +19,6 @@ MODULE utils
   PUBLIC :: lambda     ! latent heat of vaporization
   PUBLIC :: tboltz     ! Boltzmann function for temperature
   PUBLIC :: temp_func  ! Arrenhius function for temperature
-  PUBLIC :: my_round1   ! YUAN added 2017.09.25 to get a real number of certain precision
 
   INTERFACE tboltz
      MODULE PROCEDURE tboltz0, tboltz1
@@ -55,7 +54,7 @@ CONTAINS
     corr  = sxy/(sqrt(sxx*syy)+TINY)
 
   END FUNCTION corr
-
+  
   ! ----------------------------------------------------
 
   ELEMENTAL PURE FUNCTION lambda(tak)
@@ -189,9 +188,9 @@ CONTAINS
     REAL(wp),               INTENT(IN) :: tl
     REAL(wp),               INTENT(IN) :: hkin_in
     REAL(wp), DIMENSION(1:size(rate))  :: inv_boltz
-
+    
     REAL(wp) :: dtlopt, prodt, denom, numm
-
+    
     dtlopt    = tl - topt
     prodt     = rugc * topt * tl
     denom     = hkin_in * exp(eakin * (dtlopt) / (prodt))
@@ -214,7 +213,7 @@ CONTAINS
     REAL(wp), INTENT(IN) :: tl
     REAL(wp), INTENT(IN) :: hkin_in
     REAL(wp) :: tboltz0
-
+    
     REAL(wp) :: dtlopt, prodt, denom, numm
 
     dtlopt  = tl - topt
@@ -238,7 +237,7 @@ CONTAINS
     REAL(wp),               INTENT(IN) :: tl
     REAL(wp),               INTENT(IN) :: hkin_in
     REAL(wp), DIMENSION(1:size(rate))  :: tboltz1
-
+    
     REAL(wp), DIMENSION(1:size(rate))  :: numm
     REAL(wp) :: dtlopt, prodt, denom, ztmp
 
@@ -253,37 +252,21 @@ CONTAINS
 
   ! ----------------------------------------------------
 
-FUNCTION temp_func(rate, eact, tprime, tref, t_lk)
+  FUNCTION temp_func(rate, eact, tprime, tref, t_lk)
     ! Arhennius temperature function
     USE constants, ONLY: rugc
 
     IMPLICIT NONE
-
+    
     REAL(wp), INTENT(IN) :: rate
     REAL(wp), INTENT(IN) :: eact
     REAL(wp), INTENT(IN) :: tprime
     REAL(wp), INTENT(IN) :: tref
     REAL(wp), INTENT(IN) :: t_lk
     REAL(wp) :: temp_func
-
+    
     temp_func = rate * exp(tprime*eact/(tref*rugc*t_lk))
-
+    
   END FUNCTION temp_func
-
-  ! Yuan created a function to set certain precisions for a real number
-  FUNCTION my_round1(R, precs)
-
-    IMPLICIT NONE
-
-    REAL(wp), INTENT(IN) :: R
-    INTEGER(i4), INTENT(IN) :: precs
-    INTEGER(i4) :: t
-    REAL(wp) :: my_round1,int_R
-  ! precs is the number of digitals after points. precs =2 means 0.221 -> 0.22
-    t = 10**precs
-    int_R = nint(R * t)
-    my_round1 = int_R/t
-
-  END FUNCTION my_round1
 
 END MODULE utils

@@ -4,7 +4,7 @@ MODULE isotopes
 
   ! Written Jan 2011, Mathias Cuntz - Ported C-Code
 
-  USE kinds, ONLY: wp, rp, i4
+  USE kinds, ONLY: wp, i4
 
   IMPLICIT NONE
 
@@ -44,9 +44,17 @@ CONTAINS
     ! isotope canopy transpiration
     lam = spread(lambda(prof%tair_filter_save(1:ncl)+TN0),2,nwiso) ! m/s -> J/m2s = W/m2
     prof%sun_LEstoma(1:ncl,1:nwiso) = prof%sun_trans_rtrans(1:ncl,1:nwiso) * lam(1:ncl,1:nwiso)
+!print *, prof%sun_LEstoma(1:ncl,2:nwiso)
+!print *, lam(1:ncl,2:nwiso)
+!print *, prof%sun_trans_rtrans(1:ncl,1:nwiso)
+
     prof%shd_LEstoma(1:ncl,1:nwiso) = prof%shd_trans_rtrans(1:ncl,1:nwiso) * lam(1:ncl,1:nwiso)
     rrcws(1:ncl,1:nwiso) = isorat(prof%cws(1:ncl,1:nwiso), prof%cws(1:ncl,1), &
          wiso%lost(1:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+ !              print *, wiso%lost(1:nwiso)
+ !              print *, prof%cws(1:ncl,1:nwiso)
+             end if
 #ifdef DEBUG
     if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
        call message('CANOPY_FLUX_WISO: ', 'Lost 01 @  ', num2str(time%daytime))
@@ -75,9 +83,19 @@ CONTAINS
     ! Fluxes
     do mc=2, nwiso
        ! isotope canopy evapotranspiration
+ !      prof%sun_LEstoma(1:ncl,mc)= 1
        prof%dLEdz(1:ncl,mc) = prof%dLAIdz(1:ncl) * &
             (solar%prob_beam(1:ncl) * (prof%sun_LEstoma(1:ncl,mc)+prof%sun_LEwet(1:ncl,mc)) + &
             solar%prob_shd(1:ncl) * (prof%shd_LEstoma(1:ncl,mc)+prof%shd_LEwet(1:ncl,mc)))
+
+!print *, prof%dLEdz(1:ncl,mc)
+!print *, prof%dLAIdz(1:ncl)
+!            print *, solar%prob_beam(1:ncl)
+!            print *, prof%sun_LEstoma(1:ncl,mc)
+!            print *, prof%sun_LEwet(1:ncl,mc)
+!            print *, solar%prob_shd(1:ncl)
+!            print *, prof%shd_LEstoma(1:ncl,mc)
+!            print *, prof%shd_LEwet(1:ncl,mc)
        ! total isotope canopy transpiration and evaporation
        flux%c_evaporation(mc) = sum(prof%dLAIdz(1:ncl) * &
             (prof%sun_LEwet(1:ncl,mc)*solar%prob_beam(1:ncl) + &
@@ -310,8 +328,8 @@ CONTAINS
     prof%R13_12_air(1:ntl) = prof%c13cnc(1:ntl)/prof%co2_air_filter(1:ntl)
     ztmp = one / Rpdb_CO2
     prof%d13Cair(1:ntl) = (prof%R13_12_air(1:ntl)*ztmp-one)*1000._wp
- !   print*, 'd13a: ', prof%R13_12_air(1), prof%c13cnc(1), prof%co2_air_filter(1), &
- !       prof%sour13co2(1), bole%layer(1), (invdelta1000(ciso%bigdelta_long(timelag))*Rpdb_12C)
+!    print*, 'd13a: ', prof%R13_12_air(1), prof%c13cnc(1), prof%co2_air_filter(1), &
+!        prof%sour13co2(1), bole%layer(1), (invdelta1000(ciso%bigdelta_long(timelag))*Rpdb_12C)
 
   END SUBROUTINE carbon_isotopes
 
@@ -321,7 +339,7 @@ CONTAINS
     ! Calculates latent heat of transpiration in accordance with leaf water isotopes
     !   cf. Cuntz et al. (2007)
     USE constants,    ONLY: zero, one, TN0, Rw
-    USE types,        ONLY: prof, met, time, iswitch
+    USE types,        ONLY: prof, met, time, iswitch, fact, flux
     USE setup,        ONLY: ncl
     USE parameters,   ONLY: n_stomata_sides
     USE utils,        ONLY: es
@@ -358,6 +376,16 @@ CONTAINS
        ! E (mol(H2O)/m2s)
        prof%sun_LEstoma_new(j) = prof%sun_gross(j)*(one-prof%sun_h(j))
        prof%shd_LEstoma_new(j) = prof%shd_gross(j)*(one-prof%shd_h(j))
+
+!        print *, prof%sun_gross(j)
+!        print *, prof%sun_h(j)
+!        print *, prof%rs_fact(j)
+!        print *, prof%sun_rs(j)
+!        print *, prof%sun_rs_save(j)
+!        print *, prof%sun_rbv(j)
+!        print *, prof%sun_wi(j)
+!        print *, prof%wa(j)
+!        print *, prof%sun_rs_save(j)
     end do
 
   END SUBROUTINE le_wiso
@@ -370,7 +398,7 @@ CONTAINS
     !   (Dongmann et al. 1974) for enrichment at the evaporating sites and does the
     !   'brave assumption' for bulk mesophyll water.
     ! Cf. Cuntz et al. (2007)
-    USE constants,     ONLY: zero, one, TN0
+    USE constants,     ONLY: zero, one, TN0, e6
     USE types,         ONLY: soil, prof, wiso, time
     USE setup,         ONLY: ncl, nwiso, nsoil
     USE isotope_utils, ONLY: alpha_kin_h2o, alpha_equ_h2o, isorat, vtf
@@ -383,12 +411,29 @@ CONTAINS
 
     INTEGER(i4) :: mc
     REAL(wp), PARAMETER :: Vm     = 18._wp
-    REAL(wp), PARAMETER :: Leff   = 0.020_wp
+    REAL(wp), PARAMETER :: Leff   = 0.020_wp ! 0.030_wp Yuan 2018.05.24 Ferrio 2009 PCE
     REAL(wp), PARAMETER :: waterc = 55555.55555_wp
+    REAL(wp) :: test
+    REAL(wp) :: test999
 
     ! xylem
+    ! Yuan 2018.05.30 use layer4 around 10cm
     soil%xylem(1:nwiso)  = sum(soil%theta(1:nsoil,1:nwiso)*spread(soil%root(1:nsoil),2,nwiso),1)
+!    print *, soil%theta(1:nsoil,1:nwiso)*spread(soil%root(1:nsoil),2,nwiso)
+!    soil%xylem(1:nwiso)  = soil%theta(4,1:nwiso)*spread(soil%root(4),1,nwiso)
+!print *, soil%theta(1,1:nwiso)
+!print *, soil%root(1:nsoil)
+!    print *,soil%xylem(1:2)
+ !print *, wiso%lost(1:nwiso)
     soil%rxylem(1:nwiso) = isorat(soil%xylem(1:nwiso), soil%xylem(1), wiso%lost(1:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+!               print *,  soil%xylem(1:nwiso)
+!               print *, wiso%lost(1:nwiso)
+             end if
+!if (soil%rxylem(1) < epsilon(one)) then
+!print *,soil%theta(1:nsoil,2)
+!end if
+
 #ifdef DEBUG
     if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
        call message('LEAF_WISO: ', 'Lost 01 @  ', num2str(time%daytime))
@@ -403,6 +448,7 @@ CONTAINS
        ! equilibrium fractionation
        prof%sun_alpha_equ(1:ncl,mc) = alpha_equ_h2o(prof%sun_tleaf(1:ncl)+TN0, mc)
        prof%shd_alpha_equ(1:ncl,mc) = alpha_equ_h2o(prof%shd_tleaf(1:ncl)+TN0, mc)
+!       print *, (prof%sun_alpha_equ(1:ncl,mc)-1)*1000_wp
        ! Peclet, P
        prof%sun_peclet(1:ncl,mc) = prof%sun_LEstoma_new(1:ncl) * Leff / waterc / vtf(prof%sun_tleaf(1:ncl)+TN0, mc)
        prof%shd_peclet(1:ncl,mc) = prof%shd_LEstoma_new(1:ncl) * Leff / waterc / vtf(prof%shd_tleaf(1:ncl)+TN0, mc)
@@ -415,7 +461,7 @@ CONTAINS
        prof%shd_craig(1:ncl,mc) = ((one-prof%shd_h(1:ncl))*soil%rxylem(mc)/prof%shd_alpha_k(1:ncl,mc) + &
             prof%shd_h(1:ncl)*prof%rvapour(1:ncl,mc)) / prof%shd_alpha_equ(1:ncl,mc)
        ! Dongmann
-       where (prof%sun_LEstoma_new(1:ncl) /= zero)
+       where (prof%sun_LEstoma_new(1:ncl)>zero ) ! /= zero to > e6 Yuan 2018.05.16
           prof%sun_leafwater_e(1:ncl,mc) = prof%sun_craig(1:ncl,mc) - &
                (prof%sun_craig(1:ncl,mc) - prof%sun_leafwater_e_old(1:ncl,mc)) * &
                exp(-prof%sun_alpha_k(1:ncl,mc)*prof%sun_alpha_equ(1:ncl,mc) * &
@@ -423,8 +469,26 @@ CONTAINS
        elsewhere
           prof%sun_leafwater_e(1:ncl,mc) = prof%sun_leafwater_e_old(1:ncl,mc)
        end where
+!       print *, prof%sun_LEstoma_new
+!       print *, prof%sun_leafwater_e(1:ncl,mc)
+!       print *, prof%sun_craig(1:ncl,mc)
+!       print *, prof%sun_leafwater_e_old(1:ncl,mc)
+!       print *, prof%sun_alpha_k(1:ncl,mc)
+!       print *, prof%sun_alpha_equ(1:ncl,mc)
+!       print *, prof%sun_gross(1:ncl)
+!       print *, prof%sun_h
+!       print *, time%time_step
+!       print *, Vm
+!       print *, -prof%sun_alpha_k(1:ncl,mc)*prof%sun_alpha_equ(1:ncl,mc) * &
+!               prof%sun_gross(1:ncl)*time%time_step/Vm
+
+!       test999 = -prof%sun_alpha_k(1,mc)*prof%sun_alpha_equ(1,mc) * &
+!               prof%sun_gross(1)*time%time_step/Vm
+!              print *,test999
+!              test = exp(test999)
+!              print *, test
        ! evaporative site
-       where (prof%shd_LEstoma_new(1:ncl) /= zero)
+       where (prof%shd_LEstoma_new(1:ncl) > e6) ! /= zero to > e6
           prof%shd_leafwater_e(1:ncl,mc) = prof%shd_craig(1:ncl,mc) - &
                (prof%shd_craig(1:ncl,mc) - prof%shd_leafwater_e_old(1:ncl,mc)) * &
                exp(-prof%shd_alpha_k(1:ncl,mc)*prof%shd_alpha_equ(1:ncl,mc) * &
@@ -450,6 +514,7 @@ CONTAINS
        elsewhere
           prof%sun_trans_rtrans(1:ncl,mc) = zero
        end where
+!       print *, prof%sun_trans_rtrans(1:ncl,mc)
        where (prof%shd_LEstoma_new(1:ncl) /= zero)
           prof%shd_trans_rtrans(1:ncl,mc) = prof%shd_alpha_k(1:ncl,mc) * prof%shd_gross(1:ncl) * &
                (prof%shd_alpha_equ(1:ncl,mc)*prof%shd_leafwater_e(1:ncl,mc) - &
@@ -498,14 +563,24 @@ CONTAINS
     ! kvsoil is litter surface conductance to water vapor transfer (s m-1)
     kv_litter = one / (soil%rb+soil%rl)
     ! litter variables
+!    print *, wiso%lost(1:nwiso)
     rl(1:nwiso) = isorat(soil%theta_l(1:nwiso), soil%theta_l(1), wiso%lost(1:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+!               print *, wiso%lost(1:nwiso)
+!               print *, soil%theta_l(1:nwiso)
+             end if
 #ifdef DEBUG
     if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
        call message('SOIL_FLUX_WISO: ', 'Lost 01 @  ', num2str(time%daytime))
        soil%lost0 = 1
     end if
 #endif
+!    print *, wiso%lost(1:nwiso)
     rs(1:nwiso) = isorat(soil%theta(1,1:nwiso), soil%theta(1,1), wiso%lost(1:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+!               print *, wiso%lost(1:nwiso)
+!               print *, soil%theta(1,1:nwiso)
+             end if
     ! litter & soil
 #ifdef DEBUG
     if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
@@ -513,8 +588,17 @@ CONTAINS
        soil%lost0 = 1
     end if
 #endif
-    ra(1:nwiso) = isorat(prof%rhov_air_filter(1,1:nwiso), prof%rhov_air_filter_save(1), &
+   !    print *, prof%rhov_air_filter(1,1:nwiso)
+   !    print *, prof%rhov_air_filter_save(1)
+       ! use prof%rhov_air_filter(1), not prof%rhov_air_filter_save(1). Yuan 2018.05.31
+    ra(1:nwiso) = isorat(prof%rhov_air_filter(1,1:nwiso), prof%rhov_air_filter(1,1), &
          wiso%lost(1:nwiso), wiso%lost(1))
+    if (wiso%lost(1)>zero) then
+!       if (prof%rhov_air_filter(1,1)==zero) then
+!       print *, prof%rhov_air_filter(1,1:nwiso)
+!       print *, prof%rhov_air_filter_save(1)
+!       print *, wiso%lost(1:nwiso)
+    end if
 #ifdef DEBUG
     if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
        call message('SOIL_FLUX_WISO: ', 'Lost 02 @  ', num2str(time%daytime))

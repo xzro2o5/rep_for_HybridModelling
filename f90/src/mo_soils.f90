@@ -62,6 +62,10 @@ CONTAINS
        ! if z_litter = 0 then theta_l is something like a rain buffer or a puddle or similar (mm)
        tmp1(1:nwiso)       = flux%soilinfl(1:nwiso) + soil%theta_l(1:nwiso) * tmp2
        rqinfl(1:nwiso)     = isorat(tmp1(1:nwiso), tmp1(1), wiso%lost(1:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+!               print *, wiso%lost(1:nwiso)
+!               print *, tmp1(1:nwiso)
+             end if
        soil%qinfl(1)       = min(tmp1(1), soil%qinfl_max) ! (kg/m2/s = mm/s)
        soil%qinfl(1:nwiso) = soil%qinfl(1) * rqinfl(1:nwiso)
 #ifdef DEBUG
@@ -87,6 +91,10 @@ CONTAINS
        soil%qinfl(1)       = min(max(zero, 1000._wp*soil%z_litter*(soil%theta_l(1)-soil%theta_l33)/ &
             time%time_step), soil%qinfl_max) !  kg/m2/s = mm/s
        rsoil(1:nwiso)      = isorat(soil%theta_l(1:nwiso), soil%theta_l(1), wiso%lost(1:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+!               print *, wiso%lost(1:nwiso)
+!               print *, soil%theta_l(1:nwiso)
+             end if
        soil%qinfl(1:nwiso) = rsoil * soil%qinfl(1)
 #ifdef DEBUG
        if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
@@ -206,7 +214,7 @@ CONTAINS
     else
        soil%theta_l(1:nwiso) = soil%theta(1,1:nwiso) !m3 m-3
     end if
-!print *, "theta_l", soil%theta_l(1:nwiso)
+
   END SUBROUTINE set_litter_moisture
 
 
@@ -395,7 +403,7 @@ CONTAINS
        soil%theta(1:nsoil,2:nwiso) = spread(soil%theta(1:nsoil,1),dim=2,ncopies=nwiso-1) * &
             invdelta1000_h2o(wiso%dtheta(1:nsoil,2:nwiso), mc(1:nwiso-1)) !m3 m-3
     end if
-!print *, soil%theta
+
   END SUBROUTINE set_soil_moisture
 
 
@@ -409,19 +417,9 @@ CONTAINS
     IMPLICIT NONE
 
     REAL(wp) :: root_total ! total has to sum up to 1
-    REAL(wp) :: r1,r2,t1,t2
 
-!    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(1:nsoil)) - &
-!         soil%root_factor**(100._wp*soil%z_soil(0:nsoil-1)) !2017.10.04, wrong??
-    t1 = soil%root_factor**(100._wp*soil%z_soil(0))
-    t2 = soil%root_factor**(100._wp*soil%z_soil(1))
-    r1 = 1-soil%root_factor**(100._wp*soil%z_soil(0))
-    r2 = 1-soil%root_factor**(100._wp*soil%z_soil(1))
-    soil%root(1) = r2-r1
-    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(0:nsoil-1)) - &
-         soil%root_factor**(100._wp*soil%z_soil(1:nsoil))
-!    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(0)) - &
-!         soil%root_factor**(100._wp*soil%z_soil(1))
+    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(1:nsoil-1)) - &
+         soil%root_factor**(100._wp*soil%z_soil(0:nsoil)) !Yuan 2018.01.22 inverse nsoil-1 and nsoil
     ! for Nate McDowell''s juniper site give root distribution
     if (extra_nate == 1) then
        soil%root(1)  = 0.019927536_wp
@@ -436,18 +434,9 @@ CONTAINS
        soil%root(10) = 0.342753623_wp
     end if
     ! normalise to total=1 ! for comparison with v3.3.8 move above fixed root distribution
-!    print *, "z0 ", soil%z_soil(0)
-!    print *, "z1 ", soil%z_soil(1)
-!    print *, "before: ", soil%root(1:nsoil)
- !   root_total = one / sum(soil%root(1:nsoil))
-    root_total = sum(soil%root(1:nsoil))
-!    print *, "root_total before", root_total
- !   soil%root(1:nsoil) = soil%root(1:nsoil) * root_total
-    soil%root(1:nsoil) = soil%root(1:nsoil) / root_total
-!    print *, "z_soil", soil%z_soil(0:nsoil)
-!    print *, "sum", sum(soil%root(1:nsoil))
-!    print *, "after: ", soil%root(1:nsoil)
-!    print *, "root_total after", root_total
+    root_total = one / sum(soil%root(1:nsoil))
+    soil%root(1:nsoil) = soil%root(1:nsoil) * root_total
+
   END SUBROUTINE set_soil_root
 
 
@@ -832,6 +821,11 @@ CONTAINS
                ((soil%rh_litter*est-ea) + soil%rh_litter*dest*(soil%tsrf-soil%T_air) + &
                soil%rh_litter*half*d2est*(soil%tsrf-soil%T_air)*(soil%tsrf-soil%T_air))
        end if
+       if (soil%litterevap<0) then
+!        print *, soil%c_litterevap,lecoef,kv_litter , &
+!               soil%rh_litter,ES(soil%tsrf+TN0), &
+!               prof%rhov_air_filter(1,1),soil%T_air
+       end if
        if (iswitch%no_neg_water_flux == 1) soil%litterevap = max(soil%litterevap, zero)
        ! ToDo for isotopes ! soil evaporation from second Taylor expansion
        ! soil%soilevap = lecoef*kv_soil*(__max(soil%rh_soil*est-ea, 0.)
@@ -846,6 +840,10 @@ CONTAINS
           temp = soil%tsrf - soil%gsoil/k_soil(1)
           soil%soilevap = lecoef*kv_soil * ((soil%rh_soil*est-ea) + soil%rh_soil*dest*(temp-soil%T_air) + &
                soil%rh_soil*half*d2est*(temp-soil%T_air)*(temp-soil%T_air))
+       end if
+       if (soil%soilevap==0) then
+!        print *, lecoef,kv_soil , soil%rh_soil,ES(soil%tsrf+TN0), &
+!               prof%rhov_air_filter(1,1),soil%T_air
        end if
        if (iswitch%no_neg_water_flux == 1) soil%soilevap = max(soil%soilevap, zero)
        soil%evap = soil%litterevap + soil%soilevap
@@ -912,6 +910,13 @@ CONTAINS
     flux%soilevap(1)   = soil%soilevap / soil%latent
     flux%litterevap(1) = soil%litterevap / soil%latent
     flux%s_evap(1)     = flux%litterevap(1) + flux%soilevap(1)
+    if (isnan(flux%s_evap(1))) then
+!      print *, soil%soilevap, soil%litterevap, soil%latent
+
+!      print *, soil%c_litterevap,lecoef,kv_litter ,  soil%rh_litter,ES(soil%tsrf+TN0), prof%rhov_air_filter(1,1),soil%T_air
+
+!      print *, lecoef,kv_soil , soil%rh_soil,ES(soil%tsrf+TN0), prof%rhov_air_filter(1,1),soil%T_air
+    end if
 
   END SUBROUTINE soil_energy_balance
 
@@ -1030,6 +1035,9 @@ CONTAINS
     root(1:nsoil)           = soil%root(1:nsoil) !relative root abundance (0 to 1)
     ! volumetric soil water content, get soil water content from last time step
     h2osoi(1:nsoil,1:nwiso) = soil%theta(1:nsoil,1:nwiso)
+             if (wiso%lost(1)>zero) then
+!               print *, wiso%lost(1:nwiso)
+             end if
     lost_h2osoi(1:nwiso)    = wiso%lost(1:nwiso)
 
     do iter=1, soil%moisture_mtime
@@ -1232,6 +1240,10 @@ CONTAINS
        h2osoi(1:nsoil,1) = max(h2osoi(1:nsoil,1), soil%watmin(1:nsoil))
        h2osoi(1:nsoil,1:nwiso) = rsoil(1:nsoil,1:nwiso)*spread(h2osoi(1:nsoil,1),2,nwiso)
     end if
+!    soil%theta=h2osoi ! missing from translation, Yuan 2018.05.30
+    if (soil%theta(4,2)<0) then
+!        print *,
+    end if
     ! Calc total soil water and plant available water
     soil%soil_mm      = sum(h2osoi(1:nsoil,1) *1000._wp *dzsoi(1:nsoil)) ! gravel included in dzsoi
     soil%soil_mm_root = sum(soil%root(1:nsoil) *h2osoi(1:nsoil,1) *1000._wp *dzsoi(1:nsoil))
@@ -1240,7 +1252,9 @@ CONTAINS
     ! copy back arrays
     soil%qdrai(1:nwiso) = qdrai(1:nwiso)
     wiso%lost(1:nwiso)  = lost_h2osoi(1:nwiso)
-
+             if (wiso%lost(1)>zero) then
+!               print *, wiso%lost(1:nwiso)
+             end if
   END SUBROUTINE soil_h2o
 
 
@@ -1341,6 +1355,7 @@ CONTAINS
     REAL(wp) :: cws_max      ! maximum canopy water storage per m2 LAI (mm m-2)
     REAL(wp) :: drip         ! water dripping of leaves after canopy water storage has reached max (mm)
     REAL(wp) :: intercept    ! interception of rain water in layer (mm)
+    REAL(wp) :: tmp
     REAL(wp), DIMENSION(nwiso) :: rthrough ! isotope ratios
     REAL(wp), DIMENSION(nwiso) :: rcws
 
@@ -1357,6 +1372,10 @@ CONTAINS
             prof%throughfall(i+1,1))
        rthrough(1:nwiso) = isorat(prof%throughfall(i+1,1:nwiso), &
             prof%throughfall(i+1,1), wiso%lost(1:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+!               print *, wiso%lost(1:nwiso)
+!               print *, prof%throughfall(i+1,1:nwiso)
+             end if
 #ifdef DEBUG
        if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
           call message('THROUGHFALL: ', 'Lost 07 @  ', num2str(time%daytime))
@@ -1364,18 +1383,28 @@ CONTAINS
        end if
 #endif
        ! add to canopy water storage in layer (sun and shade) from previous time step
+!       print *, prof%cws(1,1:nwiso)
+!       print *, rthrough(1:nwiso)
+!       print *, intercept
        prof%cws(i,1:nwiso) = prof%cws(i,1:nwiso) + rthrough(1:nwiso) * intercept
+!       print *, prof%cws(1,1:nwiso)
+!       print *, prof%cws(1,1)
+ !      print *, wiso%lost(1:nwiso)
        rcws(1:nwiso) = isorat(prof%cws(i,1:nwiso), prof%cws(i,1), &
             wiso%lost(1:nwiso), wiso%lost(1))
+             if (wiso%lost(1)>zero) then
+ !              print *, i
+ !              print *,  prof%cws(i,1:nwiso)
+  !             print *, epsilon(one)
+  !             print *, wiso%lost(1:nwiso)
+
+             end if
 #ifdef DEBUG
        if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
           call message('THROUGHFALL: ', 'Lost 08 @  ', num2str(time%daytime))
           soil%lost0 = 1
        end if
 #endif
-!print *,"rthrough = ",rthrough(1:nwiso)
-!print *, "intercept = ",intercept
-!print *,prof%cws(i,1:nwiso)
        ! check if canopy water storage is at maximum
        if (prof%cws(i,1) > cws_max*prof%dLAIdz(i)) then
           drip                = prof%cws(i,1) -  cws_max * prof%dLAIdz(i)
@@ -1383,7 +1412,6 @@ CONTAINS
        else
           drip = zero
        end if
-     !  print *,prof%cws(i,1:nwiso)
        ! throughfall from this layer to next layer
        prof%throughfall(i,1:nwiso) = prof%throughfall(i+1,1:nwiso) - &
             rthrough(1:nwiso)*intercept + rcws(1:nwiso)*drip
@@ -1403,7 +1431,6 @@ CONTAINS
           prof%wet_coef_filter(i) = zero
        end if
     end do
-
   END SUBROUTINE throughfall
 
 

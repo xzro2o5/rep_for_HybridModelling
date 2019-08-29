@@ -18,18 +18,13 @@ PROGRAM canveg
        ROC_leaf_in, ROC_bole_in, ROC_soil_in ! Yuan 2018.01.17
   USE types,         ONLY: time, iswitch, soil, wiso, &        ! Canveg''s types
        non_dim, bound_lay_res, input, prof, solar, met, &
-       ciso, fact, flux, output, bole, debug, &
+       ciso, fact, flux, output, bole, srf_res, debug, &
        ! Routines
        zero_new_timestep
   USE io,            ONLY: create_dir, open_files, close_files, &          ! I/O wrappers
        read_disp, skip_input, lastin, write_daily, read_in, &              ! Yuan 2018.01.22 to create a new directory
        write_profiles, write_output, copy_code ! copy_code, Yuan 2018.05.07
-       ciso, fact, flux, output, bole, srf_res, &
-                                ! Routines
-       zero_new_timestep
-  USE io,            ONLY: open_files, close_files, &          ! I/O wrappers
-       read_disp, skip_input, lastin, write_daily, read_in, &
-       write_profiles, write_output
+
   USE soils,         ONLY: set_litter_texture, &               ! Soil & Litter
        set_soil_moisture, set_soil_temp, set_soil_root, &      ! water & energy
        set_soil_clapp, set_soil_texture, set_soil_saxton, &

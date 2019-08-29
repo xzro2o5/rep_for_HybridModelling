@@ -68,7 +68,8 @@ CONTAINS
     USE constants, ONLY : namelist_file
 
 ! source code folder:
-  CHARACTER(LEN=256) :: folder_from = "D:\Fortran\canveg\f90\src-Copy2"
+  !CHARACTER(LEN=256) :: folder_from = "D:\Fortran\canveg\f90\src-Copy2"
+  CHARACTER(LEN=256) :: folder_from = "D:\CANVEG_compare\canveg_git\f90\src"
   CHARACTER(LEN=256) :: folder_to
   CHARACTER(LEN=256) :: cmd_tmp
   LOGICAL :: ex
@@ -320,8 +321,8 @@ CONTAINS
     open(unit=noutseas, file=stmp,action="write", status="replace", &
          form="formatted", recl=19*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 27*5+4-1, '(",",a))'
-    write(noutseas,*) "daytime ", "netrn ", "sumrn ", "sumh ", "sumle ", &
+    write(form1,'(A,I3,A)') '(a,', 19-1, '(",",a))'
+    write(noutseas,form1) "daytime ", "netrn ", "sumrn ", "sumh ", "sumle ", &
     "canps ", "gpp ", "canresp ", "soilresp ", "boleresp ", &
     "sumOXY ", "netOXY ", "netROC ", "ROC_leaf ", "ROC_bole ", "ROC_soil ", &
     "ustar ", "canresp_o"
@@ -355,7 +356,8 @@ CONTAINS
     open(unit=noutdaily, file=stmp,action="write", status="replace", &
          form="formatted", recl=22*25, iostat=ierr)
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(noutdaily,*) "Day ", "Avg_NEE ", "Avg_EVAP ", &
+    write(form1,'(A,I3,A)') '(a,', 21-1, '(",",a))'
+    write(noutdaily,form1) "Day ", "Avg_NEE ", "Avg_EVAP ", &
          "AVG_H ", "Avg_PAR ", "Avg_RNET ", "lai ", "wai ", "pai ", "Avg_PS ", &
          "Ave_Resp ", "Avg_BOLE ", "Avg_SOIL ", "Avg_TLeaf ", "Avg_Gs ", "Tleaf_day ", &
          "Avg_GPP ", "Avg_OXY ", "Net_OXY ", "Avg_ROC ", "Avg_respo" ! add daily mean ROC
@@ -371,7 +373,8 @@ CONTAINS
     open(unit=noutprof, file=stmp,action="write", status="replace", &
          form="formatted", recl=13*25, iostat=ierr)
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(noutprof,*) "Time ", "i ", "tair ", "tair_f ", "qair ", "co2 ", "o2 ", "co2_f ", "o2_f ", &
+    write(form1,'(A,I3,A)') '(a,', 13-1, '(",",a))'
+    write(noutprof,form1) "Time ", "i ", "tair ", "tair_f ", "qair ", "co2 ", "o2 ", "co2_f ", "o2_f ", &
           "co2_soil ", "o2_soil ", "wnd ", "vpd"!"co2_disp ", "o2_disp" !
     !write(form1,'(A,I3,A)') '(a,', 5-1, '(",",a))'
    ! write(noutprof,form1) "Time", "i", "tair", "qair", "co2"
@@ -381,7 +384,8 @@ CONTAINS
     open(unit=noutflux, file=stmp,action="write", status="replace", &
          form="formatted", recl=40*64, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(noutflux,*) "daytime ", "i ", "dHdz ", "dLEdz ", "dLEdz%sun ", "dLEdz%shd ", &
+    write(form1,'(A,I3,A)') '(a,', 64, '(",",a))'
+    write(noutflux,form1) "daytime ", "i ", "dHdz ", "dLEdz ", "dLEdz%sun ", "dLEdz%shd ", &
          "sun_A ", "shd_A ", "dGPPdz ", "dGPPdz%sun ", "dGPPdz%shd ", "dPsdz ", &
          "dPsdz%sun ", "dPsdz%shd ", "dRESPdz ", "dRESPdz%sun ", "dRESPdz%shd ", &
          "PARdirect ", "PARdiffuse ", "Tleaf ", "Tleaf_sun ", "Tleaf_shd ", &
@@ -569,7 +573,7 @@ CONTAINS
     time%jdold = input%dayy ! identify previous day
     read(ninmet,*,iostat=ierr) dayy, hhrr, in01, in02, in03, in04, &
          in05, in06, in07, in08, in09, in10, in11, flag, in13, in14, in15
-    in15=in15+o2_ref ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14     
+    in15=in15+o2_ref ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
     if (ierr > 0) call error_reading(isroutine, ninmet)
     if (ierr < 0) call error_reading(isroutine, ninmet, 'reached EOF.')
     input%dayy         = dayy
@@ -760,7 +764,7 @@ CONTAINS
 
     ierr = 0
     ! Daily average!output%sumo, output%sumneto,
-    write(form1,'(A,I3,A)') '(i03,', 14-1, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i03,', 21-1, '(",",es22.14))'
     write(noutdaily,form1,iostat=ierr) &
          input%dayy, output%sumfc, &
          output%sumevap, output%sumsens, &
@@ -801,7 +805,7 @@ CONTAINS
 
     ierr = 0
     ! Hourly/Season
-    write(form1,'(A,I3,A)') '(i07,', 46*3+1-1, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,', 19-1, '(",",es22.14))'
     write(noutseas,form1,iostat=ierr) &
          time%daytime, output%netrad, output%sumrn, output%sumh, output%sumle, &
          output%can_ps_mol, output%can_gpp, output%canresp, soil%respiration_mole, bole%respiration_mole, &
@@ -893,7 +897,7 @@ CONTAINS
 
     ierr = 0
     ! Profile air
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 4-1, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 13-1, '(",",es22.14))'
     do j=1, ntl
        write(noutprof,form1,iostat=ierr) &
             time%daytime, j, prof%tair(j), prof%tair_filter(j), prof%rhov_air(j,1), &
@@ -903,7 +907,7 @@ CONTAINS
     if (ierr > 0) call error_writing(isroutine, noutprof, ' - 1')
 
     ! Profile fluxes
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 42, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 64, '(",",es22.14))'
     do j=1, ncl
        write(noutflux,form1,iostat=ierr) &
             time%daytime,j,prof%dHdz(j), prof%dLEdz(j,1), &

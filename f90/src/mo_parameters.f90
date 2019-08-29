@@ -108,10 +108,6 @@ MODULE parameters
   ! Site location = Mesita del Buey, NM, USA
   REAL(wp)           :: latitude          ! latitude  N
   REAL(wp)           :: longitude         ! longitude E
-<<<<<<< HEAD
-=======
-
->>>>>>> master
   ! Eastern Standard Time
   REAL(wp)           :: zone              ! delay from GMT
   REAL(wp)           :: ht                ! Canopy height [m]

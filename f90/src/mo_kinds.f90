@@ -27,7 +27,6 @@ MODULE kinds
   ! Floating point section 
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND(6,37)  
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(15,307)
-
   INTEGER, PARAMETER :: wp = dp   ! working precision
 
   ! Integer section

@@ -328,8 +328,8 @@ CONTAINS
     prof%R13_12_air(1:ntl) = prof%c13cnc(1:ntl)/prof%co2_air_filter(1:ntl)
     ztmp = one / Rpdb_CO2
     prof%d13Cair(1:ntl) = (prof%R13_12_air(1:ntl)*ztmp-one)*1000._wp
-!    print*, 'd13a: ', prof%R13_12_air(1), prof%c13cnc(1), prof%co2_air_filter(1), &
-!        prof%sour13co2(1), bole%layer(1), (invdelta1000(ciso%bigdelta_long(timelag))*Rpdb_12C)
+    ! print*, 'd13a: ', prof%R13_12_air(1), prof%c13cnc(1), prof%co2_air_filter(1), &
+    !      prof%sour13co2(1), bole%layer(1), (invdelta1000(ciso%bigdelta_long(timelag))*Rpdb_12C)
 
   END SUBROUTINE carbon_isotopes
 

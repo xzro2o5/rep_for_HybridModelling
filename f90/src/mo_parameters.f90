@@ -108,6 +108,10 @@ MODULE parameters
   ! Site location = Mesita del Buey, NM, USA
   REAL(wp)           :: latitude          ! latitude  N
   REAL(wp)           :: longitude         ! longitude E
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
   ! Eastern Standard Time
   REAL(wp)           :: zone              ! delay from GMT
   REAL(wp)           :: ht                ! Canopy height [m]
@@ -668,7 +672,7 @@ CONTAINS
 
 !    print *, (outdir)
     ! Setup model
-    ntl  = 3*ncl
+    ntl = 3*ncl
     if (switch_wiso == 0) nwiso=1
     if (nwiso < 1) then
        nwiso = 1
@@ -733,10 +737,10 @@ CONTAINS
 
     ! Calc derived variables
     zd        = twothird*ht ! displacement height [m]
-    z0        = 0.1_wp*ht     ! rougness lenght [m]
+    z0        = 0.1_wp*ht   ! rougness lenght [m]
     izref     = ceiling(zm*real(ncl,kind=wp)/ht,kind=i4) ! array value of reference height = measurement height*ncl/ht
     delz      = ht/ncl ! height of each layer, ht/ncl
-    zh65      = htFrac/ht ! use htFrac instead of 0.65 Yuan 2018.02.21
+    zh65      = 0.65_wp/ht
     epsigma   = ep * sigma
     epsigma2  = 2.0_wp * ep * sigma
     epsigma4  = 4.0_wp * ep * sigma
@@ -782,7 +786,9 @@ CONTAINS
     if (.not. allocated(nir_trans)) allocate(nir_trans(nlop))
     if (.not. allocated(nir_soil_refl_dry)) allocate(nir_soil_refl_dry(nlop))
     par_reflect(1:nlop)       = par_reflect_in(1:nlop)
+ !   print *, par_reflect
     par_trans(1:nlop)         = par_trans_in(1:nlop)
+ !   print *, par_trans
     par_soil_refl_dry(1:nlop) = par_soil_refl_dry_in(1:nlop)
     nir_reflect(1:nlop)       = nir_reflect_in(1:nlop)
     nir_trans(1:nlop)         = nir_trans_in(1:nlop)

@@ -158,7 +158,7 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dvapour ! delta value of vapour [per mi] ! [nwiso]
      REAL(wp) :: co2air       ! CO2 concentration, ppm
      REAL(wp) :: press_mb     ! air pressure, mb
-     REAL(wp) :: tsoil        ! soil temperature in 50 cm, degree C ! Yuan's correction 2018.07.30. soil T at 5cm depth!!! refer to paper Astrid R. B. Søe  Nina Buchmann
+     REAL(wp) :: tsoil        ! soil temperature in 50 cm, degree C ! Yuan's correction 2018.07.30. soil T at 5cm depth!!! refer to paper Astrid R. B. Sï¿½e  Nina Buchmann
      REAL(wp) :: soilmoisture ! soil moisture in 15 cm, %
      INTEGER(i4) :: flag      ! input coding
      REAL(wp) :: longwave     ! long wave irradiannce, Wm-2

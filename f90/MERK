@@ -1,5 +1,0 @@
-Regular expression
-
-Replace += -= *= /=
-[[:blank:]]*\([[:alnum:]_%()\+-/\*,]*\)[[:blank:]]*\([\+-\*/]\)=[[:blank:]]*\(.*\)
-\1 = \1 \2 \3

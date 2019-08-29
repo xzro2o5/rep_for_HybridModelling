@@ -13,6 +13,7 @@ MODULE constants
   CHARACTER(len=*), PARAMETER :: version       = '4.0'        ! model version number
   CHARACTER(len=*), PARAMETER :: main_file     = 'canveg.f90' ! main file name
   CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg-long.nml'!'canveg-2016.nml'!'canveg.nml'!'canveg-Copy.nml' ! namelist file name
+  !CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg.nml' ! namelist file name
 
   ! maximum model parameters
   INTEGER(i4), PARAMETER :: nsoilmax = 10       ! max # of soil layers
@@ -88,17 +89,16 @@ MODULE constants
   REAL(wp), PARAMETER :: s2h      = one / 3600._wp ! s -> h
 
   ! mathematical
-  !TODO
-  ! REAL(wp), PARAMETER :: pi    = 3.14159265358979323846_wp ! pi
-  ! REAL(wp), PARAMETER :: pi2   = 2.0_wp * pi               ! 2*pi
-  ! REAL(wp), PARAMETER :: pi4   = 4.0_wp * pi               ! 4*pi
-  ! REAL(wp), PARAMETER :: pi9   = 9.0_wp / pi               ! 9/pi
-  ! REAL(wp), PARAMETER :: pi180 = pi / 180.0_wp             ! pi/180
-  REAL(wp), PARAMETER :: pi    = 3.1415926536_wp
-  REAL(wp), PARAMETER :: pi2   = 6.2831853072_wp
-  REAL(wp), PARAMETER :: pi4   = 12.5663706_wp
-  REAL(wp), PARAMETER :: pi180 = 0.0174532925_wp
-  REAL(wp), PARAMETER :: pi9   = 2.86478898_wp
+  REAL(wp), PARAMETER :: pi    = 3.14159265358979323846_wp ! pi
+  REAL(wp), PARAMETER :: pi2   = 2.0_wp * pi               ! 2*pi
+  REAL(wp), PARAMETER :: pi4   = 4.0_wp * pi               ! 4*pi
+  REAL(wp), PARAMETER :: pi9   = 9.0_wp / pi               ! 9/pi
+  REAL(wp), PARAMETER :: pi180 = pi / 180.0_wp             ! pi/180
+  ! REAL(wp), PARAMETER :: pi    = 3.1415926536_wp
+  ! REAL(wp), PARAMETER :: pi2   = 6.2831853072_wp
+  ! REAL(wp), PARAMETER :: pi4   = 12.5663706_wp
+  ! REAL(wp), PARAMETER :: pi180 = 0.0174532925_wp
+  ! REAL(wp), PARAMETER :: pi9   = 2.86478898_wp
 
   ! physical
   REAL(wp), PARAMETER :: TN0          = 273.15_wp    ! Celcius <-> Kelvin [K]

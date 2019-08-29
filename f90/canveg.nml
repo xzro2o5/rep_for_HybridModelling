@@ -1,7 +1,7 @@
 !         -*- Mode: F90 -*-        !
 &CANCTL
     workdir     = "."                      ! working directory
-    indir       = "./input"                ! location of input file
+    indir       = "../input"               ! location of input file
     metinfile   = "2006input_eddy.dat"     ! met input file
     laiinfile   = "2006laiinput_eddy.dat"  ! lai input file
     wisoinfile  = "2006wisoinput_eddy.dat" ! wiso input fie
@@ -14,8 +14,8 @@
     ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
     ! --- Model Set-up
     year0                         = 2006       ! Year
-    start_run                     = 0010000 ! start of model run, [dddhhmm] > 0010100
-    end_run                       = 0050100 ! end of model run, [dddhhmm] < 3662400
+    start_run                     = 0010000 ! start of model run, [dddhhmm] > 0010030
+    end_run                       = 2732330 ! end of model run, [dddhhmm] < 3662400
     start_profiles                = 0020000 ! start of profile output, [dddhhmm]
     end_profiles                  = 0050000 ! end of profile output, [dddhhmm]
     time_step                     = 3600.   ! time step between consecutive computation times

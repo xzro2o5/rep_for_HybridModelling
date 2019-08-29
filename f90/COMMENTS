@@ -146,7 +146,19 @@ Plant, Cell and Environment (in press).
 
 DEBUGGING NOTES
 
-October 2007, ak, mc
+July 2019, Matthias Cuntz
+Final debugging of Fortran version -> only very few time steps that are slightly different between Fortran and C
+
+2017-2018, Yuan Yan
+Debugged Fortran version -> root profile was calculated negative but became positive later
+
+2011, Matthias Cuntz
+Rewrote model in Fortran
+
+2008, Matthias Cuntz
+Debugged soil water and water isotopes
+
+October 2007, Matthias Cuntz, Alexander Knohl
   - included water cycle
     % interception water
     % soil water (optional)
@@ -160,24 +172,24 @@ October 2007, ak, mc
   - only C (no C++), C99 standard; tested on Microsoft Visual C++ and GCC compilers
     the gcc call is: gcc -O3 -lm -x c -std=c99 -o caniso canisotope_v3.4.cpp
 
-September 2006,ak
+September 2006, Alexander Knohl
 leaf photosynthesis and stomata conductance is now calculated from an analytical solution of the Farquhar model for
 photosynthesis including mesophyll conductance and the Leuning Ball Berry equation for stomata conductance
 
-August 2006, ak
+August 2006, Alexander Knohl
 diffuse radiation can either be calculated or can come from measurements (input file). Have to check diffuse radiation
 routine since modelled diffuse radiation does not fit well with measurements.
 
-August 2006, ak
+August 2006, Alexander Knohl
 ustar and z/L are now calculated based on actual measurement height, canopy height, displacement height and roughness length, not fixed parameters
 
-Jan 2006 ,ak
+Jan 2006, Alexander Knohl
 soil temperature are now initiatlised with soil temperature from last time step (memory effect)
 
-Sept 2005, ak
+Sept 2005, Alexander Knohl
 new routines for soil water added (based on LSM)
 
-7-6-2004, ak
+7-6-2004, Alexander Knohl
 Parameter are read in from external file (parameter_file) in same directory. These parameters overwrite default values.
 source code is changed from C to C++ (*.c to *.cpp) to allow object oriented programming.
 

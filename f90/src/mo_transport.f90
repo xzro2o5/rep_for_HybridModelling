@@ -108,7 +108,7 @@ CONTAINS
        Sh_vapor   = Res_factor * non_dim%sc33
        Sh_CO2     = Res_factor * non_dim%scc33
        if (cws > zero) Sh_vapor = 0.66_wp * non_dim%sc33 * Re**0.4_wp
-       !   Sh_vapor = 0.66 * non_dim%sc33 * pow(Re, 0.4) * betfact
+       ! Sh_vapor = 0.66 * non_dim%sc33 * pow(Re, 0.4) * betfact
     end if
     ! If there is free convection
     if (graf/(Re*Re) > one) then

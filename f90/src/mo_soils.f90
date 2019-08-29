@@ -328,9 +328,10 @@ CONTAINS
     ! Soil
     ! as in Campbell (1985)
     rho_local(1:nsoil-1)    = (one-soil%gravel(1:nsoil-1)*e2)*soil%rho(1:nsoil-1) + soil%gravel(1:nsoil-1)*(e2*2.65_wp)
-    soil%cp_soil(1:nsoil-1) = (((c_s/2.65_wp)*rho_local(1:nsoil-1)) + &
+    soil%cp_soil(1:nsoil-1) = ((c_s/2.65_wp)*rho_local(1:nsoil-1) + &
          c_w*soil%theta(1:nsoil-1,1)*(one-soil%gravel(1:nsoil-1)*e2)) * &
          (soil%z_soil(2:nsoil) - soil%z_soil(0:nsoil-2)) / (two*soil%temperature_dt)
+
     !old=0.6 instead of 0.9
     C1(1:nsoil-1) = 0.65_wp - 0.78_wp * rho_local(1:nsoil-1) + 0.6_wp * rho_local(1:nsoil-1)*rho_local(1:nsoil-1)
     C2(1:nsoil-1) = 1.06_wp * rho_local(1:nsoil-1) !old =1.06
@@ -348,6 +349,7 @@ CONTAINS
     ! C3 = (pow(C1,1.-soil%theta_s(i)) * pow(0.6,soil%theta(i,1)) - C2 )
     !   * soil%theta(i,1)/soil%theta_s(i) + C2
     ! soil%k_conductivity_soil(i) = C3 / (soil%z_soil(i+1) - soil%z_soil(i))
+    
     ! Last layer is different (not in Campbell (1985) who has an extra layer underneath the last soil layer)
     ! Take thickness of last soil layer instead of mean thickness of two layers
     ztmp1 = one / 2.65_wp
@@ -418,8 +420,12 @@ CONTAINS
 
     REAL(wp) :: root_total ! total has to sum up to 1
 
-    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(1:nsoil-1)) - &
-         soil%root_factor**(100._wp*soil%z_soil(0:nsoil)) !Yuan 2018.01.22 inverse nsoil-1 and nsoil
+    ! Yuan 2018: C: (1-r**z(1)) - (1-r**z(0)) -> z(0) - z(1)
+    soil%root(1:nsoil) = soil%root_factor**(100._wp*soil%z_soil(0:nsoil-1)) - &
+         soil%root_factor**(100._wp*soil%z_soil(1:nsoil))
+    ! write(*,'(a,3f20.14)') 'R01 ', soil%root_factor
+    ! write(*,'(a,3f20.14)') 'R02 ', soil%z_soil(1), soil%z_soil(nsoil)
+    ! write(*,'(a,3f20.14)') 'R03 ', soil%root(1), soil%root(nsoil)
     ! for Nate McDowell''s juniper site give root distribution
     if (extra_nate == 1) then
        soil%root(1)  = 0.019927536_wp
@@ -436,6 +442,8 @@ CONTAINS
     ! normalise to total=1 ! for comparison with v3.3.8 move above fixed root distribution
     root_total = one / sum(soil%root(1:nsoil))
     soil%root(1:nsoil) = soil%root(1:nsoil) * root_total
+    ! write(*,'(a,3f20.14)') 'R04 ', one / root_total
+    ! write(*,'(a,3f20.14)') 'R05 ', soil%root(1), soil%root(nsoil)
 
   END SUBROUTINE set_soil_root
 
@@ -1250,6 +1258,7 @@ CONTAINS
     j55 = minloc(abs(soil%z_soil(1:nsoil)-0.55_wp))
     soil%soil_mm_50   = sum(h2osoi(1:j55(1),1) *1000._wp *dzsoi(1:j55(1)))
     ! copy back arrays
+    soil%theta(1:nsoil,1:nwiso) = h2osoi(1:nsoil,1:nwiso)
     soil%qdrai(1:nwiso) = qdrai(1:nwiso)
     wiso%lost(1:nwiso)  = lost_h2osoi(1:nwiso)
              if (wiso%lost(1)>zero) then
@@ -1359,12 +1368,12 @@ CONTAINS
     REAL(wp), DIMENSION(nwiso) :: rthrough ! isotope ratios
     REAL(wp), DIMENSION(nwiso) :: rcws
 
-    cws_max   = zero   ! maximum canopy water storage per m2 LAI (mm m-2)
     drip      = zero      ! water dripping of leaves after canopy water storage has reached max (mm)
     intercept = zero ! interception of rain water in layer (mm)
     cws_max   = water_film_thickness*two   ! leaves can be wet from both sides (mm m-2 LAI)
     ! at canopy top: throughfall = precipitation, drip = 0
-    prof%throughfall(1:ncl+1,1:nwiso) = spread(input%ppt(1:nwiso),1,ncl+1)
+    prof%throughfall(ncl+1,1:nwiso) = input%ppt(1:nwiso)
+    ! write(*,'(a,3f20.14)') 'TF01.01 ', prof%throughfall(ncl+1,1), prof%throughfall(ncl+1,nwiso-1)
     ! calculate for each layer starting from top layer (i= ncl, typically 40)
     do i=ncl, 1, -1
        ! intercept per layer (mm)
@@ -1382,6 +1391,7 @@ CONTAINS
           soil%lost0 = 1
        end if
 #endif
+       ! write(*,'(a,i5,3f20.14)') 'TF01.02 ', i, intercept, rthrough(2), rthrough(nwiso-1)
        ! add to canopy water storage in layer (sun and shade) from previous time step
 !       print *, prof%cws(1,1:nwiso)
 !       print *, rthrough(1:nwiso)
@@ -1392,13 +1402,8 @@ CONTAINS
  !      print *, wiso%lost(1:nwiso)
        rcws(1:nwiso) = isorat(prof%cws(i,1:nwiso), prof%cws(i,1), &
             wiso%lost(1:nwiso), wiso%lost(1))
-             if (wiso%lost(1)>zero) then
- !              print *, i
- !              print *,  prof%cws(i,1:nwiso)
-  !             print *, epsilon(one)
-  !             print *, wiso%lost(1:nwiso)
-
-             end if
+       ! write(*,'(a,3f20.14)') 'TF01.04 ', prof%cws(i,1), prof%cws(i,nwiso-1)
+       ! write(*,'(a,3f20.14)') 'TF01.05 ', rcws(2), rcws(nwiso-1)
 #ifdef DEBUG
        if (any(abs(wiso%lost(1:nwiso)) > epsilon(one)) .and. soil%lost0 == 0) then
           call message('THROUGHFALL: ', 'Lost 08 @  ', num2str(time%daytime))
@@ -1412,9 +1417,11 @@ CONTAINS
        else
           drip = zero
        end if
+       ! write(*,'(a,3f20.14)') 'TF01.06 ', drip, prof%cws(i,1), prof%cws(i,nwiso-1)
        ! throughfall from this layer to next layer
        prof%throughfall(i,1:nwiso) = prof%throughfall(i+1,1:nwiso) - &
             rthrough(1:nwiso)*intercept + rcws(1:nwiso)*drip
+       ! write(*,'(a,3f20.14)') 'TF01.07 ', prof%throughfall(i,1), prof%throughfall(i,nwiso-1)
 #ifdef DEBUG
        ! Check: if this happens, we have to code some thresholds here
        if (any(prof%throughfall(i,1:nwiso) < zero)) then

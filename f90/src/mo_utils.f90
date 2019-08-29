@@ -22,7 +22,7 @@ MODULE utils
 
   INTERFACE tboltz
      MODULE PROCEDURE tboltz0, tboltz1
-  END INTERFACE
+  END INTERFACE tboltz
 
   ! ----------------------------------------------------
 
@@ -101,7 +101,7 @@ CONTAINS
     if (t <= zero) call message('ES: ','input must be > 0')
 #endif
     es = ess
-
+    
   END FUNCTION es
 
   ! ----------------------------------------------------

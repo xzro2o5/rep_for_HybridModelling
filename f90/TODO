@@ -1,6 +1,9 @@
 mo_radiation:angle
 	day_saving_times into namelist
 mo_transport:
-	replace 1013 by P0
+	replace 1013 by P0/100.
 mo_isoprene:
-	zz
+    ! leaf level flux per leaf area
+    ! This gave always 0 in C-Code: zz = (int)(delz * j);
+    ! ToDo: forall(i=1:ncl) zz(i) = delz*real(i,wp)
+    forall(i=1:ncl) zz(i) = floor(delz*real(i,wp))

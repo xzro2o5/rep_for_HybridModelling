@@ -280,12 +280,13 @@ CONTAINS
     end if
 
     if (extra_nate == 1) then
-       MEAN = 57.3_wp
-       STD = 21.5_wp
-       !MC !!! v2
-       MEAN = 45._wp
-       STD = 18._wp
-       !MC !!! smallest netrad error
+       ! !MC - v1
+       ! MEAN = 57.3_wp
+       ! STD = 21.5_wp
+       ! !MC - v2
+       ! MEAN = 45._wp
+       ! STD = 18._wp
+       !MC - smallest netrad error
        MEAN = 35._wp
        STD = 18._wp
     end if
@@ -1111,7 +1112,7 @@ CONTAINS
     ! B. Barfield and J. Gerber, Eds. American Society of Agricultural Engineers, 249-280.
     USE setup,      ONLY: ncl
     USE constants,  ONLY: zero, one, e1, e2, isnight
-    USE types,      ONLY: solar, prof,iswitch
+    USE types,      ONLY: solar, prof, iswitch, input
     USE parameters, ONLY: markov
 
     IMPLICIT NONE
@@ -1131,7 +1132,7 @@ CONTAINS
     TBEAM(ncl+1)        = fraction_beam
     solar%nir_dn(ncl+1) = one - fraction_beam
 
-    if (solar%nir_total > one .and. solar%sine_beta > isnight) then
+    if (solar%nir_total > one .and. solar%sine_beta > isnight .and. input%parin > zero) then
        SDN(1) = 0
        ! Compute probability of penetration for direct and
        ! diffuse radiation for each layer in the canopy
@@ -1224,7 +1225,7 @@ CONTAINS
        solar%nir_dn(1:ncl+1)  = solar%nir_dn(1:ncl+1)  * solar%nir_total
        where (solar%nir_dn(1:ncl+1) < e1) solar%nir_dn(1:ncl+1) = e1
        ! normal radiation on sunlit leaves
-       if (.NOT.judgenight) then ! YUAN 2018.01.06
+       if (solar%sine_beta > isnight .and. input%parin > zero) then
           nir_normal(1:ncl) = solar%nir_beam * prof%Gfunc_solar(1:ncl) * ztmp
        else
           nir_normal(1:ncl) = zero
@@ -1237,7 +1238,7 @@ CONTAINS
        solar%nir_shd(1:ncl) = solar%nir_shd(1:ncl)  * solar%nir_absorbed
        ! plus diffuse component
        solar%nir_sun(1:ncl) = NSUNEN(1:ncl) + solar%nir_shd(1:ncl)
-    else ! solar%nir_total > one .and. solar%sine_beta > isnight
+    else ! solar%nir_total <= one .or. solar%sine_beta <= isnight .or. input%parin <= zero
        solar%nir_up(1:ncl)        = zero
        solar%nir_dn(1:ncl)        = zero
        solar%nir_shd(1:ncl)       = zero
@@ -1281,7 +1282,7 @@ CONTAINS
     INTEGER(i4) :: j, jp1, jm1
     INTEGER(i4) :: IREP, ITER
 
-    if (.NOT.judgenight) then !YUAN 2018.01.16
+    if (solar%sine_beta > isnight .and. input%parin > zero) then
        fraction_beam = solar%par_beam / input%parin
        beam(ncl+1)   = fraction_beam
        TBEAM(ncl+1)  = fraction_beam
@@ -1455,7 +1456,7 @@ CONTAINS
        if (solar%par_beam < e3) solar%par_beam = e3
        ! PSUN is the radiation incident on the mean leaf normal
 
-       if (.NOT.judgenight) then !YUAN 2018.01.16
+       if (solar%sine_beta > isnight .and. input%parin > zero) then
           ztmp = one / solar%sine_beta
           ! PAR received normal to a leaf on a sunlit spot
           par_normal_quanta(1:ncl) = solar%par_beam * prof%Gfunc_solar(1:ncl) * ztmp
@@ -1476,13 +1477,12 @@ CONTAINS
        ! PAR
        solar%quantum_shd(1:ncl) = (solar%par_down(1:ncl) + solar%par_up(1:ncl)) * solar%par_absorbed ! umol m-2 s-1
        solar%quantum_sun(1:ncl) = solar%quantum_shd(1:ncl) + par_normal_abs_quanta(1:ncl)
-!    print *, solar%quantum_sun(1:ncl)
        ! calculate absorbed par
        solar%par_shd(1:ncl)     = solar%quantum_shd(1:ncl) / 4.6_wp ! W m-2
        ! solar%par_sun is the total absorbed radiation on a sunlit leaf,
        ! which consists of direct and diffuse radiation
        solar%par_sun(1:ncl) = par_normal_abs_energy(1:ncl) + solar%par_shd(1:ncl)
-    else ! solar%sine_beta <= isnight
+    else ! solar%sine_beta <= isnight .or. input%parin <= zero
        solar%prob_shd(1:ncl)      = one
        solar%prob_beam(1:ncl)     = zero
        solar%par_up(1:ncl)        = zero

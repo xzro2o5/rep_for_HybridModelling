@@ -637,7 +637,7 @@ CONTAINS
        isorat_00d = qi / q
     else
 #ifdef DEBUG
-       if (abs(q) > zero .or. abs(qi) > zero) then
+       if (abs(q) > tiny(one) .or. abs(qi) > tiny(one)) then
           call message('ISORAT: ', num2str(qi), num2str(q), num2str(time%daytime))
        end if
 #endif

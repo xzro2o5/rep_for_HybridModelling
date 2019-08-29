@@ -1,3 +1,22 @@
+/*
+  Debug: Copy write statements from Fortran Code.
+         M-x query-replace-regexp in Emacs:
+           write(\*,'(a,2f20.14)') 'CV\(.*\) ', \(.*\)
+             with
+           printf("CV\1 %20.14f %20.14f %20.14f\\n", \2);
+           %   with   .
+           (\([^[:space:]]*\)))   with   [\1])
+           (\([^[:space:]]*\))   with   [\1]
+           (\([^[:space:]]*\)\),\([^[:space:]]*\)))   with   [\1][\2])
+           (\([^[:space:]]*\),\([^[:space:]]*\))   with   [\1][\2]
+           ncl   with   jtot
+           ntl   with   jtot3
+           nsoil   with   soil.n_soil
+           nwiso-1   with   soil.nwater
+           tsrf   with   tsfc
+           time%    with   time_var
+         Delete extra %20.14f or replace with %d for integer and %ld for long.
+ */
 // Libraries
 #include <stdlib.h>
 #include <stdarg.h>
@@ -28,10 +47,11 @@
 #define c13sze 22          // number of days to remember mean 13C discrimination (+2, flex)
 #define watersze 7         // maximum number of isotopic waters + 1 (+2, 0 not used, i.e. flex)
 #define betasze 6          // number levels for beta distribution of e.g. lai (+1, 0 not used)
-#define PI 3.1415926536    // pi
-#define PI180 0.0174532925 // pi/180, radians per degree
-#define PI9 2.86478898     // 
-#define PI2 6.2831853072   // 2*pi
+//MC20190702 #define PI 3.1415926536    // pi
+#define PI 3.14159265358979323846
+//MC20190702 #define PI180 0.0174532925 // pi/180, radians per degree
+//MC20190702 #define PI9 2.86478898     // 
+//MC20190702 #define PI2 6.2831853072   // 2*pi
 #define TN0 273.15         // Celcius <-> Kelvin
 #define Gravity 9.81       // Gravity constant
 #define vonKarman 0.41     // von Karman's constant
@@ -585,30 +605,56 @@ struct flux_variables
 };
 struct flux_variables flux;
 
+//MC20190615 use doubel precision for input
+/* struct input_variables */
+/* { */
+/*   int dayy; // day */
+/*   float hhrr; // hour */
+/*   float ta; // air temperature, C */
+/*   float rglobal; // global radiation, W m-2 */
+/*   float parin; // photosynthetically active radiation, micromole m-2 s-1 */
+/*   float pardif; // diffuse PAR, micromol m-2 s-1 */
+/*   float lai; // for Nate McDowell's juniper site read lai instead of pardif */
+/*   float lai_up; // for Nate McDowell's juniper site read lai in upper canopy */
+/*   float lai_down; // for Nate McDowell's juniper site read lai in understory */
+/*   float ea; // vapor pressure, kPa */
+/*   float wnd; // wind speed, m s-1 */
+/*   double ppt[watersze]; // precipitation, mm per hour */
+/*   double dppt[watersze]; // delta value of precipitation [per mi] */
+/*   double dvapour[watersze]; // delta value of vapour [per mi] */
+/*   float co2air; // CO2 concentration, ppm */
+/*   float press_mb; // air pressure, mb */
+/*   float tsoil; // soil temperature in 50 cm, degree C */
+/*   float soilmoisture; // soil moisture in 15 cm, % */
+/*   long int flag; // input coding */
+/*   float longwave;		// long wave irradiannce, Wm-2 */
+/*   float d13CO2;  // d13C of atmospheric CO2 [permille] */
+/*   float d18CO2;  // d18O of atmospheric CO2 [permille] */
+/* }; */
 struct input_variables
 {
   int dayy; // day
-  float hhrr; // hour
-  float ta; // air temperature, C
-  float rglobal; // global radiation, W m-2
-  float parin; // photosynthetically active radiation, micromole m-2 s-1
-  float pardif; // diffuse PAR, micromol m-2 s-1
-  float lai; // for Nate McDowell's juniper site read lai instead of pardif
-  float lai_up; // for Nate McDowell's juniper site read lai in upper canopy
-  float lai_down; // for Nate McDowell's juniper site read lai in understory
-  float ea; // vapor pressure, kPa
-  float wnd; // wind speed, m s-1
+  double hhrr; // hour
+  double ta; // air temperature, C
+  double rglobal; // global radiation, W m-2
+  double parin; // photosynthetically active radiation, micromole m-2 s-1
+  double pardif; // diffuse PAR, micromol m-2 s-1
+  double lai; // for Nate McDowell's juniper site read lai instead of pardif
+  double lai_up; // for Nate McDowell's juniper site read lai in upper canopy
+  double lai_down; // for Nate McDowell's juniper site read lai in understory
+  double ea; // vapor pressure, kPa
+  double wnd; // wind speed, m s-1
   double ppt[watersze]; // precipitation, mm per hour
   double dppt[watersze]; // delta value of precipitation [per mi]
   double dvapour[watersze]; // delta value of vapour [per mi]
-  float co2air; // CO2 concentration, ppm
-  float press_mb; // air pressure, mb
-  float tsoil; // soil temperature in 50 cm, degree C
-  float soilmoisture; // soil moisture in 15 cm, %
+  double co2air; // CO2 concentration, ppm
+  double press_mb; // air pressure, mb
+  double tsoil; // soil temperature in 50 cm, degree C
+  double soilmoisture; // soil moisture in 15 cm, %
   long int flag; // input coding
-  float longwave;		// long wave irradiannce, Wm-2
-  float d13CO2;  // d13C of atmospheric CO2 [permille]
-  float d18CO2;  // d18O of atmospheric CO2 [permille]
+  double longwave;		// long wave irradiannce, Wm-2
+  double d13CO2;  // d13C of atmospheric CO2 [permille]
+  double d18CO2;  // d18O of atmospheric CO2 [permille]
 };
 struct input_variables input;
 
@@ -1279,7 +1325,11 @@ int jtot1=41; // jtot + 1 = above canopy
 int jtot3=120; // number of layers in the domain, three times canopy height
 int izref=52; //changed: array value of reference ht at 43 m, zm/ht*jtot
 
-double pi4=12.5663706;
+//MC20190702 double pi4=12.5663706;
+double PI2   = 2.0 * PI;  // 2*pi
+double pi4   = 4.0 * PI;  // 4*pi - not used
+double PI9   = 9.0 / PI;  // 9/pi
+double PI180 = PI / 180.; // pi/180
 
 double delz = 0.825; // changed: height of each layer, ht/jtot
 double zh65=0.019697; // changed: 0.65/ht
@@ -1533,7 +1583,8 @@ int main()
 
   char header[300]; //header of input file
 
-  float dummy=0.;
+  //MC20190615 float dummy=0.;
+  double dummy=0.;
 
   double rnet_soil=0., netrad=0.;
 
@@ -1558,7 +1609,7 @@ int main()
 
   //MC double da13=0., Fisotope=0., ave_Ca_f=0., ave_d13resp=0.;
 
-  double isoprene_efflux=0.;//MC , recycle=0.;
+  double isoprene_efflux=0.; // , recycle=0.;
 
   double etest=0., etest_old1=0., etest_old2=0., etest_diff1=0., etest_diff2=0.; // test value for energy closure
   double itest=0., itest_old1=0., itest_old2=0., itest_diff1=0., itest_diff2=0.; // test for wiso convergence
@@ -1574,8 +1625,10 @@ int main()
   double rcws[watersze], ea=0.;
   double temp1=0.;
 
-  int print_balance=1;
+  int print_balance=0;
 
+  // To have same header as Fortran for easier debug
+  /* printf("\n\n\n\n\n\n\n\n\n\n\n\n\n"); */
   printf("\nStart Canoak.\n\n");
 
   start = clock();
@@ -1627,6 +1680,8 @@ int main()
   FILENAMES();
 
   SET_LEAF_PHENOLOGY(); // set leaf onset and full
+  /* printf("CV01 %d %d\n", time_var.leafout, time_var.leaffull); */
+  /* printf("CV02 %d %d\n", time_var.leaffall, time_var.leaffallcomplete); */
 
   SET_SOIL_TEXTURE(); // set soil texture per soil layer
 
@@ -1635,23 +1690,60 @@ int main()
   SET_SOIL_MOISTURE(); // set humidity per soil layer
 
   SET_SOIL_TEMP(); // set deep soil temperature
+  /* printf("CV03 %20.14f %20.14f %20.14f\n", soil.theta_ls, soil.theta_l33, soil.n_l); */
+  /* printf("CV04 %20.14f %20.14f\n", soil.root[1], soil.root[soil.n_soil]); */
+  /* printf("CV05 %20.14f %20.14f\n", soil.theta[1][1], soil.theta[soil.n_soil][1]); */
+  /* printf("CV06 %20.14f %20.14f\n", soil.T_soil[0], soil.T_soil[soil.n_soil+1]); */
+  /* printf("CV07 %20.14f %20.14f\n", soil.T_soil_filter[0], soil.T_soil_filter[soil.n_soil+1]); */
 
   SET_LITTER_TEXTURE();
 
   SET_LITTER_TEMP();
 
   SET_LITTER_MOISTURE();
+  /* printf("CV08 %20.14f %20.14f %20.14f\n", soil.theta_ls, soil.theta_l33, soil.n_l); */
+  /* printf("CV09 %20.14f %20.14f\n", soil.T_l, soil.T_l_filter); */
+  /* printf("CV10 %20.14f\n", soil.theta_l[1]); */
   
   if (soil.saxton == 1) // set hydraulic soil parameters
-    SET_SOIL_SAXTON();
+    {
+      SET_SOIL_SAXTON();
+      /* printf("CV11.01 %20.14f %20.14f\n", soil.theta_1500[1], soil.theta_1500[soil.n_soil]); */
+      /* printf("CV11.02 %20.14f %20.14f\n", soil.theta_33[1], soil.theta_33[soil.n_soil]); */
+      /* printf("CV11.03 %20.14f %20.14f\n", soil.theta_s33[1], soil.theta_s33[soil.n_soil]); */
+      /* printf("CV11.04 %20.14f %20.14f\n", soil.psi_e[1], soil.psi_e[soil.n_soil]); */
+      /* printf("CV11.05 %20.14f %20.14f\n", soil.theta_s[1], soil.theta_s[soil.n_soil]); */
+      /* printf("CV11.06 %20.14f %20.14f\n", soil.rho[1], soil.rho[soil.n_soil]); */
+      /* printf("CV11.07 %20.14f %20.14f\n", soil.big_b[1], soil.big_b[soil.n_soil]); */
+      /* printf("CV11.08 %20.14f %20.14f\n", soil.big_a[1], soil.big_a[soil.n_soil]); */
+      /* printf("CV11.09 %20.14f %20.14f\n", soil.lambda[1], soil.lambda[soil.n_soil]); */
+      /* printf("CV11.10 %20.14f %20.14f\n", soil.k_s[1], soil.k_s[soil.n_soil]); */
+      /* printf("CV11.11 %20.14f\n", soil.soil_mm_33_root); */
+      /* printf("CV11.12 %20.14f\n", soil.soil_mm_1500_root); */
+      /* printf("\n"); */
+    }
   else
-    SET_SOIL_CLAPP();
+    {
+      SET_SOIL_CLAPP();
+      /* printf("CV12.01 %20.14f %20.14f\n", soil.theta_s[1], soil.theta_s[soil.n_soil]); */
+      /* printf("CV12.02 %20.14f %20.14f\n", soil.k_s[1], soil.k_s[soil.n_soil]); */
+      /* printf("CV12.03 %20.14f %20.14f\n", soil.psi_e[1], soil.psi_e[soil.n_soil]); */
+      /* printf("CV12.04 %20.14f %20.14f\n", soil.big_b[1], soil.big_b[soil.n_soil]); */
+      /* printf("CV12.05 %20.14f %20.14f\n", soil.theta_1500[1], soil.theta_1500[soil.n_soil]); */
+      /* printf("CV12.06 %20.14f %20.14f\n", soil.theta_33[1], soil.theta_33[soil.n_soil]); */
+      /* printf("CV12.07 %20.14f %20.14f\n", soil.theta_s33[1], soil.theta_s33[soil.n_soil]); */
+      /* printf("CV12.08 %20.14f %20.14f\n", soil.rho[1], soil.rho[soil.n_soil]); */
+      /* printf("CV12.09 %20.14f %20.14f\n", soil.k_s[1], soil.k_s[soil.n_soil]); */
+      /* printf("CV12.10 %20.14f\n", soil.soil_mm_33_root); */
+      /* printf("CV12.11 %20.14f\n", soil.soil_mm_1500_root); */
+    }
 
   // calculate relative plant available water
   soil.soil_mm_root = 0.;
   for (j=1; j<=soil.n_soil; j++)
     soil.soil_mm_root += soil.root[j]*soil.theta[j][1]*1000.
       *(soil.z_soil[j]-soil.z_soil[j-1])*(1.-soil.gravel[j]/100.);
+  /* printf("CV13 %20.14f\n", soil.soil_mm_root); */
 
   // initialize some variables
 
@@ -1699,6 +1791,10 @@ int main()
 
   for (j=1; j<=jtot; j++)
     prof.ht[j]= delz * (double) j;
+  /* printf("CV14 %20.14f %20.14f %20.14f\n", non_dim.lfddh, non_dim.pr, non_dim.pr33); */
+  /* printf("CV15 %20.14f %20.14f %20.14f\n", non_dim.lfddv, non_dim.sc, non_dim.sc33); */
+  /* printf("CV16 %20.14f %20.14f %20.14f\n", non_dim.scc, non_dim.scc33, non_dim.grasshof); */
+  /* printf("CV17 %20.14f %20.14f\n", prof.ht[1], prof.ht[jtot]); */
 
   /* *********************************************************************
      MAIN PROGRAM
@@ -1751,6 +1847,8 @@ int main()
   */
 
   SET_SOIL_TIME();
+  /* printf("CV18 %20.14f %ld\n", soil.temperature_dt, soil.temperature_mtime); */
+  /* printf("CV19 %20.14f %20.14f %ld\n", soil.moisture_dt, soil.moisture_dt, soil.moisture_mtime); */
 
   // Input data on Thomson dispersion matrix that was computed offline with
   // MOVOAK.C, Dij (s m-1)
@@ -1758,10 +1856,12 @@ int main()
     {
       for (i=1; i<=jtot3; i++)
         {
-          fscanf(fptr4,"%f %i\n", &dummy, &junk);
+          //MC20190615 fscanf(fptr4,"%f %i\n", &dummy, &junk);
+          fscanf(fptr4,"%lf %i\n", &dummy, &junk);
           met.dispersion[i][j] = dummy;
         } // next i
     } // next j
+  /* printf("CV20 %20.14f %20.14f %20.14f\n", met.dispersion[1][1], met.dispersion[jtot3/2][jtot/2], met.dispersion[jtot3][jtot]); */
 
   // Initialize respired 13C to the heterotrophic soil respiration value 
   // (assumed to equal longterm average), then update each day
@@ -1781,6 +1881,7 @@ int main()
 	  Cisotope.bigdelta[j]      = 18.;
 	  Cisotope.bigdelta_long[j] = 18.;
 	}
+     /* printf("CV21 %20.14f\n", prof.Rresp_ave[1]); */
     }
 
   // loop through the input met file. There should be a line of data for
@@ -1791,14 +1892,16 @@ int main()
   if (set_switch.wiso == 1) fgets(header, 300, fptr14);
   if (extra_nate == 1) fgets(header, 300, fptr15); // lai file
   SKIP_INPUT(); // skip lines of input file before start_run
+
   time_var.days  = start_run / 10000;
   time_var.jdold = start_run / 10000;
   // set input.dayy because of several years at once
   input.dayy = time_var.days; // for more then 1 year
+  /* printf("CV22 %d %d %d\n", time_var.days, time_var.jdold, input.dayy); */
   if (print_balance == 0)
     {
-      printf("%03i,", time_var.days);
-      if (time_var.days == 1) printf("\n");
+      printf("Day-of-year\n%03i,", time_var.days);
+      if ((time_var.days % 24) == 1) printf("\n");
     }
 
   // initialise arbitrary value
@@ -1820,15 +1923,30 @@ int main()
       }
     
   // initialise leaf area index
-  input.lai = (float) lai;
+  //MC20190615 use better precision for lai
+  /* input.lai = (float) lai; */
+  /* if (extra_nate == 1) */
+  /*   { */
+  /*     // for Nate McDowell's juniper site read LAI instead of diffuse PAR */
+  /*     input.lai_up   = (float) lai; */
+  /*     input.lai_down = (float) lai; */
+  /*   } */
+  input.lai = lai;
   if (extra_nate == 1)
     {
       // for Nate McDowell's juniper site read LAI instead of diffuse PAR
-      input.lai_up   = (float) lai;
-      input.lai_down = (float) lai;
+      input.lai_up   = lai;
+      input.lai_down = lai;
     }
   LAI_TIME(); // define leaf area and canopy structure
-
+  /* printf("CV23 %20.14f\n", time_var.lai); */
+  /* printf("CV24 %20.14f %20.14f %20.14f\n", solar.par_reflect, solar.par_trans, solar.par_soil_refl_dry); */
+  /* printf("CV25 %20.14f %20.14f %20.14f\n", solar.par_absorbed, solar.nir_reflect, solar.nir_trans); */
+  /* printf("CV26 %20.14f %20.14f\n", solar.nir_soil_refl_dry, solar.nir_absorbed); */
+  /* printf("CV27 %20.14f %20.14f\n", prof.dLAIdz[1], prof.dLAIdz[jtot]); */
+  /* printf("CV28 %20.14f %20.14f\n", prof.dPAIdz[1], prof.dPAIdz[jtot]); */
+  /* printf("CV29 %20.14f %20.14f\n", solar.exxpdir[1], solar.exxpdir[jtot]); */
+  
   // Initialize humidity and temperature profiles, arbitrary values
   for (j=1; j<=jtot; j++)
     {
@@ -1841,6 +1959,7 @@ int main()
       prof.shd_rs[j]           = 1./(bprime[j]*rugc*TN0/101325.);
       prof.shd_rs_filter[j]    = 1./(bprime[j]*rugc*TN0/101325.);
     }
+  /* printf("CV30 %20.14f %20.14f\n", prof.sun_rs[1], prof.sun_rs[jtot]); */
 
   for (j=1; j<=jtot3; j++)
     {
@@ -1863,6 +1982,7 @@ int main()
 	  prof.d13Cair[j]    = -8.;
 	}
     }
+  /* printf("CV31 %20.14f %20.14f\n", prof.R13_12_air[1], prof.R13_12_air[jtot3]); */
 
   for (mc=2; mc<=wiso.nwater+1; mc++)
     for (j=1; j<=jtot3; j++)
@@ -1871,13 +1991,15 @@ int main()
 	prof.rhov_air_filter[j][mc] = 0.02*wiso.vsmow[mc];
 	prof.rvapour[j][mc]         = wiso.vsmow[mc];
       }
+  /* printf("CV32 %20.14f %20.14f\n", prof.rhov_air[1][2], prof.rhov_air[jtot3][3]); */
 
   for (j=1; j<=jtot; j++)
     {
       prof.dHdz[j]       = 0.0;
       prof.source_co2[j] = 0.0;
     }
-  for (mc=1; mc<=wiso.nwater; mc++)
+  //MC20190615 for (mc=1; mc<=wiso.nwater; mc++)
+  for (mc=1; mc<=wiso.nwater+1; mc++)
     for (j=1; j<=jtot; j++)
       prof.dLEdz[j][mc] = 0.0;
   
@@ -1908,6 +2030,25 @@ int main()
       INPUT_DATA(); // input met data
 
       INIT_NEXT_STEP(); // zero variables and copy former time steps
+      /* printf("CV33.01 %d %20.14f %20.14f\n", input.dayy, input.hhrr, input.ta); */
+      /* printf("CV33.02 %20.14f %20.14f %20.14f\n", input.ea, input.wnd, input.ppt[1]); */
+      /* printf("CV33.03 %20.14f %20.14f %20.14f\n", input.co2air, input.press_mb, input.tsoil); */
+      /* printf("CV33.04 %20.14f %ld %20.14f\n", input.soilmoisture, input.flag, input.d13CO2); */
+      /* printf("CV33.05 %20.14f %d %ld\n", input.d18CO2, time_var.year, time_var.daytime); */
+      /* printf("CV33.06 %d %20.14f %d\n", time_var.doy, time_var.local_time, time_var.days); */
+      /* printf("CV33.07 %20.14f %20.14f %20.14f\n", met.T_Kelvin, met.rhova_g, met.rhova_kg); */
+      /* printf("CV33.08 %20.14f %20.14f %20.14f\n", met.press_kpa, met.press_bars, met.press_Pa); */
+      /* printf("CV33.09 %20.14f %20.14f\n", met.relative_humidity, met.pstat273); */
+      /* printf("CV33.10 %20.14f %20.14f\n", sfc_res.rcuticle[1], sfc_res.rcuticle[jtot]); */
+      /* printf("CV33.11 %20.14f %20.14f\n", input.co2air, input.parin); */
+      /* printf("CV33.13 %20.14f %20.14f\n", input.wnd, met.ustar_filter); */
+      /* printf("CV33.14 %20.14f %20.14f %20.14f\n", input.ta, met.air_density, met.air_density_mole); */
+      /* printf("CV33.15 %20.14f %20.14f %20.14f\n", input.dppt[1], input.dppt[2], input.dppt[3]); */
+      /* printf("CV33.16 %20.14f %20.14f %20.14f\n", input.dppt[4], input.dvapour[2], input.dppt[3]); */
+      /* printf("CV33.17 %20.14f %20.14f\n", wiso.dtheta[1][2], wiso.dtheta[1][wiso.nwater]); */
+      /* printf("CV33.18 %20.14f %20.14f\n", input.ppt[2], input.ppt[wiso.nwater]); */
+      /* printf("CV33.19 %20.14f %20.14f %20.14f\n", input.lai_up, input.lai_down, input.lai); */
+      /* printf("CV33.20 %20.14f %20.14f %20.14f\n", input.rglobal, input.parin, input.pardif); */
 
       if (time_var.daytime > end_run)
 	{
@@ -2051,15 +2192,25 @@ int main()
 	  //   update LAI in each time step
       if (extra_nate == 1)
 	LAI_TIME();
+      /* printf("CV34.01 %20.14f\n", time_var.lai); */
+      /* printf("CV34.02 %20.14f %20.14f %20.14f\n", solar.par_reflect, solar.par_trans, solar.par_soil_refl_dry); */
+      /* printf("CV34.03 %20.14f %20.14f %20.14f\n", solar.par_absorbed, solar.nir_reflect, solar.nir_trans); */
+      /* printf("CV34.04 %20.14f %20.14f\n", solar.nir_soil_refl_dry, solar.nir_absorbed); */
+      /* printf("CV34.05 %20.14f %20.14f\n", prof.dLAIdz[1], prof.dLAIdz[jtot]); */
+      /* printf("CV34.06 %20.14f %20.14f\n", prof.dPAIdz[1], prof.dPAIdz[jtot]); */
+      /* printf("CV34.07 %20.14f %20.14f\n", solar.exxpdir[1], solar.exxpdir[jtot]); */
 
       // Compute solar elevation angle
 
       ANGLE();
+      /* printf("CV35 %20.14f %20.14f %20.14f\n", solar.beta_rad, solar.sine_beta, solar.beta_deg); */
 
       // make sure PAR is zero at night. Some data have negative offset, 
       //   which causes numerical problems
 
       if (solar.sine_beta <= 0.05)
+	input.parin = 0.;
+      if (input.parin < 0.)
 	input.parin = 0.;
 
       // Compute the fractions of beam and diffuse radiation from incoming measurements
@@ -2067,9 +2218,21 @@ int main()
       // Set the radiation factor to the day before for night calculations. This way if the day
       //   was cloudy, so will IR calculations for the night reflect this.
       if (solar.sine_beta > 0.05)
-	DIFFUSE_DIRECT_RADIATION();
+	{
+	  DIFFUSE_DIRECT_RADIATION();
+	}
       else
-	solar.ratrad = solar.ratradnoon;
+	{
+	  solar.ratrad = solar.ratradnoon;
+	  //MC20190625 Moved from input_data()
+	  solar.par_beam = 0.;
+	  solar.par_diffuse = 0.;
+	  solar.nir_beam = 0.;
+	  solar.nir_diffuse = 0.;
+	}
+      /* printf("CV36.01 %20.14f %20.14f %20.14f\n", solar.ratrad, output.c10, solar.ratradnoon); */
+      /* printf("CV36.02 %20.14f %20.14f\n", solar.par_beam, solar.par_diffuse); */
+      /* printf("CV36.03 %20.14f %20.14f\n", solar.nir_beam, solar.nir_diffuse); */
 
       // computes leaf inclination angle distribution function, the mean direction cosine
       // between the sun zenith angle and the angle normal to the mean leaf
@@ -2082,6 +2245,7 @@ int main()
       else
 	for (j=1; j<=jtot; j++)
 	  prof.Gfunc_solar[j] = 0.01;
+      /* printf("CV37 %20.14f %20.14f\n", prof.Gfunc_solar[1], prof.Gfunc_solar[jtot]); */
 
       // Set soil reflectivity depending on soil moisture of first layer
       //   i.e. wet soil seems have as bright as dry soil
@@ -2091,18 +2255,41 @@ int main()
 			 /(soil.theta_s[1]-soil.watmin[1]), 0.), 1.);
       solar.par_soil_refl = solar.par_soil_refl_dry * (1.-0.5*tmp3);
       solar.nir_soil_refl = solar.nir_soil_refl_dry * (1.-0.5*tmp3);
+      /* printf("CV38.01 %20.14f %20.14f\n", solar.par_soil_refl_dry, solar.nir_soil_refl_dry); */
+      /* printf("CV38.02 %20.14f %20.14f\n", solar.par_soil_refl, solar.nir_soil_refl); */
+      /* printf("CV38.03 %20.14f %20.14f %20.14f\n", soil.theta[1][1], soil.watmin[1], soil.theta_s[1]); */
       
       // Compute PAR profiles
 
       PAR();
+      /* printf("CV39.01 %20.14f %20.14f\n", prof.sun_lai[1], prof.sun_lai[jtot]); */
+      /* printf("CV39.02 %20.14f %20.14f\n", prof.shd_lai[1], prof.shd_lai[jtot]); */
+      /* printf("CV39.03 %20.14f %20.14f\n", solar.prob_beam[1], solar.prob_beam[jtot]); */
+      /* printf("CV39.04 %20.14f %20.14f\n", solar.prob_shd[1], solar.prob_shd[jtot]); */
+      /* printf("CV39.05 %20.14f %20.14f\n", solar.par_down[1], solar.par_down[jtot]); */
+      /* printf("CV39.06 %20.14f %20.14f\n", solar.par_up[1], solar.par_up[jtot]); */
+      /* printf("CV39.07 %20.14f %20.14f\n", solar.beam_flux_par[1], solar.beam_flux_par[jtot]); */
+      /* printf("CV39.08 %20.14f %20.14f\n", solar.quantum_shd[1], solar.quantum_shd[jtot]); */
+      /* printf("CV39.09 %20.14f %20.14f\n", solar.quantum_sun[1], solar.quantum_sun[jtot]); */
+      /* printf("CV39.10 %20.14f %20.14f\n", solar.par_shd[1], solar.par_shd[jtot]); */
+      /* printf("CV39.11 %20.14f %20.14f\n", solar.par_sun[1], solar.par_sun[jtot]); */
 
       // Compute NIR profiles
 
       NIR();
+      /* printf("CV40.01 %20.14f %20.14f\n", solar.nir_up[1], solar.nir_up[jtot]); */
+      /* printf("CV40.02 %20.14f %20.14f\n", solar.nir_dn[1], solar.nir_dn[jtot]); */
+      /* printf("CV40.03 %20.14f %20.14f\n", solar.nir_shd[1], solar.nir_shd[jtot]); */
+      /* printf("CV40.04 %20.14f %20.14f\n", solar.nir_sun[1], solar.nir_sun[jtot]); */
+      /* printf("CV40.05 %20.14f %20.14f\n", solar.beam_flux_nir[1], solar.beam_flux_nir[jtot]); */
+      /* printf("CV40.06 %20.14f\n", solar.nir_total); */
 
       // Interception reservoir
 
       THROUGHFALL();
+      /* printf("CV41.01 %20.14f %20.14f\n", prof.throughfall[1][1], prof.throughfall[jtot][wiso.nwater]); */
+      /* printf("CV41.02 %20.14f %20.14f\n", prof.cws[1][1], prof.cws[jtot][wiso.nwater]); */
+      /* printf("CV41.03 %20.14f %20.14f\n", prof.wet_coef_filter[1], prof.wet_coef_filter[jtot]); */
 
       // Update litter with rain
 
@@ -2117,7 +2304,8 @@ int main()
 
       // any recursive looping would occur here, below TL initialization
 
-      time_var.count = i_count = 0;
+      i_count = 0;
+      time_var.count = 0;
       etest_old1 = 0.;
       etest_old2 = -1.;
       itest_old1 = 0.;
@@ -2130,6 +2318,9 @@ int main()
 	soil.c_litterevap = 0.;
       else
 	soil.c_litterevap = 1.;
+      /* printf("CV42.01 %20.14f %20.14f\n", soil.cp_soil[1], soil.cp_soil[soil.n_soil]); */
+      /* printf("CV42.02 %20.14f %20.14f\n", soil.k_conductivity_soil[1], soil.k_conductivity_soil[soil.n_soil]); */
+      /* printf("CV42.03 %20.14f %20.14f\n", fact.heatcoef, met.ustar); */
 
       // iteration looping for energy fluxes and scalar fields
       // iterate until energy balance closure occurs or 75 iterations are
@@ -2143,37 +2334,44 @@ int main()
 	      prof.rhov_air_filter_save[j] = prof.rhov_air_filter[j][1];
 	      prof.rhov_air_save[j] = prof.rhov_air[j][1];
 	    }
+          /* printf("CV43.01 %20.14f %20.14f\n", prof.tair_filter_save[1], prof.tair_filter_save[jtot3]); */
+          /* printf("CV43.01 %20.14f %20.14f\n", prof.rhov_air_filter_save[1], prof.rhov_air_filter_save[jtot3]); */
+          /* printf("CV43.01 %20.14f %20.14f\n", prof.rhov_air_save[1], prof.rhov_air_save[jtot3]); */
 	  
 	  IRFLUX(); // first guess
+	  /* printf("CV44.01 %20.14f %20.14f\n", solar.ir_up[1], solar.ir_up[jtot]); */
+	  /* printf("CV44.02 %20.14f %20.14f\n", solar.ir_dn[1], solar.ir_dn[jtot]); */
 
 	  FRICTION_VELOCITY();
+          /* printf("CV45 %20.14f %20.14f\n", met.zl, met.ustar); */
 
 	  // compute net radiation balance on sunlit and shaded leaves
 	  RNET();
-	  /* printf("CA11 %i %20.14f %20.14f\n", i_count, solar.par_sun[1], solar.nir_sun[1]); */
-	  /* printf("CA12 %i %20.14f %20.14f\n", i_count, solar.par_sun[40], solar.nir_sun[40]); */
-	  /* printf("CA13 %i %20.14f %20.14f\n", i_count, solar.par_shd[1], solar.nir_shd[1]); */
-	  /* printf("CA14 %i %20.14f %20.14f\n", i_count, solar.par_shd[40], solar.nir_shd[40]); */
-	  /* printf("CA15 %i %20.14f %20.14f\n", i_count, solar.ir_dn[1], solar.ir_up[1]); */
-	  /* printf("CA16 %i %20.14f %20.14f\n", i_count, solar.ir_dn[40], solar.ir_up[40]); */
-	  /* printf("CA17 %i %20.14f %20.14f\n", i_count, solar.rnet_sun[1], solar.rnet_shd[1]); */
-	  /* printf("CA18 %i %20.14f %20.14f\n", i_count, solar.rnet_sun[40], solar.rnet_shd[40]); */
+	  /* printf("CV46.01 %i %20.14f %20.14f\n", i_count, solar.par_sun[1], solar.nir_sun[1]); */
+	  /* printf("CV46.02 %20.14f %20.14f\n", solar.par_sun[40], solar.nir_sun[40]); */
+	  /* printf("CV46.03 %20.14f %20.14f\n", solar.par_shd[1], solar.nir_shd[1]); */
+	  /* printf("CV46.04 %20.14f %20.14f\n", solar.par_shd[40], solar.nir_shd[40]); */
+	  /* printf("CV46.05 %20.14f %20.14f\n", solar.ir_dn[1], solar.ir_up[1]); */
+	  /* printf("CV46.06 %20.14f %20.14f\n", solar.ir_dn[40], solar.ir_up[40]); */
+	  /* printf("CV46.07 %20.14f %20.14f\n", solar.rnet_sun[1], solar.rnet_shd[1]); */
+	  /* printf("CV46.08 %20.14f %20.14f\n", solar.rnet_sun[40], solar.rnet_shd[40]); */
 
 	  // Compute leaf energy balance, leaf temperature, photosynthesis and stomatal conductance.
 	  ENERGY_AND_CARBON_FLUXES();
-	  /* printf("CA01 %i %20.14f %20.14f\n", i_count, prof.dLEdz[1][1], prof.dLEdz[40][1]); */
-	  /* printf("CA02 %i %20.14f %20.14f\n", i_count, prof.dHdz[1], prof.dHdz[40]); */
-	  /* printf("CA03 %i %20.14f %20.14f\n", i_count, prof.dRNdz[1], prof.dRNdz[40]); */
-	  /* printf("CA04 %i %20.14f %20.14f\n", i_count, prof.dLoutdz[1], prof.dLoutdz[40]); */
-	  /* printf("CA05 %i %20.14f %20.14f\n", i_count, prof.shd_tleaf[1], prof.shd_tleaf[40]); */
+	  /* printf("CV47.01 %i %20.14f %20.14f\n", i_count, prof.dLEdz[1][1], prof.dLEdz[40][1]); */
+	  /* printf("CV47.02 %20.14f %20.14f\n", prof.dHdz[1], prof.dHdz[40]); */
+	  /* printf("CV47.03 %20.14f %20.14f\n", prof.dRNdz[1], prof.dRNdz[40]); */
+	  /* printf("CV47.04 %20.14f %20.14f\n", prof.dLoutdz[1], prof.dLoutdz[40]); */
+	  /* printf("CV47.00 %20.14f %20.14f\n", prof.sun_tleaf[1], prof.sun_tleaf[40]); */
+	  /* printf("CV47.05 %20.14f %20.14f\n", prof.shd_tleaf[1], prof.shd_tleaf[40]); */
 
 	  // Soil energy balance
 	  SOIL_ENERGY_BALANCE();
-	  /* printf("CA06 %20.14f %20.14f %20.14f\n", flux.soilevap[1], flux.litterevap[1], flux.s_evap[1]); */
-	  /* printf("CA07 %20.14f %20.14f %20.14f\n", soil.tsfc, soil.T_l, soil.litterevap); */
-	  /* printf("CA08 %20.14f %20.14f %20.14f\n", output.c1, output.c2, output.c3); */
-	  /* printf("CA09i %20.14f %20.14f\n", output.c4, output.c7); */
-	  /* printf("CA10 %20.14f %20.14f %20.14f\n", soil.theta[1][1], soil.theta[2][1], soil.theta[3][1]); */
+	  /* printf("CV47.06 %20.14f %20.14f %20.14f\n", flux.soilevap[1], flux.litterevap[1], flux.s_evap[1]); */
+	  /* printf("CV47.07 %20.14f %20.14f %20.14f\n", soil.tsfc, soil.T_l, soil.litterevap); */
+	  /* printf("CV47.08 %20.14f %20.14f %20.14f\n", output.c1, output.c2, output.c3); */
+	  /* printf("CV47.09 %20.14f %20.14f\n", output.c4, output.c7); */
+	  /* printf("CV47.10 %20.14f %20.14f %20.14f\n", soil.theta[1][1], soil.theta[2][1], soil.theta[3][1]); */
 
 	  // --- Water ---
 
@@ -2193,6 +2391,8 @@ int main()
 		    (solar.prob_beam[j] * (prof.sun_LEstoma[j][1]+prof.sun_LEwet[j][1])
 		     + solar.prob_shd[j] * (prof.shd_LEstoma[j][1]+prof.shd_LEwet[j][1]));
 		}
+	      /* printf("CV48.01 %20.14f %20.14f\n", prof.sun_LEstoma[1][1], prof.sun_LEstoma[jtot][1]); */
+              /* printf("CV48.02 %20.14f %20.14f\n", prof.dLEdz[1][1], prof.dLEdz[jtot][1]); */
 	    }
 	      
 	  // compute canopy transpiration and evaporation
@@ -2219,6 +2419,7 @@ int main()
 	    flux.c_evaporation[1] + flux.c_transpiration[1];
 	  flux.evapotranspiration[1] = 
 	    flux.c_evapotranspiration[1] + flux.s_evap[1];
+	  /* printf("CV48.03 %20.14f %20.14f\n", flux.c_evaporation[1], flux.c_evapotranspiration[1]); */
 	      
 	  /*
 	    Compute air temperature profiles from dispersion matrix
@@ -2243,6 +2444,7 @@ int main()
 
 	  // Matthias, narrowing filter to 0.5 at i_max/2
 	  fact.a_filt = 0.85 - 0.7*((double) i_count)/((double) (i_max-1));
+	  /* printf("CV48.04 %20.14f\n", fact.a_filt); */
 
 	  // Matthias, a_filt=0 from 10 steps before max iteration
 	  //   the noise one sees should be filtered off as well
@@ -2259,6 +2461,9 @@ int main()
 	  // inputs are source/sink[], scalar_profile[],
 	  // ref_val, boundary_flux, unit conversions
 	  CONC(prof.dHdz, prof.tair, input.ta, soil.heat, fact.heatcoef);
+          /* printf("CV49.01 %20.14f %20.14f\n", prof.dHdz[1], prof.dHdz[jtot]); */
+          /* printf("CV49.02 %20.14f %20.14f %20.14f\n", input.ta, soil.heat, fact.heatcoef); */
+          /* printf("CV49.03 %20.14f %20.14f\n", prof.tair[1], prof.tair[jtot3-1]); */
 
 	  // filter temperatures to remove numerical instabilities
 	  // for each iteration
@@ -2266,6 +2471,7 @@ int main()
 	  for (j=1; j<=jtot3; j++)
 	    if (prof.tair[j] < -30. || prof.tair[j] > 60.)
 	      prof.tair[j] = input.ta;
+          /* printf("CV49.04 %20.14f %20.14f\n", prof.tair[1], prof.tair[jtot3-1]); */
 
 	  /*
 	    Compute vapor density profiles from Dispersion matrix
@@ -2282,30 +2488,65 @@ int main()
 	    tmp2[j] = prof.dLEdz[j][1]/LAMBDA(prof.tair_filter_save[j]+TN0);
 	  CONC(tmp2, tmp1, met.rhova_kg, flux.s_evap[1], 1.);
 	  for (j=1; j<=jtot3; j++) prof.rhov_air[j][1] = tmp1[j];
+          /* printf("CV49.05 %20.14f %20.14f\n", tmp2[1], tmp2[jtot]); */
+          /* printf("CV49.06 %20.14f %20.14f %20.14f\n", met.rhova_kg, flux.s_evap[1], 1.); */
+          /* printf("CV49.07 %20.14f %20.14f\n", prof.rhov_air[1][1], prof.rhov_air[jtot3-1][1]); */
 
 	  // filter humidity computations
 
 	  for (j=1; j<=jtot3; j++)
 	    {
-	      if (prof.rhov_air[j][1] < 0. || prof.rhov_air[j][1] > 0.03) 
+	      if ((prof.rhov_air[j][1] < 0.) || (prof.rhov_air[j][1] > 0.03))
 		prof.rhov_air[j][1] = met.rhova_kg;
 	      ea = prof.rhov_air[j][1]/2.165*(prof.tair[j]+TN0);
 	      // vapor pressure deficit in [kPa]
 	      prof.vpd_air[j] = ES(prof.tair[j]+TN0) - ea;
 	    }
+          /* printf("CV49.08 %20.14f %20.14f\n", prof.rhov_air[1][1], prof.rhov_air[jtot3-1][1]); */
+          /* printf("CV49.09 %20.14f %20.14f\n", prof.vpd_air[1], prof.vpd_air[jtot3-1]); */
 
 	  // Implicit water isotopes diagnostics
 	  if (set_switch.wiso == 1 && wiso.implicit == 1)
 	    {	      
 	      // isotope soil water flux
 	      SOIL_FLUX_WISO();
+	      /* printf("CV52.01 %20.14f %20.14f\n", flux.soilevap[1], flux.soilevap[wiso.nwater]); */
+	      /* printf("CV52.02 %20.14f %20.14f\n", flux.litterevap[1], flux.litterevap[wiso.nwater]); */
+	      /* printf("CV52.03 %20.14f %20.14f\n", flux.s_evap[1], flux.s_evap[wiso.nwater]); */
 	      
 	      // leaf water enrichment
 	      LEAF_WISO();
-	      
+	      /* printf("CV52.04 %20.14f %20.14f\n", prof.sun_wi[1], prof.sun_wi[jtot]); */
+	      /* printf("CV52.05 %20.14f %20.14f\n", prof.shd_wi[1], prof.shd_wi[jtot]); */
+	      /* printf("CV52.06 %20.14f %20.14f\n", prof.wa[1], prof.wa[jtot]); */
+	      /* printf("CV52.07 %20.14f %20.14f\n", prof.sun_h[1], prof.sun_h[jtot]); */
+	      /* printf("CV52.08 %20.14f %20.14f\n", prof.rs_fact[1], prof.rs_fact[jtot]); */
+	      /* printf("CV52.09 %20.14f %20.14f\n", prof.sun_gross[1], prof.sun_gross[jtot]); */
+	      /* printf("CV52.10 %20.14f %20.14f\n", prof.shd_gross[1], prof.shd_gross[jtot]); */
+	      /* printf("CV52.11 %20.14f %20.14f\n", prof.sun_LEstoma_new[1], prof.sun_LEstoma_new[jtot]); */
+	      /* printf("CV52.12 %20.14f %20.14f\n", prof.shd_LEstoma_new[1], prof.shd_LEstoma_new[jtot]); */
+
 	      // isotope canopy transpiration and evaporation
 	      CANOPY_FLUX_WISO();
-	      
+              /* printf("CV52.13 %20.14f %20.14f\n", prof.sun_alpha_k[1][1], prof.sun_alpha_k[jtot][wiso.nwater]); */
+              /* printf("CV52.14 %20.14f %20.14f\n", prof.shd_alpha_k[1][1], prof.shd_alpha_k[jtot][wiso.nwater]); */
+              /* printf("CV52.15 %20.14f %20.14f\n", prof.sun_alpha_equ[1][1], prof.sun_alpha_equ[jtot][wiso.nwater]); */
+              /* printf("CV52.16 %20.14f %20.14f\n", prof.shd_alpha_equ[1][1], prof.shd_alpha_equ[jtot][wiso.nwater]); */
+              /* printf("CV52.17 %20.14f %20.14f\n", prof.sun_peclet[1][1], prof.sun_peclet[jtot][wiso.nwater]); */
+              /* printf("CV52.18 %20.14f %20.14f\n", prof.shd_peclet[1][1], prof.shd_peclet[jtot][wiso.nwater]); */
+              /* printf("CV52.19 %20.14f %20.14f\n", prof.sun_fem[1][1], prof.sun_fem[jtot][wiso.nwater]); */
+              /* printf("CV52.20 %20.14f %20.14f\n", prof.shd_fem[1][1], prof.shd_fem[jtot][wiso.nwater]); */
+              /* printf("CV52.21 %20.14f %20.14f\n", prof.sun_craig[1][1], prof.sun_craig[jtot][wiso.nwater]); */
+              /* printf("CV52.22 %20.14f %20.14f\n", prof.shd_craig[1][1], prof.shd_craig[jtot][wiso.nwater]); */
+              /* printf("CV52.23 %20.14f %20.14f\n", prof.sun_leafwater_e[1][1], prof.sun_leafwater_e[jtot][wiso.nwater]); */
+              /* printf("CV52.24 %20.14f %20.14f\n", prof.shd_leafwater_e[1][1], prof.shd_leafwater_e[jtot][wiso.nwater]); */
+              /* printf("CV52.25 %20.14f %20.14f\n", prof.sun_leafwater[1][1], prof.sun_leafwater[jtot][wiso.nwater]); */
+              /* printf("CV52.26 %20.14f %20.14f\n", prof.shd_leafwater[1][1], prof.shd_leafwater[jtot][wiso.nwater]); */
+              /* printf("CV52.27 %20.14f %20.14f\n", prof.sun_trans_rtrans[1][1], prof.sun_trans_rtrans[jtot][wiso.nwater]); */
+              /* printf("CV52.28 %20.14f %20.14f\n", prof.shd_trans_rtrans[1][1], prof.shd_trans_rtrans[jtot][wiso.nwater]); */
+              /* printf("CV52.29 %20.14f %20.14f\n", prof.sun_rtrans[1][1], prof.sun_rtrans[jtot][wiso.nwater]); */
+              /* printf("CV52.30 %20.14f %20.14f\n", prof.shd_rtrans[1][1], prof.shd_rtrans[jtot][wiso.nwater]); */
+    	      
 	      // turbulent transport of H2O18, DHO and H216O
 	      for (mc=2; mc<=wiso.nwater+1; mc++)
 		{
@@ -2355,19 +2596,29 @@ int main()
               // change sign of dPsdz
 	  for (j=1; j<=jtot; j++)
 	    prof.source_co2[j] = -prof.dPsdz[j];
+          /* printf("CV50.01 %20.14f %20.14f\n", prof.source_co2[1], prof.source_co2[jtot]); */
 
 	  // compute bole respiration
 	  // It is added to the prof.source_CO2 array.
 	  BOLE_RESPIRATION();
+          /* printf("CV50.02 %20.14f %20.14f\n", bole.calc, bole.factor); */
+          /* printf("CV50.03 %20.14f %20.14f\n", bole.respiration_mole, bole.respiration_mg); */
+          /* printf("CV50.04 %20.14f %20.14f\n", bole.layer[1], bole.layer[jtot]); */
+          /* printf("CV50.05 %20.14f %20.14f\n", prof.source_co2[1], prof.source_co2[jtot]); */
               
 	  // compute soil respiration
 	  SOIL_RESPIRATION();
+          /* printf("CV50.06 %20.14f %20.14f\n", soil.respiration_mole, soil.respiration_mg); */
+          /* printf("CV50.07 %20.14f %20.14f\n", soil.respiration_auto, soil.respiration_hetero); */
 
 	  // to convert umol m-3 to umol/mol we have to consider
 	  // Pc/Pa = [CO2]ppm = rhoc ma/ rhoa mc
 	  fact.co2 = (mass_air/mass_CO2)*met.air_density_mole;
 
 	  CONC(prof.source_co2, prof.co2_air, input.co2air, soil.respiration_mole, fact.co2);
+          /* printf("CV50.08 %20.14f %20.14f\n", prof.source_co2[1], prof.source_co2[jtot]); */
+          /* printf("CV50.09 %20.14f %20.14f %20.14f\n", input.co2air, soil.respiration_mole, fact.co2); */
+          /* printf("CV50.10 %20.14f %20.14f\n", prof.co2_air[1], prof.co2_air[jtot3-1]); */
 
 	  // Integrate source-sink strengths to estimate canopy flux
 
@@ -2407,10 +2658,16 @@ int main()
 	      tavg_sun += prof.sun_tleaf[j]*prof.dLAIdz[j];
 	      tavg_shd += prof.shd_tleaf[j]*prof.dLAIdz[j];
 	    }
-	  printf("T: %i %20.14f %20.14f\n", i_count, prof.shd_tleaf[1], prof.shd_tleaf[40]);
+          /* printf("CV50.11 %20.14f %20.14f %20.14f\n", sumh, sumle, sumrn); */
+          /* printf("CV50.12 %20.14f %20.14f %20.14f\n", sumlout, can_ps_mol, can_gpp); */
+          /* printf("CV50.13 %20.14f %20.14f %20.14f\n", canresp, sumksi, sumlai); */
+	  /* printf("T: %i %20.14f %20.14f\n", i_count, prof.shd_tleaf[1], prof.shd_tleaf[40]); */
+          /* printf("CV50.14 %20.14f %20.14f\n", prof.tleaf[1], prof.tleaf[jtot]); */
+          /* printf("CV50.15 %20.14f %20.14f\n", tavg_sun, tavg_shd); */
 	  ebalance = sumrn - sumle - sumh;
 
 	  flux.photosyn = can_ps_mol;
+          /* printf("CV50.16 %20.14f %20.14f\n", ebalance, flux.photosyn); */
 
 	  // calculate gpp : can_ps_mol = photosynthesis - photorespiration - dark respiration or can_ps_mol = GPP - leaf respiration
 	  //can_gpp = can_ps_mol + canresp;
@@ -2423,6 +2680,7 @@ int main()
 
 	  tavg_sun /= sumlai;
 	  tavg_shd /= sumlai;
+	  /* printf("CV50.017 %20.14f %20.14f %20.14f\n", tleaf_mean, tavg_sun, tavg_shd); */
 
 	  // Energy exchanges at the soil
 
@@ -2431,6 +2689,7 @@ int main()
 	    - soil.heat - soil.gsoil;
 
 	  rnet_soil = soil.rnet - soil.lout;
+          /* printf("CV50.18 %20.14f %20.14f\n", rnet_soil, sbalance); */
 
 	  // canopy scale flux densities, vegetation plus soil
 
@@ -2444,6 +2703,9 @@ int main()
 	  tbalance = sbalance + ebalance;
 
 	  met.H = sumh;
+          /* printf("CV50.19 %20.14f %20.14f %20.14f\n", sumh, sumle, sumrn); */
+          /* printf("CV50.20 %20.14f %20.14f %20.14f\n", sumlout, temp3, tbalance); */
+          /* printf("CV50.21 %20.14f\n", met.H); */
 
 	  // filter iterative variables
 
@@ -2459,11 +2721,15 @@ int main()
 	  for (j=0; j<=soil.n_soil+1; j++)
 	    soil.T_soil_filter[j] = fact.a_filt * soil.T_soil[j]
 	      + (1.-fact.a_filt) * soil.T_soil_filter[j];
+	  /* printf("CV50.22 %20.14f %20.14f %20.14f\n", soil.tsfc_filter, soil.soilevap_filter, soil.litterevap_filter); */
+          /* printf("CV50.23 %20.14f\n", soil.T_l_filter); */
+          /* printf("CV50.231 %20.14f %20.14f\n", soil.T_soil_filter[0], soil.T_soil_filter[soil.n_soil+1]); */
 	  // met variables
 	  met.H_filter           = fact.a_filt * met.H
 	    + (1.-fact.a_filt) * met.H_filter;
 	  met.ustar_filter       = fact.a_filt * met.ustar
 	    + (1.-fact.a_filt) * met.ustar_filter;
+          /* printf("CV50.24 %20.14f %20.14f\n", met.H_filter, met.ustar_filter); */
 	  // air variables
 	  for (j=1; j<=jtot3; j++)
 	    {
@@ -2474,6 +2740,9 @@ int main()
 	      prof.co2_air_filter[j] = fact.a_filt * prof.co2_air[j]
 		+ (1.-fact.a_filt) * prof.co2_air_filter[j];
 	    }
+          /* printf("CV50.25 %20.14f %20.14f\n", prof.tair_filter[1], prof.tair_filter[jtot3-1]); */
+          /* printf("CV50.26 %20.14f %20.14f\n", prof.rhov_air_filter[1][1], prof.rhov_air_filter[jtot3-1][1]); */
+          /* printf("CV50.27 %20.14f %20.14f\n", prof.co2_air_filter[1], prof.co2_air_filter[jtot3-1]); */
 	  // leaf variables
 	  for (j=1; j<=jtot; j++)
 	    {
@@ -2484,6 +2753,9 @@ int main()
 	      prof.wet_coef_filter[j] = fact.a_filt * prof.wet_coef[j]
 		+ (1.-fact.a_filt) * prof.wet_coef_filter[j];
 	    }
+          /* printf("CV50.28 %20.14f %20.14f\n", prof.sun_tleaf_filter[1], prof.sun_tleaf_filter[jtot]); */
+          /* printf("CV50.29 %20.14f %20.14f\n", prof.shd_tleaf_filter[1], prof.shd_tleaf_filter[jtot]); */
+          /* printf("CV50.30 %20.14f %20.14f\n", prof.wet_coef_filter[1], prof.wet_coef_filter[jtot]); */
 
 	  // Implicit water isotopes diagnostics
 	  if (set_switch.wiso == 1 && wiso.implicit == 1)
@@ -2519,6 +2791,7 @@ int main()
 	  netrad = (solar.beam_flux_par[jtot1] + solar.par_down[jtot1] - solar.par_up[jtot1]) / 4.6 // PAR
 	    + solar.beam_flux_nir[jtot1] + solar.nir_dn[jtot1] - solar.nir_up[jtot1] // NIR
 	    + solar.ir_dn[jtot1] - solar.ir_up[jtot1]; // IR
+          /* printf("CV50.31 %20.14f\n", netrad); */
 
 	  // test for convergenece between the sum of the net radiation flux profile and the
 	  // net flux exiting the canopy
@@ -2538,9 +2811,14 @@ int main()
 	  itest_diff2 = itest_old2 - itest_old1;
 	  itest_old2  = itest_old1;
 	  itest_old1  = itest;
+          /* printf("CV50.32 %20.14f %20.14f %20.14f\n", etest, etest_diff1, etest_diff2); */
+          /* printf("CV50.33 %20.14f %20.14f\n", etest_old2, etest_old1); */
+          /* printf("CV50.34 %20.14f %20.14f %20.14f\n", itest, itest_diff1, itest_diff2); */
+          /* printf("CV50.35 %20.14f %20.14f\n", itest_old2, itest_old1); */
 
 	  i_count++;
 	  time_var.count = i_count;
+          /* printf("CV50.36 %d\n", time_var.count); */
 	}
       //while(etest > .005 && i_count < i_max); // end of while for integrated looping
       while((fabs(etest_diff1) > 0.005 || fabs(etest_diff2) > 0.005
@@ -2564,10 +2842,10 @@ int main()
 	    dcount40++;
 	}
       if (print_balance == 1)
-	printf("Day %3i Time %5.1f i_c %3i: diff %6.2f%% net %7.2f sum %7.2f, soil %9.2e leaf %9.2e total %9.2e\n",
-	       time_var.days, time_var.local_time, i_count,
-	       etest*100, netrad, sumrn,
-	       sbalance, ebalance, tbalance);
+      	printf("Day %3i Time %5.1f i_c %3i: diff %6.2f%% net %7.2f sum %7.2f, soil %9.2e leaf %9.2e total %9.2e\n",
+      	       time_var.days, time_var.local_time, i_count,
+      	       etest*100, netrad, sumrn,
+      	       sbalance, ebalance, tbalance);
 
       // Explicit water isotope diagnostics
       if (set_switch.wiso == 1 && wiso.implicit == 0)
@@ -2581,13 +2859,43 @@ int main()
 	      
 	  // isotope soil water flux
 	  SOIL_FLUX_WISO();
-	      
+          /* printf("CV51.01 %20.14f %20.14f\n", flux.soilevap[1], flux.soilevap[wiso.nwater]); */
+          /* printf("CV51.02 %20.14f %20.14f\n", flux.litterevap[1], flux.litterevap[wiso.nwater]); */
+          /* printf("CV51.03 %20.14f %20.14f\n", flux.s_evap[1], flux.s_evap[wiso.nwater]); */
+      
 	  // leaf water enrichment
 	  LEAF_WISO();
-	      
+          /* printf("CV51.04 %20.14f %20.14f\n", prof.sun_wi[1], prof.sun_wi[jtot]); */
+          /* printf("CV51.05 %20.14f %20.14f\n", prof.shd_wi[1], prof.shd_wi[jtot]); */
+          /* printf("CV51.06 %20.14f %20.14f\n", prof.wa[1], prof.wa[jtot]); */
+          /* printf("CV51.07 %20.14f %20.14f\n", prof.sun_h[1], prof.sun_h[jtot]); */
+          /* printf("CV51.08 %20.14f %20.14f\n", prof.rs_fact[1], prof.rs_fact[jtot]); */
+          /* printf("CV51.09 %20.14f %20.14f\n", prof.sun_gross[1], prof.sun_gross[jtot]); */
+          /* printf("CV51.10 %20.14f %20.14f\n", prof.shd_gross[1], prof.shd_gross[jtot]); */
+          /* printf("CV51.11 %20.14f %20.14f\n", prof.sun_LEstoma_new[1], prof.sun_LEstoma_new[jtot]); */
+          /* printf("CV51.12 %20.14f %20.14f\n", prof.shd_LEstoma_new[1], prof.shd_LEstoma_new[jtot]); */
+  	      
 	  // isotope canopy transpiration and evaporation
 	  CANOPY_FLUX_WISO();
-	      
+          /* printf("CV51.13 %20.14f %20.14f\n", prof.sun_alpha_k[1][1], prof.sun_alpha_k[jtot][wiso.nwater]); */
+          /* printf("CV51.14 %20.14f %20.14f\n", prof.shd_alpha_k[1][1], prof.shd_alpha_k[jtot][wiso.nwater]); */
+          /* printf("CV51.15 %20.14f %20.14f\n", prof.sun_alpha_equ[1][1], prof.sun_alpha_equ[jtot][wiso.nwater]); */
+          /* printf("CV51.16 %20.14f %20.14f\n", prof.shd_alpha_equ[1][1], prof.shd_alpha_equ[jtot][wiso.nwater]); */
+          /* printf("CV51.17 %20.14f %20.14f\n", prof.sun_peclet[1][1], prof.sun_peclet[jtot][wiso.nwater]); */
+          /* printf("CV51.18 %20.14f %20.14f\n", prof.shd_peclet[1][1], prof.shd_peclet[jtot][wiso.nwater]); */
+          /* printf("CV51.19 %20.14f %20.14f\n", prof.sun_fem[1][1], prof.sun_fem[jtot][wiso.nwater]); */
+          /* printf("CV51.20 %20.14f %20.14f\n", prof.shd_fem[1][1], prof.shd_fem[jtot][wiso.nwater]); */
+          /* printf("CV51.21 %20.14f %20.14f\n", prof.sun_craig[1][1], prof.sun_craig[jtot][wiso.nwater]); */
+          /* printf("CV51.22 %20.14f %20.14f\n", prof.shd_craig[1][1], prof.shd_craig[jtot][wiso.nwater]); */
+          /* printf("CV51.23 %20.14f %20.14f\n", prof.sun_leafwater_e[1][1], prof.sun_leafwater_e[jtot][wiso.nwater]); */
+          /* printf("CV51.24 %20.14f %20.14f\n", prof.shd_leafwater_e[1][1], prof.shd_leafwater_e[jtot][wiso.nwater]); */
+          /* printf("CV51.25 %20.14f %20.14f\n", prof.sun_leafwater[1][1], prof.sun_leafwater[jtot][wiso.nwater]); */
+          /* printf("CV51.26 %20.14f %20.14f\n", prof.shd_leafwater[1][1], prof.shd_leafwater[jtot][wiso.nwater]); */
+          /* printf("CV51.27 %20.14f %20.14f\n", prof.sun_trans_rtrans[1][1], prof.sun_trans_rtrans[jtot][wiso.nwater]); */
+          /* printf("CV51.28 %20.14f %20.14f\n", prof.shd_trans_rtrans[1][1], prof.shd_trans_rtrans[jtot][wiso.nwater]); */
+          /* printf("CV51.29 %20.14f %20.14f\n", prof.sun_rtrans[1][1], prof.sun_rtrans[jtot][wiso.nwater]); */
+          /* printf("CV51.30 %20.14f %20.14f\n", prof.shd_rtrans[1][1], prof.shd_rtrans[jtot][wiso.nwater]); */
+  	      
 	  // turbulent transport of H2O18, DHO and H216O
 	  for (mc=2; mc<=wiso.nwater+1; mc++)
 	    {
@@ -2645,7 +2953,7 @@ int main()
 	      }
 	} // explicit water isotope diagnostics
 
-	  // subtract evaporation from wet leaf surfaces from canopy water storage
+      // subtract evaporation from wet leaf surfaces from canopy water storage
       temp1=0;
       for (j=1; j<=jtot; j++)
 	{
@@ -2691,20 +2999,33 @@ int main()
 	{
 	  // compute litter moisture and litter drainage
 	  LITTER_H2O();
+          /* printf("CV53.01 %20.14f %20.14f\n", flux.soilinfl[1], flux.soilinfl[wiso.nwater]); */
+          /* printf("CV53.02 %20.14f %20.14f\n", soil.qinfl[1], soil.qinfl[wiso.nwater]); */
+          /* printf("CV53.03 %20.14f %20.14f\n", soil.theta_l[1], soil.theta_l[wiso.nwater]); */
 	  // compute soil moisture in different layers
 	  SOIL_H2O();
+          /* printf("CV54.01 %20.14f %20.14f\n", soil.qseva[1], soil.qseva[wiso.nwater]); */
+          /* printf("CV54.03 %20.14f %20.14f\n", soil.qdrai[1], soil.qdrai[wiso.nwater]); */
+          /* printf("CV54.04 %20.14f %20.14f\n", soil.swp[1], soil.swp[soil.n_soil]); */
+          /* printf("CV54.05 %20.14f %20.14f\n", soil.swp_mm[1], soil.swp_mm[soil.n_soil]); */
+          /* printf("CV54.06 %20.14f %20.14f\n", soil.k_theta[1], soil.k_theta[soil.n_soil]); */
+          /* printf("CV54.07 %20.14f %20.14f\n", soil.a[1], soil.a[soil.n_soil]); */
+          /* printf("CV54.08 %20.14f %20.14f\n", soil.b[1], soil.b[soil.n_soil]); */
+          /* printf("CV54.09 %20.14f %20.14f\n", soil.c[1], soil.c[soil.n_soil]); */
+          /* printf("CV54.10 %20.14f %20.14f\n", soil.r[1][1], soil.r[soil.n_soil][wiso.nwater]); */
+          /* printf("CV54.11 %20.14f %20.14f %20.14f\n", soil.soil_mm, soil.soil_mm_root, soil.soil_mm_50); */
+          /* printf("CV54.13 %20.14f %20.14f\n", soil.theta[1][1], soil.theta[soil.n_soil][wiso.nwater]); */
+
 	}
 
       // check and convert units of all components to desirable values
       // Convert to umol m-2 s-1
-
       can_ps_mg = can_ps_mol * mass_CO2/ 1000.;
 
       wue = can_ps_mg / (1000. * flux.c_transpiration[1]); /* mg co2 g h20 */
 
       fc_mg = -(can_ps_mg - soil.respiration_mg - bole.respiration_mg);
       fc_mol = fc_mg * 1000./mass_CO2;
-
 
       sumA     = 0.;
       sum_cica = 0.;
@@ -2869,7 +3190,7 @@ int main()
 	      prof.d13Cplant[j] = DELTA1000(prof.Rresp[j], 1., Rpdb_12C);
 	      //MC ave_d13resp += prof.d13Cplant[j];
 	    }
-	  printf("\n");
+	  /* printf("\n"); */
 
 	  //MC ave_d13resp /= jtot;
 	  ave_daC13 /= jtot;
@@ -3254,7 +3575,7 @@ int main()
 	    }
 	} // output profiles
 
-      printf("T: %20.14f %20.14f\n", prof.shd_tleaf_filter[1], prof.shd_tleaf_filter[40]);
+      /* printf("T: %20.14f %20.14f\n", prof.shd_tleaf_filter[1], prof.shd_tleaf_filter[40]); */
 
       if (lastin == 1) doit = 0; // interrupt doit loop
 
@@ -3389,24 +3710,34 @@ void INPUT_DATA()
   // garbage
   double est=0.;
   int j=0, mc=0;
-  float tmp;
+  //MC20190615 float tmp;
+  double tmp;
   long int dt;
 
   int dayy1=0, dayy2=0;
-  float hhrr1=0., d18o=0., d2h=0., d18ov=0., hhrr2=0.;
+  //MC20190615 float hhrr1=0., d18o=0., d2h=0., d18ov=0., hhrr2=0.;
+  double hhrr1=0., d18o=0., d2h=0., d18ov=0., hhrr2=0.;
 
   dt = ((long int) time_var.time_step) * 100 / 3600;
   // use input.dayy instead of time_var.days because of several years at once
   time_var.jdold = input.dayy; // identify previous day
       
-  fscanf(fptr1,"%i %g %g %g %g %g %g %g %g %g %g %g %g %ld %g %g\n"
+  //MC20190615 fscanf(fptr1,"%i %g %g %g %g %g %g %g %g %g %g %g %g %ld %g %g\n"
+  fscanf(fptr1,"%i %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %lg %ld %lg %lg\n"
 	 , &input.dayy, &input.hhrr, &input.ta
 	 , &input.rglobal, &input.parin, &input.pardif
 	 , &input.ea, &input.wnd, &tmp
 	 , &input.co2air, &input.press_mb, &input.tsoil
 	 , &input.soilmoisture, &input.flag, &input.d13CO2
 	 , &input.d18CO2);
-  input.ppt[1] = (double) tmp;
+  //MC20190615 input.ppt[1] = (double) tmp;
+  input.ppt[1] = tmp;
+  /* printf("RI01.01 %d %20.14f %20.14f\n", input.dayy, input.hhrr, input.ta); */
+  /* printf("RI01.02 %20.14f %20.14f %20.14f\n", input.rglobal, input.parin, input.pardif); */
+  /* printf("RI01.03 %20.14f %20.14f %20.14f\n", input.ea, input.wnd, input.ppt[1]); */
+  /* printf("RI01.04 %20.14f %20.14f %20.14f\n", input.co2air, input.press_mb, input.tsoil); */
+  /* printf("RI01.05 %20.14f %ld %20.14f\n", input.soilmoisture, input.flag, input.d13CO2); */
+  /* printf("RI01.06 %20.14f\n", input.d18CO2); */
 
   // for Nate McDowell's juniper site read LAI instead of diffuse PAR
   if (extra_nate == 1)
@@ -3460,20 +3791,26 @@ void INPUT_DATA()
   if (fabs(input.co2air) >= 998.) // check for bad CO2 data
     input.co2air = 370.;
   
+  /* printf("RI01.07 %20.14f\n", input.parin); */
   if (input.parin < 0.)
     input.parin = 0.; // check for bad par data
 
-  if (input.parin <= 0.) // check for night
-    {
-      solar.par_beam = 0.;
-      solar.par_diffuse = 0.;
-      solar.nir_beam = 0.;
-      solar.nir_diffuse = 0.;
-    }
+  /* printf("RI01.08 %20.14f\n", input.parin); */
+  //MC20190625 solar.* set later in code in diffuse_direct_radiation()
+  /* if (input.parin <= 0.) // check for night */
+  /*   { */
+  /*     solar.par_beam = 0.; */
+  /*     solar.par_diffuse = 0.; */
+  /*     solar.nir_beam = 0.; */
+  /*     solar.nir_diffuse = 0.; */
+  /*   } */
+  /* printf("RI01.09 %20.14f %20.14f %20.14f\n", solar.par_diffuse, solar.nir_beam, solar.nir_diffuse); */
+  /* printf("RI01.10 %20.14f\n", solar.ratrad); */
 
   // set some limits on bad input data to minimize the model from blowing up
   if (solar.ratrad > 0.9 || solar.ratrad < 0.2)
     solar.ratrad=0.5;
+  /* printf("RI01.11 %20.14f\n", solar.ratrad); */
 
   // limit wind speed
   if (input.wnd < 1.)
@@ -3499,13 +3836,17 @@ void INPUT_DATA()
   if (set_switch.wiso == 1)
     {
       if (feof(fptr14)) puts("Problem with h2o iso input in input_data.");
-      fscanf(fptr14,"%i %g %g %g %g\n"
+      //MC20190615 fscanf(fptr14,"%i %g %g %g %g\n"
+      fscanf(fptr14,"%i %lg %lg %lg %lg\n"
 	     , &dayy1, &hhrr1, &d18o, &d2h, &d18ov);
       input.dppt[1] = 0.;
-      input.dppt[2] = (double) d18o;
-      input.dppt[3] = (double) d2h;
+      //MC20190615 input.dppt[2] = (double) d18o;
+      input.dppt[2] = d18o;
+      //MC20190615 input.dppt[3] = (double) d2h;
+      input.dppt[3] = d2h;
       input.dppt[4] = 0.;
-      input.dvapour[2] = (double) d18ov;
+      //MC20190615 input.dvapour[2] = (double) d18ov;
+      input.dvapour[2] = d18ov;
       
       // Test Meteoric water line for deuterium
       input.dppt[3] = 8. * input.dppt[2] + 10.;
@@ -3522,12 +3863,15 @@ void INPUT_DATA()
     {
       // LAI file
       if (feof(fptr15)) puts("Problem with extra lai input in input_data.");
-      fscanf(fptr15,"%i %g %g %g\n"
+      //MC20190615 fscanf(fptr15,"%i %g %g %g\n"
+      fscanf(fptr15,"%i %lg %lg %lg\n"
 	     , &dayy2, &hhrr2, &input.lai_up, &input.lai_down);
       // Test: set LAI to fix value of 1 + 1 m2 m-2
-      input.lai_up = input.lai_down = 1.;
+      /* input.lai_up = input.lai_down = 1; */
+      input.lai_up   = 1;
+      input.lai_down = 1;
       input.lai = input.lai_up + input.lai_down;
-      lai = 2.;
+      lai = 2;
     }
 
   if ((time_var.daytime+dt) > end_run)
@@ -3564,7 +3908,7 @@ void SOIL_RESPIRATION()
       // Equation of Nate McDowell for Juniper site
       // Take 5cm instead of Nate's 2cm because Canoak's 2cm is too variable
       soil.respiration_mole = 0.096*soil.theta[4][1]*100. + 0.5089; 
-      printf("R: %20.14f %20.14f\n", soil.respiration_mole, soil.theta[4][1]);
+      /* printf("R: %20.14f %20.14f\n", soil.respiration_mole, soil.theta[4][1]); */
     }
   else
     {
@@ -3638,7 +3982,8 @@ void BOLE_RESPIRATION()
 
   tempbole = 0.5*soil.T_15cm + 0.5*input.ta;
 
-  bole.calc = (tempbole-10.)/(8.314*283*(tempbole+TN0));
+  //MC20190625 bole.calc = (tempbole-10.)/(8.314*283*(tempbole+TN0));
+  bole.calc = (tempbole-10.)/(rugc*283.*(tempbole+TN0));
 
   if (time_var.days >= time_var.leafout && time_var.days <= time_var.leaffallcomplete)
     bole.factor = 0.43;
@@ -3802,7 +4147,7 @@ void FILENAMES()
   fptr11 = fopen(optimisebuff, "w");
   if (fptr11 == NULL) puts("Cannot open optimseYR.dat");
 
-  fprintf(fptr11, "daytime, soil_mm_50\n");
+  fprintf(fptr11, "daytime,soil_mm_50\n");
 
   // file name soil
 
@@ -3918,7 +4263,7 @@ void FILENAMES()
       fptr20 = fopen(ave13cbuff,"w");
       if (fptr20 == NULL) puts("Cannot open 13C aveYR.dat.\n");
 
-      fprintf(fptr20, "Day,Avg_Fc_13C,Avg_D13_day\n ");
+      fprintf(fptr20, "Day,Avg_Fc_13C,Avg_D13_day\n");
 
       // 13C hourly output: season
       sprintf(out13cbuff, "%s%s%s%s%s", outputfolder, hourly13cfile, minus, yrbuff, filesuffix);
@@ -3964,7 +4309,7 @@ void FILENAMES()
       fptr16 = fopen(h2oleafisobuff,"w");
       if (fptr16 == NULL) puts("Cannot open h2oleaf_wiso file");
 
-      fprintf(fptr16, "Time, "
+      fprintf(fptr16, "Time,"
               "soil.rxylem2,soil.rxylem3,soil.rxylem4,"
               "prof.rvapour12,prof.rvapour13,prof.rvapour14\n"
               );
@@ -4493,19 +4838,22 @@ void ENERGY_AND_CARBON_FLUXES()
       // update latent heat with new temperature during each call of this routine
 
       fact.latent = LAMBDA(Tair_K_filtered);
-
+      /* if (j==1 || j==40) { printf("EC01 %i %20.17f %20.14f %20.14f\n", j, surface_rh, T_sfc_K, fact.latent); }; */
       if (solar.prob_beam[j] > 0.)
         {
           // Compute the resistances for heat and vapor transfer, rh and rv,
           // for each layer, s/m
 
           BOUNDARY_RESISTANCE(prof.ht[j], prof.sun_tleaf_filter[j], prof.cws[j][1], j);
+	  /* if (j==1 || j==40) { printf("EC02 %20.17f %20.14f %20.14f\n", prof.ht[j], prof.sun_tleaf_filter[j], prof.cws[j][1]); }; */
 
           // compute energy balance of sunlit leaves
 	  
           ENERGY_BALANCE(solar.rnet_sun[j], &T_sfc_K, Tair_K_filtered, prof.rhov_air_filter[j][1],
                          bound_layer_res.vapor, rs_sun, &LE_leaf, &LE_wet, &H_leaf, &lout_leaf,
                          prof.wet_coef_filter[j]);
+	  /* if (j==1 || j==40) { printf("EC03 %20.17f %20.14f %20.14f\n", T_sfc_K, LE_leaf, LE_wet); }; */
+	  /* if (j==1 || j==40) { printf("EC04 %20.14f %20.14f\n", H_leaf, lout_leaf); }; */
 
           // compute photosynthesis of sunlit leaves if leaves have emerged
 
@@ -4568,11 +4916,16 @@ void ENERGY_AND_CARBON_FLUXES()
       // surface temperature, the convective effect may differ from that
       // computed on sunlit leaves
       BOUNDARY_RESISTANCE(prof.ht[j], prof.shd_tleaf_filter[j], prof.cws[j][1], j);
+      /* if (j==1 || j==40) { printf("EC05 %20.17f %20.14f %20.14f\n", prof.ht[j], prof.shd_tleaf_filter[j], prof.cws[j][1]); }; */
 
       // Energy balance of shaded leaves
       ENERGY_BALANCE(solar.rnet_shd[j], &T_sfc_K, Tair_K_filtered, prof.rhov_air_filter[j][1],
                      bound_layer_res.vapor, rs_shade, &LE_leaf, &LE_wet, &H_leaf, &lout_leaf,
                      prof.wet_coef_filter[j]);
+      /* if (j==1 || j==40) { printf("EC06.0 %20.17f %20.14f %20.14f\n", solar.rnet_shd[j], Tair_K_filtered, prof.rhov_air_filter[j][1]); }; */
+      /* if (j==1 || j==40) { printf("EC06.1 %20.17f %20.14f %20.14f\n", bound_layer_res.vapor, rs_shade, prof.wet_coef_filter[j]); }; */
+      /* if (j==1 || j==40) { printf("EC06 %20.17f %20.14f %20.14f\n", T_sfc_K, LE_leaf, LE_wet); }; */
+      /* if (j==1 || j==40) { printf("EC07 %20.14f %20.14f\n", H_leaf, lout_leaf); }; */
 
       // compute photosynthesis and stomatal conductance of shaded leaves
 
@@ -5141,11 +5494,13 @@ void ENERGY_BALANCE(double qrad, double *tsfckpt, double taa, double rhovva, dou
   // evaluate as function of Tk
 
   dest = DESDT(tkta);
+  /* printf("EB01 %20.14f %20.14f %20.14f\n", tkta, fact.latent, dest); */
 
   // Second derivative of the vapor pressure-temperature curve, Pa/C
   // Evaluate as function of Tk
 
   d2est = DES2DT(tkta);
+  /* printf("EB02 %20.14f\n", d2est); */
 
   // Compute products of air temperature, K
 
@@ -5156,6 +5511,7 @@ void ENERGY_BALANCE(double qrad, double *tsfckpt, double taa, double rhovva, dou
   // Longwave emission at air temperature, W m-2
 
   llout = epsigma2 * tk4;
+  /* printf("EB03 %20.14f %20.14f %20.14f\n", epsigma2, tk4, llout); */
 
   /*
     Check if leaves have stomata on one or both sides
@@ -5221,6 +5577,7 @@ void ENERGY_BALANCE(double qrad, double *tsfckpt, double taa, double rhovva, dou
   ctlf = -qrad + llout + n_stomata_sides * lecoef * vpd_leaf;
 
   product = btlf * btlf - 4 * atlf * ctlf;
+  /* printf("EB04 %20.14f %20.14f\n", lecoef, hcoef); */
 
   if (product >= 0.)
     *tsfckpt = tkta + (-btlf + sqrt(product)) / (2. * atlf); // [K]
@@ -5439,10 +5796,10 @@ void PHOTOSYNTHESIS(double Iphoton,double *rstompt, double zzz, double cca, doub
   double P2, P3, Q, R;
   double root1, root2;
   double root3, arg_U, ang_L;
-  double aphoto=0., gpp=0., j_sucrose, wj;
+  double aphoto=0., gpp=0., j_sucrose, wj=0.;
   double gs_leaf_mole=0., gs_co2, gs_m_s;
   double ps_1,delta_1, Aquad1, Bquad1, Cquad1;
-  double theta_ps=0., wc, b_ps, a_ps, e_ps, psguess;
+  double theta_ps=0., wc=0., b_ps, a_ps, e_ps, psguess;
   double sqrprod=0., product; // delday;
   double rt;
   double gm;
@@ -6909,7 +7266,6 @@ void LAI_TIME()
   // for Nate McDowell's juniper site read LAI instead of diffuse PAR
   if (extra_nate == 1)
     time_var.lai = __max(input.lai_up+input.lai_down, pai);
-  
   // height of mid point of layer scaled to height of forest
 
   for (I=1; I<=betasze-1; I++)
@@ -7052,7 +7408,8 @@ void LAI_TIME()
       for (I=nup; I<=jtot-nup-1; I++)
 	prof.dLAIdz[I]  = 1.0;
       for (I=jtot-nup; I<=jtot; I++)
-	prof.dLAIdz[I] = 1.0 - (1./(((float) nup)+1.))*(nup-(jtot-I));
+	//MC20190615 prof.dLAIdz[I] = 1.0 - (1./(((float) nup)+1.))*(nup-(jtot-I));
+	prof.dLAIdz[I] = 1.0 - (1./(((double) nup)+1.))*(nup-(jtot-I));
       // normalise pear shape
       sumlai = 0.;
       for (J=nup; J<=jtot; J++)
@@ -7964,6 +8321,8 @@ void SET_SOIL_LITTER_CAPACITY()
 	* soil.theta[i][1]/soil.theta_s[i] + C2;
 	soil.k_conductivity_soil[i] = C3 / (soil.z_soil[i+1] - soil.z_soil[i]);*/
     }
+    /* printf("LC01 %20.14f %20.14f\n", rho_local[1], rho_local[soil.n_soil-1]); */
+
   // Last layer is different (not in Campbell (1985) who has an extra layer underneath the last soil layer)
   // Take thickness of last soil layer instead of mean thickness of two layers
   i = soil.n_soil;
@@ -7988,6 +8347,7 @@ void SET_SOIL_LITTER_CAPACITY()
     C3 = (pow(C1,1.-soil.theta_s[i]) * pow(0.6,soil.theta[i][1]) - C2 )
     * soil.theta[i][1]/soil.theta_s[i] + C2;
     soil.k_conductivity_soil[i] = C3  / (soil.z_soil[i] - soil.z_soil[i-1]);*/
+    /* printf("LC06 %20.14f\n", rho_local[soil.n_soil]); */
 
   if (soil.z_litter >= 1e-6)
     {
@@ -8735,7 +9095,7 @@ void CARBON_ISOTOPE()
       prof.R13_12_air[j] = prof.c13cnc[j]/prof.co2_air_filter[j];
       prof.d13Cair[j] = (prof.R13_12_air[j]/Rpdb_CO2-1.)*1000.;
     }
-  printf("d13a: %10.7f %10.7f %10.7f %10.7f %10.7f %10.7f\n", prof.R13_12_air[1], prof.c13cnc[1], prof.co2_air_filter[1], prof.sour13co2[1], bole.layer[1], INVDELTA1000(Cisotope.bigdelta_long[timelag])*Rpdb_12C);
+  /* printf("d13a: %10.7f %10.7f %10.7f %10.7f %10.7f %10.7f\n", prof.R13_12_air[1], prof.c13cnc[1], prof.co2_air_filter[1], prof.sour13co2[1], bole.layer[1], INVDELTA1000(Cisotope.bigdelta_long[timelag])*Rpdb_12C); */
 
   return;
 }
@@ -9062,7 +9422,7 @@ void SET_PARAMETER()
 
   izref = (int) ceil(zm*jtot/ht); // array value of reference height = measurement height*jtot/ht
 
-  pi4  = 12.5663706;
+  //MC20190702 pi4  = 12.5663706;
   delz = ht/jtot; // height of each layer, ht/jtot
   zh65 = 0.65/ht; // 0.65/ht
 
@@ -9240,7 +9600,7 @@ void THROUGHFALL()
   // at canopy top: throughfall = precipitation, drip = 0
   for (mc=1; mc<=wiso.nwater+1; mc++)
     prof.throughfall[jtot1][mc] = input.ppt[mc];
-
+  /* printf("TF01.01 %20.14f %20.14f\n", prof.throughfall[jtot+1][1], prof.throughfall[jtot+1][wiso.nwater]); */
   // calculate for each layer starting from top layer (i= jtot, typically 40)
   for (i=jtot; i>=1; i--)
     {
@@ -9264,6 +9624,7 @@ void THROUGHFALL()
 	      soil.lost0 = 1;
 	    }
 	}
+      /* printf("TF01.02 %d %20.14f %20.14f %20.14f\n", i, intercept, rthrough[2], rthrough[wiso.nwater]); */
 
       // add to canopy water storage in layer (sun and shade) from previous time step
       prof.cws[i][1] += intercept;
@@ -9286,6 +9647,8 @@ void THROUGHFALL()
 	      soil.lost0 = 1;
 	    }
 	}
+      /* printf("TF01.04 %20.14f %20.14f\n", prof.cws[i][1], prof.cws[i][wiso.nwater]); */
+      /* printf("TF01.05 %20.14f %20.14f\n", rcws[2], rcws[wiso.nwater]); */
 
       // check if canopy water storage is at maximum
       if (prof.cws[i][1] > cws_max*prof.dLAIdz[i])
@@ -9296,6 +9659,7 @@ void THROUGHFALL()
 	    prof.cws[i][mc] = rcws[mc]*prof.cws[i][1];
         }
       else drip = 0.;
+      /* printf("TF01.06 %20.14f %20.14f %20.14f\n", drip, prof.cws[i][1], prof.cws[i][wiso.nwater]); */
 
       // throughfall from this layer to next layer
       prof.throughfall[i][1] = prof.throughfall[i+1][1]-intercept+drip;
@@ -9310,6 +9674,7 @@ void THROUGHFALL()
 	  if (prof.cws[i][mc] < 0.)
 	    printf("\nC2<0 trac %i layer %i: %e\n", mc, i, prof.cws[i][mc]);
 	}
+      /* printf("TF01.07 %20.14f %20.14f\n", prof.throughfall[i][1], prof.throughfall[i][wiso.nwater]); */
 
       // set coefficient for evaporation from wet leaf surface
       if (prof.cws[i][1] > 0.)
@@ -9415,7 +9780,10 @@ void SET_SOIL_ROOT()
       r2 = 1. - pow(soil.root_factor, 100.*soil.z_soil[j]);
       soil.root[j] = r2 - r1;
     }
-
+  /* printf("R01 %20.14f\n", soil.root_factor); */
+  /* printf("R02 %20.14f %20.14f\n", soil.z_soil[1], soil.z_soil[soil.n_soil]); */
+  /* printf("R03 %20.14f %20.14f\n", soil.root[1], soil.root[soil.n_soil]); */
+  
   // for Nate McDowell's juniper site give root distribution
   if (extra_nate == 1)
     {
@@ -9437,7 +9805,9 @@ void SET_SOIL_ROOT()
     root_total += soil.root[j];
   for (j=1; j<=soil.n_soil; j++)
     soil.root[j] /= root_total;
-
+  /* printf("R04 %20.14f\n", root_total); */
+  /* printf("R05 %20.14f %20.14f\n", soil.root[1], soil.root[soil.n_soil]); */
+  
   return;
 }
 
@@ -9980,14 +10350,17 @@ double ISORAT(double *qi, double *q, double *lostqi, double *lostq, int species)
   // returns isotope ratio qi/q
   // checks for underflow. If abs(q)<1e-15 -> lostqi=lostqi+qi and qi=q=0
   // double precision allows for about 15 digits of precision -> 1e-15
-  double lower_bound = 1e-15;
+  //MC20190627 double lower_bound = 1e-15;
+  double lower_bound = 2.2204460492503131E-016; // epsilon(1.) of Fortran
+  double tiny = 2.2250738585072014E-308;        // tiny(1.) of Fortran
   double ratio;
 
   if (fabs(*q) >= lower_bound)
     ratio = *qi / *q;
   else
     {
-      if (*q != 0. || *qi != 0.)
+      //MC20190627 if (*q != 0. || *qi != 0.)
+      if (fabs(*q) > tiny || fabs(*qi) > tiny)
 	{
 	  printf("\nIsorat tracer %i @ %ld: rare %g abundant %g\n", species, time_var.daytime, *qi, *q);
 	  //soil.lost0 = 1;

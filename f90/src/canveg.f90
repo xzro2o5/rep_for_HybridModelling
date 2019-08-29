@@ -24,8 +24,14 @@ PROGRAM canveg
   USE io,            ONLY: create_dir, open_files, close_files, &          ! I/O wrappers
        read_disp, skip_input, lastin, write_daily, read_in, &              ! Yuan 2018.01.22 to create a new directory
        write_profiles, write_output, copy_code ! copy_code, Yuan 2018.05.07
+       ciso, fact, flux, output, bole, srf_res, &
+                                ! Routines
+       zero_new_timestep
+  USE io,            ONLY: open_files, close_files, &          ! I/O wrappers
+       read_disp, skip_input, lastin, write_daily, read_in, &
+       write_profiles, write_output
   USE soils,         ONLY: set_litter_texture, &               ! Soil & Litter
-       set_soil_moisture, set_soil_temp, set_soil_root, &      !   water & energy
+       set_soil_moisture, set_soil_temp, set_soil_root, &      ! water & energy
        set_soil_clapp, set_soil_texture, set_soil_saxton, &
        set_litter_moisture, set_litter_temp, set_soil_time, &
        set_soil_litter_capacity, soil_h2o, litter_h2o, &
@@ -122,7 +128,7 @@ PROGRAM canveg
   call message()
   call message('    Read namelist file: ', trim(namelist_file))
 #endif
-  call read_namelist()
+  call read_namelist() ! C: L1606-1630 READ_PARAMETER() & SET_PARAMETER()
 
   ! Show model setup
 #ifndef QUIET
@@ -131,7 +137,7 @@ PROGRAM canveg
   ! because the write statement calls num2str which itself has a write statement in it.
   ! e.g. NAG complains with: Recursive I/O reference.
   ! It should be possible in Fortran2003.
-  ! However, MC''s NAG compiler is not allowing it even with the -f2003 compiler flag.
+  ! However, MC''s NAG compiler is not allowing it even with the -f2003 compiler flag, i.e. use call message() instead.
   call message()
   call message('    Model setup')
   call message('    Extra Nate:          ', trim(num2str(extra_nate)))
@@ -163,7 +169,7 @@ PROGRAM canveg
   !
 
   ! Vienna Standard Mean Ocean Water (VSMOW) for water isotopes
-  wiso%vsmow(:) = one
+  wiso%vsmow(:) = one ! for vsmow(4) = 1H1H16O; vsmow(1) not used
   if (nwiso >= 2) wiso%vsmow(2) = RVSMOW_18O ! 18O/16O
   if (nwiso >= 3) wiso%vsmow(3) = RVSMOW_D   ! 2H/1H
 
@@ -203,27 +209,61 @@ PROGRAM canveg
   !
   ! Setup leaves
   call set_leaf_phenology() ! set leaf onset and full
+  ! write(*,'(a,2i5)') 'CV01 ', time%leafout, time%leaffull
+  ! write(*,'(a,2i5)') 'CV02 ', time%leaffall, time%leaffallcomplete
   !
   ! Setup soil
   call set_soil_texture()   ! set soil texture per soil layer
   call set_soil_root()      ! set rooting profile
   call set_soil_moisture()  ! set humidity per soil layer
   call set_soil_temp()      ! set deep soil temperature
+  ! write(*,'(a,3f20.14)') 'CV03 ', soil%theta_ls, soil%theta_l33, soil%n_l
+  ! write(*,'(a,2f20.14)') 'CV04 ', soil%root(1), soil%root(nsoil)
+  ! write(*,'(a,2f20.14)') 'CV05 ', soil%theta(1,1), soil%theta(nsoil,1)
+  ! write(*,'(a,2f20.14)') 'CV06 ', soil%T_soil(0), soil%T_soil(nsoil+1)
+  ! write(*,'(a,2f20.14)') 'CV07 ', soil%T_soil_filter(0), soil%T_soil_filter(nsoil+1)
 
   ! Setup litter
   call set_litter_texture()
   call set_litter_temp()
   call set_litter_moisture()
-    if (soil%saxton==1) then  ! set hydraulic soil parameters
+  ! write(*,'(a,3f20.14)') 'CV08 ', soil%theta_ls, soil%theta_l33, soil%n_l
+  ! write(*,'(a,2f20.14)') 'CV09 ', soil%T_l, soil%T_l_filter
+  ! write(*,'(a,1f20.14)') 'CV10 ', soil%theta_l(1)
+  if (soil%saxton==1) then  ! set hydraulic soil parameters
      call set_soil_saxton()
+     ! write(*,'(a,2f20.14)') 'CV11.01 ', soil%theta_1500(1), soil%theta_1500(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.02 ', soil%theta_33(1), soil%theta_33(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.03 ', soil%theta_s33(1), soil%theta_s33(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.04 ', soil%psi_e(1), soil%psi_e(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.05 ', soil%theta_s(1), soil%theta_s(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.06 ', soil%rho(1), soil%rho(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.07 ', soil%big_b(1), soil%big_b(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.08 ', soil%big_a(1), soil%big_a(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.09 ', soil%lambda(1), soil%lambda(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV11.10 ', soil%k_s(1), soil%k_s(nsoil)
+     ! write(*,'(a,1f20.14)') 'CV11.11 ', soil%soil_mm_33_root
+     ! write(*,'(a,1f20.14)') 'CV11.12 ', soil%soil_mm_1500_root
   else
      call set_soil_clapp()
+     ! write(*,'(a,2f20.14)') 'CV12.01 ', soil%theta_s(1), soil%theta_s(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV12.02 ', soil%k_s(1), soil%k_s(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV12.03 ', soil%psi_e(1), soil%psi_e(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV12.04 ', soil%big_b(1), soil%big_b(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV12.05 ', soil%theta_1500(1), soil%theta_1500(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV12.06 ', soil%theta_33(1), soil%theta_33(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV12.07 ', soil%theta_s33(1), soil%theta_s33(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV12.08 ', soil%rho(1), soil%rho(nsoil)
+     ! write(*,'(a,2f20.14)') 'CV12.09 ', soil%k_s(1), soil%k_s(nsoil)
+     ! write(*,'(a,1f20.14)') 'CV12.10 ', soil%soil_mm_33_root
+     ! write(*,'(a,1f20.14)') 'CV12.11 ', soil%soil_mm_1500_root
   end if
   !
   !
   ! Relative plant available water
   soil%soil_mm_root = sum(soil%root(1:nsoil)*soil%theta(1:nsoil,1)*1000._wp * &
        (soil%z_soil(1:nsoil)-soil%z_soil(0:nsoil-1))*(one-soil%gravel(1:nsoil)*e2))
+  ! write(*,'(a,1f20.14)') 'CV13 ', soil%soil_mm_root
   !
   ! Constants for leaf boundary layers
   non_dim%lfddh = lleaf / ddh
@@ -243,14 +283,21 @@ PROGRAM canveg
   tmpncl(:) = zero
   ! assign heights to array
   forall(j=1:ncl) prof%ht(j) = delz * real(j,kind=wp)
+  ! write(*,'(a,3f20.14)') 'CV14 ', non_dim%lfddh, non_dim%pr, non_dim%pr33
+  ! write(*,'(a,3f20.14)') 'CV15 ', non_dim%lfddv, non_dim%sc, non_dim%sc33
+  ! write(*,'(a,3f26.14)') 'CV16 ', non_dim%scc, non_dim%scc33, non_dim%grasshof
+  ! write(*,'(a,2f20.14)') 'CV17 ', prof%ht(1), prof%ht(ncl)
 
   ! Define parameters for soil energy balance model
   ! Preliminary tests show that the soil model can be sensitive to the depth of the litter layer
   call set_soil_time()
+  ! write(*,'(a,1f20.14,i5)') 'CV18 ', soil%temperature_dt, soil%temperature_mtime
+  ! write(*,'(a,2f20.14,i5)') 'CV19 ', soil%moisture_dt, soil%moisture_dt, soil%moisture_mtime
 
   ! Input data on Thomson dispersion matrix that was computed offline with
   ! MOVOAK%C, Dij (s m-1)
   call read_disp()
+  ! write(*,'(a,3f20.14)') 'CV20 ', met%dispersion(1,1), met%dispersion(ntl/2,ncl/2), met%dispersion(ntl,ncl)
 
   ! Initialize respired 13C to the heterotrophic soil respiration value
   ! (assumed to equal longterm average), then update each day
@@ -262,6 +309,7 @@ PROGRAM canveg
      ! arbitary values are taken for initialisation
      ciso%bigdelta(1:ndaysc13)      = 18._wp
      ciso%bigdelta_long(1:ndaysc13) = 18._wp
+     ! write(*,'(a,3f20.14)') 'CV21 ', prof%Rresp_ave(1)
   end if
 
   ! Loop through the input met file. There should be a line of data for each hour of the year.
@@ -270,6 +318,7 @@ PROGRAM canveg
   time%jdold = int(start_run / 10000_i8, i4)
   ! set input%dayy because of several years at once
   input%dayy = time%days ! for more then 1 year
+  ! write(*,'(a,3i10)') 'CV22 ', time%days, time%jdold, input%dayy
   ! initialise arbitrary value
   solar%ratradnoon = 0.5_wp
   ! initialise interception reservoir
@@ -291,6 +340,13 @@ PROGRAM canveg
      input%lai_down = lai
   end if
   call lai_time() ! define leaf area and canopy structure
+  ! write(*,'(a,1f20.14)') 'CV23 ', time%lai
+  ! write(*,'(a,3f20.14)') 'CV24 ', solar%par_reflect, solar%par_trans, solar%par_soil_refl_dry
+  ! write(*,'(a,3f20.14)') 'CV25 ', solar%par_absorbed, solar%nir_reflect, solar%nir_trans
+  ! write(*,'(a,3f20.14)') 'CV26 ', solar%nir_soil_refl_dry, solar%nir_absorbed
+  ! write(*,'(a,2f20.14)') 'CV27 ', prof%dLAIdz(1), prof%dLAIdz(ncl)
+  ! write(*,'(a,2f20.14)') 'CV28 ', prof%dPAIdz(1), prof%dPAIdz(ncl)
+  ! write(*,'(a,2f20.14)') 'CV29 ', solar%exxpdir(1), solar%exxpdir(ncl)
 
   ! Initialize humidity and temperature profiles, arbitrary values
   prof%sun_tleaf(1:ncl)        = 25._wp
@@ -303,6 +359,7 @@ PROGRAM canveg
 !  print *, prof%sun_rs_filter
   prof%shd_rs(1:ncl)           = tmpncl(1:ncl)
   prof%shd_rs_filter(1:ncl)    = tmpncl(1:ncl)
+  ! write(*,'(a,2f23.14)') 'CV30 ', prof%sun_rs(1), prof%sun_rs(ncl)
 
   prof%tair(1:ntl)                 = 25._wp
 !  print *, "1\n"
@@ -323,8 +380,10 @@ PROGRAM canveg
      prof%R13_12_air(1:ntl) = invdelta1000(-8._wp)*Rpdb_12C ! ratio of 13C relative to 12C
      prof%d13Cair(1:ntl)    = -8.0_wp
   end if
+  ! write(*,'(a,2f20.14)') 'CV31 ', prof%R13_12_air(1), prof%R13_12_air(ntl)
+
   ! Initialise atmospheric water isotopes
-  forall(mc=2:nwiso)
+  forall(mc=2:nwiso) ! 2017.10.04
      prof%rhov_air(1:ntl,mc)        = 0.02_wp*wiso%vsmow(mc)
      prof%rhov_air_filter(1:ntl,mc) = 0.02_wp*wiso%vsmow(mc)
      prof%rvapour(1:ntl,mc)         = wiso%vsmow(mc)
@@ -339,6 +398,7 @@ PROGRAM canveg
 !     print *, ROC_leaf_in, ROC_bole_in, ROC_soil_in
  !    print *, prof%ROC_leaf_air, prof%ROC_bole_air, soil%ROC_soil_air
   end if
+  ! write(*,'(a,2f20.14)') 'CV32 ', prof%rhov_air(1,2), prof%rhov_air(ntl,3)
   ! initialize soil surface temperature with air temperature
   soil%tsrf        = 25._wp
   soil%tsrf_filter = 25._wp
@@ -399,6 +459,7 @@ PROGRAM canveg
   ! Start time steps
 #ifndef QUIET
   call message()
+  if (print_balance==0) call message("Day-oy-year")
 #endif
   do ! loop over time steps until lastin==1
 
@@ -421,6 +482,25 @@ PROGRAM canveg
 !	      print *, "daytime = ", time%daytime
 !		  print *, "\n"
 !	 end if
+     ! write(*,'(a,i10,2f20.14)') 'CV33.01 ', input%dayy, input%hhrr, input%ta
+     ! write(*,'(a,3f20.14)') 'CV33.02 ', input%ea, input%wnd, input%ppt(1)
+     ! write(*,'(a,3f20.14)') 'CV33.03 ', input%co2air, input%press_mb, input%tsoil
+     ! write(*,'(a,f20.14,i10,f20.14)') 'CV33.04 ', input%soilmoisture, input%flag, input%d13CO2
+     ! write(*,'(a,f20.14,2i10)') 'CV33.05 ', input%d18CO2, time%year, time%daytime
+     ! write(*,'(a,i10,f20.14,i10)') 'CV33.06 ', time%doy, time%local_time, time%days
+     ! write(*,'(a,3f20.14)') 'CV33.07 ', met%T_Kelvin, met%rhova_g, met%rhova_kg
+     ! write(*,'(a,3f23.14)') 'CV33.08 ', met%press_kpa, met%press_bars, met%press_Pa
+     ! write(*,'(a,3f20.14)') 'CV33.09 ', met%relative_humidity, met%pstat273
+     ! write(*,'(a,2f23.14)') 'CV33.10 ', srf_res%rcuticle(1), srf_res%rcuticle(ncl)
+     ! write(*,'(a,3f20.14)') 'CV33.11 ', input%co2air, input%parin
+     ! write(*,'(a,3f20.14)') 'CV33.13 ', input%wnd, met%ustar_filter
+     ! write(*,'(a,3f20.14)') 'CV33.14 ', input%ta, met%air_density, met%air_density_mole
+     ! write(*,'(a,3f20.14)') 'CV33.15 ', input%dppt(1), input%dppt(2), input%dppt(3)
+     ! write(*,'(a,3f20.14)') 'CV33.16 ', input%dppt(4), input%dvapour(2), input%dppt(3)
+     ! write(*,'(a,2f20.14)') 'CV33.17 ', wiso%dtheta(1,2), wiso%dtheta(1,nwiso-1)
+     ! write(*,'(a,2f20.14)') 'CV33.18 ', input%ppt(2), input%ppt(nwiso-1)
+     ! write(*,'(a,3f20.14)') 'CV33.19 ', input%lai_up, input%lai_down, input%lai
+     ! write(*,'(a,3f20.14)') 'CV33.20 ', input%rglobal, input%parin, input%pardif
      ! for Nate McDowell''s juniper site read LAI instead of diffuse PAR
      ! update LAI in each time step
      if (extra_nate==1) then
@@ -429,34 +509,53 @@ PROGRAM canveg
         ! start of new day
         ! if ((time%daytime+(nint(time%time_step,kind=i8)*100_i8/3600_i8)) & ! cf. mo_io_text.f90:read_text_in
         !      >= (int(input%dayy,kind=i8)*10000_i8+2400)) then
+        ! Matthias: <= or <
+        ! Yuan 2017: <=
         if ((time%daytime-(int(time%time_step,kind=i8)*100_i8/3600_i8)) &
              <= (int(input%dayy,kind=i8)*10000_i8)) call lai_time()
      endif
+     ! write(*,'(a,1f20.14)') 'CV34.01 ', time%lai
+     ! write(*,'(a,3f20.14)') 'CV34.02 ', solar%par_reflect, solar%par_trans, solar%par_soil_refl_dry
+     ! write(*,'(a,3f20.14)') 'CV34.03 ', solar%par_absorbed, solar%nir_reflect, solar%nir_trans
+     ! write(*,'(a,3f20.14)') 'CV34.04 ', solar%nir_soil_refl_dry, solar%nir_absorbed
+     ! write(*,'(a,2f20.14)') 'CV34.05 ', prof%dLAIdz(1), prof%dLAIdz(ncl)
+     ! write(*,'(a,2f20.14)') 'CV34.06 ', prof%dPAIdz(1), prof%dPAIdz(ncl)
+     ! write(*,'(a,2f20.14)') 'CV34.07 ', solar%exxpdir(1), solar%exxpdir(ncl)
 
      ! Compute solar elevation angle
      call angle()
-     judgenight =((solar%sine_beta <= isnight) .OR. (input%parin <=zero)) !Yuan 2018.01.16
+     ! write(*,'(a,3f20.14)') 'CV35 ', solar%beta_rad, solar%sine_beta, solar%beta_deg
      ! make sure PAR is zero at night. Some data have negative offset, which causes numerical problems
-     if (judgenight) input%parin = zero
+     ! Yuan 2017-07-01: ((solar%sine_beta <= isnight) .OR. (input%parin <=0))
+     ! Matthias 2019: Not done in mo_radiation so inconsistent. Set parin >= 0 instead.
+     if (solar%sine_beta <= isnight) input%parin = zero
+     if (input%parin < zero) input%parin = zero
      ! Compute the fractions of beam and diffuse radiation from incoming measurements
      ! Set the radiation factor to the day before for night calculations. This way if the day
      !   was cloudy, so will IR calculations for the night reflect this.
-     if (.NOT.judgenight) then
+     if (.not. (solar%sine_beta <= isnight)) then
         call diffuse_direct_radiation()
      else
         solar%ratrad      = solar%ratradnoon
-        solar%nir_beam    = 0.1_wp
-        solar%nir_diffuse = 0.1_wp
+        ! moved from read_data
+        solar%par_beam    = zero
+        solar%par_diffuse = zero
+        solar%nir_beam    = zero
+        solar%nir_diffuse = zero
      end if
+     ! write(*,'(a,3f20.14)') 'CV36.01 ', solar%ratrad, output%c10, solar%ratradnoon
+     ! write(*,'(a,3f20.14)') 'CV36.02 ', solar%par_beam, solar%par_diffuse
+     ! write(*,'(a,3f20.14)') 'CV36.03 ', solar%nir_beam, solar%nir_diffuse
      ! computes leaf inclination angle distribution function, the mean direction cosine
      ! between the sun zenith angle and the angle normal to the mean leaf
      ! for CANOAK we use the leaf inclination angle data of Hutchison et al. 1986, J Ecology
      ! for other canopies we assume the leaf angle distribution is spherical
-     if (.NOT.judgenight) then
+     if (.not. (solar%sine_beta <= isnight)) then
         call gfunc()
      else
         prof%Gfunc_solar(1:ncl) = 0.01_wp
      end if
+     ! write(*,'(a,3f20.14)') 'CV37 ', prof%Gfunc_solar(1), prof%Gfunc_solar(ncl)
      ! Set soil reflectivity depending on soil moisture of first layer
      !   i.e. wet soil seems half as bright as dry soil
      !   after Wilson & Henderson-Sellers (1985)
@@ -464,12 +563,34 @@ PROGRAM canveg
      ztmp = min(max((soil%theta(1,1)-soil%watmin(1))/(soil%theta_s(1)-soil%watmin(1)), zero), one)
      solar%par_soil_refl = solar%par_soil_refl_dry * (one-half*ztmp)
      solar%nir_soil_refl = solar%nir_soil_refl_dry * (one-half*ztmp)
+     ! write(*,'(a,3f20.14)') 'CV38.01 ', solar%par_soil_refl_dry, solar%nir_soil_refl_dry
+     ! write(*,'(a,3f20.14)') 'CV38.02 ', solar%par_soil_refl, solar%nir_soil_refl
+     ! write(*,'(a,3f20.14)') 'CV38.03 ', soil%theta(1,1), soil%watmin(1), soil%theta_s(1)
      ! Compute PAR profiles
      call par()
-     ! Compute NIR profiles
+     ! write(*,'(a,3f20.14)') 'CV39.01 ', prof%sun_lai(1), prof%sun_lai(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.02 ', prof%shd_lai(1), prof%shd_lai(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.03 ', solar%prob_beam(1), solar%prob_beam(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.04 ', solar%prob_shd(1), solar%prob_shd(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.05 ', solar%par_down(1), solar%par_down(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.06 ', solar%par_up(1), solar%par_up(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.07 ', solar%beam_flux_par(1), solar%beam_flux_par(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.08 ', solar%quantum_shd(1), solar%quantum_shd(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.09 ', solar%quantum_sun(1), solar%quantum_sun(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.10 ', solar%par_shd(1), solar%par_shd(ncl)
+     ! write(*,'(a,3f20.14)') 'CV39.11 ', solar%par_sun(1), solar%par_sun(ncl)
      call nir()
+     ! write(*,'(a,3f20.14)') 'CV40.01 ', solar%nir_up(1), solar%nir_up(ncl)
+     ! write(*,'(a,3f20.14)') 'CV40.02 ', solar%nir_dn(1), solar%nir_dn(ncl)
+     ! write(*,'(a,3f20.14)') 'CV40.03 ', solar%nir_shd(1), solar%nir_shd(ncl)
+     ! write(*,'(a,3f20.14)') 'CV40.04 ', solar%nir_sun(1), solar%nir_sun(ncl)
+     ! write(*,'(a,3f20.14)') 'CV40.05 ', solar%beam_flux_nir(1), solar%beam_flux_nir(ncl)
+     ! write(*,'(a,3f20.14)') 'CV40.06 ', solar%nir_total
      ! Interception reservoir
      call throughfall()
+     ! write(*,'(a,3f20.14)') 'CV41.01 ', prof%throughfall(1,1), prof%throughfall(ncl,nwiso-1)
+     ! write(*,'(a,3f20.14)') 'CV41.02 ', prof%cws(1,1), prof%cws(ncl,nwiso-1)
+     ! write(*,'(a,3f20.14)') 'CV41.03 ', prof%wet_coef_filter(1), prof%wet_coef_filter(ncl)
      ! Update litter with rain
      if (soil%camillo==0 .and. soil%z_litter >= e6) call litter_rain()
      ! calculate soil heat capacity and conductivity based on soil moisture, texture and bulk density
@@ -490,6 +611,9 @@ PROGRAM canveg
      else
         soil%c_litterevap = one
      end if
+     ! write(*,'(a,3f23.14)') 'CV42.01 ', soil%cp_soil(1), soil%cp_soil(nsoil)
+     ! write(*,'(a,3f20.14)') 'CV42.02 ', soil%k_conductivity_soil(1), soil%k_conductivity_soil(nsoil)
+     ! write(*,'(a,3f20.14)') 'CV42.03 ', fact%heatcoef, met%ustar
 
      ! iteration looping for energy fluxes and scalar fields
      ! iterate until energy balance closure occurs or i_max iterations are reached
@@ -498,36 +622,41 @@ PROGRAM canveg
         prof%tair_filter_save(1:ntl) = prof%tair_filter(1:ntl)
         prof%rhov_air_filter_save(1:ntl) = prof%rhov_air_filter(1:ntl,1)
         prof%rhov_air_save(1:ntl) = prof%rhov_air(1:ntl,1)
-!print *, prof%rhov_air_filter_save(1)
+        ! write(*,'(a,3f23.14)') 'CV43.01 ', prof%tair_filter_save(1), prof%tair_filter_save(ntl)
+        ! write(*,'(a,3f23.14)') 'CV43.01 ', prof%rhov_air_filter_save(1), prof%rhov_air_filter_save(ntl)
+        ! write(*,'(a,3f23.14)') 'CV43.01 ', prof%rhov_air_save(1), prof%rhov_air_save(ntl)
+        !print *, prof%rhov_air_save(1:ntl)
         call irflux() ! first guess
+        ! write(*,'(a,3f23.14)') 'CV44.01 ', solar%ir_up(1), solar%ir_up(ncl)
+        ! write(*,'(a,3f23.14)') 'CV44.02 ', solar%ir_dn(1), solar%ir_dn(ncl)
         call friction_velocity()
+        ! write(*,'(a,3f23.14)') 'CV45 ', met%zl, met%ustar
         ! compute net radiation balance on sunlit and shaded leaves
         call rnet()
-        ! print*, 'CA11 ', i_count, solar%par_sun(1), solar%nir_sun(1)
-        ! print*, 'CA12 ', i_count, solar%par_sun(40), solar%nir_sun(40)
-        ! print*, 'CA13 ', i_count, solar%par_shd(1), solar%nir_shd(1)
-        ! print*, 'CA14 ', i_count, solar%par_shd(40), solar%nir_shd(40)
-        ! print*, 'CA15 ', i_count, solar%ir_dn(1), solar%ir_up(1)
-        ! print*, 'CA16 ', i_count, solar%ir_dn(40), solar%ir_up(40)
-        ! print*, 'CA17 ', i_count, solar%rnet_sun(1), solar%rnet_shd(1)
-        ! print*, 'CA18 ', i_count, solar%rnet_sun(40), solar%rnet_shd(40)
-!if (input%hhrr==12) then
-!    print *, "is here"
-!end if
-        ! Compute leaf energy balance, leaf temperature, photosynthesis and stomatal conductance.
+        ! write(*,'(a,i5,2f20.14)') 'CV46.01 ', i_count, solar%par_sun(1), solar%nir_sun(1)
+        ! write(*,'(a,2f20.14)') 'CV46.02 ', solar%par_sun(40), solar%nir_sun(40)
+        ! write(*,'(a,2f20.14)') 'CV46.03 ', solar%par_shd(1), solar%nir_shd(1)
+        ! write(*,'(a,2f20.14)') 'CV46.04 ', solar%par_shd(40), solar%nir_shd(40)
+        ! write(*,'(a,2f20.14)') 'CV46.05 ', solar%ir_dn(1), solar%ir_up(1)
+        ! write(*,'(a,2f20.14)') 'CV46.06 ', solar%ir_dn(40), solar%ir_up(40)
+        ! write(*,'(a,2f20.14)') 'CV46.07 ', solar%rnet_sun(1), solar%rnet_shd(1)
+        ! write(*,'(a,2f20.14)') 'CV46.08 ', solar%rnet_sun(40), solar%rnet_shd(40)
+
+        ! Compute leaf energy balance, leaf temperature, photosynthesis and stomatal conductance
         call energy_and_carbon_fluxes()
-        ! print*, 'CA01 ', i_count, prof%dLEdz(1,1), prof%dLEdz(40,1)
-        ! print*, 'CA02 ', i_count, prof%dHdz(1), prof%dHdz(40)
-        ! print*, 'CA03 ', i_count, prof%dRNdz(1), prof%dRNdz(40)
-        ! print*, 'CA04 ', i_count, prof%dLoutdz(1), prof%dLoutdz(40)
-        ! print*, 'CA05 ', i_count, prof%shd_tleaf(1), prof%shd_tleaf(40)
+        ! write(*,'(a,i5,2f20.14)') 'CV47.01 ', i_count, prof%dLEdz(1,1), prof%dLEdz(40,1)
+        ! write(*,'(a,2f20.14)') 'CV47.02 ', prof%dHdz(1), prof%dHdz(40)
+        ! write(*,'(a,2f20.14)') 'CV47.03 ', prof%dRNdz(1), prof%dRNdz(40)
+        ! write(*,'(a,2f20.14)') 'CV47.04 ', prof%dLoutdz(1), prof%dLoutdz(40)
+        ! write(*,'(a,2f20.14)') 'CV47.00 ', prof%sun_tleaf(1), prof%sun_tleaf(40)
+        ! write(*,'(a,2f20.14)') 'CV47.05 ', prof%shd_tleaf(1), prof%shd_tleaf(40)
         ! Soil energy balance
         call soil_energy_balance()
-        ! print*, 'CA06 ', flux%soilevap(1), flux%litterevap(1), flux%s_evap(1)
-        ! print*, 'CA07 ', soil%tsrf, soil%T_l, soil%litterevap
-        ! print*, 'CA08 ', output%c1, output%c2, output%c3
-        ! print*, 'CA09 ', output%c4, output%c7
-        ! print*, 'CA10 ', soil%theta(1:3,1)
+        ! write(*,'(a,3f20.14)') 'CV47.06 ', flux%soilevap(1), flux%litterevap(1), flux%s_evap(1)
+        ! write(*,'(a,3f20.14)') 'CV47.07 ', soil%tsrf, soil%T_l, soil%litterevap
+        ! write(*,'(a,3f20.14)') 'CV47.08 ', output%c1, output%c2, output%c3
+        ! write(*,'(a,2f20.14)') 'CV47.09 ', output%c4, output%c7
+        ! write(*,'(a,3f20.14)') 'CV47.10 ', soil%theta(1:3,1)
 
         ! --- Water ---
         if (iswitch%wiso==1) then
@@ -546,14 +675,8 @@ PROGRAM canveg
                 (solar%prob_beam(1:ncl) * (prof%sun_LEstoma(1:ncl,1)+prof%sun_LEwet(1:ncl,1)) &
                 + solar%prob_shd(1:ncl) * (prof%shd_LEstoma(1:ncl,1)+prof%shd_LEwet(1:ncl,1))) &
                 *  prof%dLAIdz(1:ncl)
-  !              print *, prof%dLEdz(1:ncl,1)
-  !              print *, solar%prob_beam(1:ncl)
-  !              print *, prof%sun_LEstoma(1:ncl,1)
- !               print *, prof%sun_LEwet(1:ncl,1)
- !               print *, solar%prob_shd(1:ncl)
- !               print *, prof%shd_LEstoma(1:ncl,1)
- !               print *, prof%shd_LEwet
- !               print *, prof%dLAIdz(1:ncl)
+           ! write(*,'(a,2f20.14)') 'CV48.01 ', prof%sun_LEstoma(1,1), prof%sun_LEstoma(ncl,1)
+           ! write(*,'(a,2f20.14)') 'CV48.02 ', prof%dLEdz(1,1), prof%dLEdz(ncl,1)
         end if
 
         ! compute canopy transpiration and evaporation
@@ -569,6 +692,7 @@ PROGRAM canveg
         ! total flux
         flux%c_evapotranspiration(1) = flux%c_evaporation(1) + flux%c_transpiration(1)
         flux%evapotranspiration(1)   = flux%c_evapotranspiration(1) + flux%s_evap(1)
+        ! write(*,'(a,2f20.14)') 'CV48.03 ', flux%c_evaporation(1), flux%c_evapotranspiration(1)
 
         ! Compute air temperature profiles from dispersion matrix
         ! Adjust dHdz(1) for soil heat flux
@@ -579,6 +703,13 @@ PROGRAM canveg
 
         ! filter temperatures with each interation to minimize numerical instability
 
+        ! Original filter
+        !   if (i_count < 10) then
+        !     fact%a_filt = 0.85_wp
+        !   else
+        !     fact%a_filt = half
+        !   end if
+
         ! Matthias, constant filter
         !   fact%a_filt = 0.85_wp
         ! Matthias, force conversion with narrowing filter
@@ -586,15 +717,10 @@ PROGRAM canveg
         ! Matthias, narrowing filter to 0.5 at i_max/2
         fact%a_filt = 0.85_wp - 0.7_wp*real(i_count,wp)/real(i_max-1,wp)
 !       fact%a_filt = fact%a_filt*0.7_wp
+        ! write(*,'(a,2f20.14)') 'CV48.04 ', fact%a_filt
         ! Matthias, a_filt=0 from 10 steps before max iteration
-        ! the noise one sees should be filtered off as well
+        ! the noise one sees should be filtered out as well
         !   fact%a_filt = max(0.99_wp - one*real(i_count,wp)/real(i_max-10,wp), zero)
-        ! Matthias, original filter
-        !   if (i_count < 10) then
-        !     fact%a_filt = 0.85_wp
-        !   else
-        !     fact%a_filt = half
-        !   end if
 
         ! conc, for temperature profiles using source/sinks
         ! inputs are source/sink(), scalar_profile(), ref_val, boundary_flux, unit conversions
@@ -602,16 +728,13 @@ PROGRAM canveg
 !         print *, prof%tair
 !        call message('conc Tair')
         call conc(prof%dHdz, prof%tair, input%ta, soil%heat, fact%heatcoef)
-!        print *, "2\n"
-!print *, prof%tair
-!print *, "sensible heat"
-!print *, prof%dHdz
-!print *, "Tair"
-!print *, input%ta
-!print *, soil%heat
-!print *, fact%heatcoef
+        ! write(*,'(a,3f20.14)') 'CV49.01 ', prof%dHdz(1), prof%dHdz(ncl)
+        ! write(*,'(a,3f20.14)') 'CV49.02 ', input%ta, soil%heat, fact%heatcoef
+        ! write(*,'(a,3f20.14)') 'CV49.03 ', prof%tair(1), prof%tair(ntl-1)
+
         ! filter temperatures to remove numerical instabilities for each iteration
         where (prof%tair(1:ntl) < -30._wp .or. prof%tair(1:ntl) > 60._wp) prof%tair(1:ntl) = input%ta
+        ! write(*,'(a,3f20.14)') 'CV49.04 ', prof%tair(1), prof%tair(ntl-1)
 
         ! Compute vapor density profiles from Dispersion matrix
         ! sign convention used: fluxes from surface are positive
@@ -624,12 +747,14 @@ PROGRAM canveg
 !print *, tmpncl(1:ncl)
         call conc(tmpncl, tmpntl, met%rhova_kg, flux%s_evap(1), one) ! negetive flux%s_evap! Yuan 2018.05.29
         prof%rhov_air(1:ntl,1) = tmpntl(1:ntl)
-!        print *, tmpncl, flux%s_evap(1)
-!print *, prof%rhov_air(1:ntl,1)
+        ! write(*,'(a,3f20.14)') 'CV49.05 ', tmpncl(1), tmpncl(ncl)
+        ! write(*,'(a,3f20.14)') 'CV49.06 ', met%rhova_kg, flux%s_evap(1), one
+        ! write(*,'(a,3f20.14)') 'CV49.07 ', prof%rhov_air(1,1), prof%rhov_air(ntl-1,1)
+
         ! filter humidity computations
-        where (prof%rhov_air(1:ntl,1) < zero .or. prof%rhov_air(1:ntl,1) > e2) &
+        where ((prof%rhov_air(1:ntl,1) < zero) .or. (prof%rhov_air(1:ntl,1) > 0.03_wp)) &
              prof%rhov_air(1:ntl,1) = met%rhova_kg
-!             print *, prof%rhov_air(1:ntl,1)
+        ! write(*,'(a,3f20.14)') 'CV49.08 ', prof%rhov_air(1,1), prof%rhov_air(ntl-1,1)
         ! ea
         ztmp = one / 2.165_wp
         tmpntl(1:ntl) = ztmp * prof%rhov_air(1:ntl,1) * (prof%tair(1:ntl)+TN0)
@@ -641,14 +766,45 @@ PROGRAM canveg
 #else
         prof%vpd_air(1:ntl) = es(prof%tair(1:ntl)+TN0) - tmpntl(1:ntl)
 #endif
+        ! write(*,'(a,3f20.14)') 'CV49.09 ', prof%vpd_air(1), prof%vpd_air(ntl-1)
         ! Implicit water isotopes diagnostics
         if (iswitch%wiso==1 .and. wiso%implicit==1) then
            ! isotope soil water flux
            call soil_flux_wiso()
+           ! write(*,'(a,3f20.14)') 'CV52.01 ', flux%soilevap(1), flux%soilevap(nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.02 ', flux%litterevap(1), flux%litterevap(nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.03 ', flux%s_evap(1), flux%s_evap(nwiso-1)
            ! leaf water enrichment
            call leaf_wiso()
+           ! write(*,'(a,3f20.14)') 'CV52.04 ', prof%sun_wi(1), prof%sun_wi(ncl)
+           ! write(*,'(a,3f20.14)') 'CV52.05 ', prof%shd_wi(1), prof%shd_wi(ncl)
+           ! write(*,'(a,3f20.14)') 'CV52.06 ', prof%wa(1), prof%wa(ncl)
+           ! write(*,'(a,3f20.14)') 'CV52.07 ', prof%sun_h(1), prof%sun_h(ncl)
+           ! write(*,'(a,3f20.14)') 'CV52.08 ', prof%rs_fact(1), prof%rs_fact(ncl)
+           ! write(*,'(a,3f20.14)') 'CV52.09 ', prof%sun_gross(1), prof%sun_gross(ncl)
+           ! write(*,'(a,3f20.14)') 'CV52.10 ', prof%shd_gross(1), prof%shd_gross(ncl)
+           ! write(*,'(a,3f20.14)') 'CV52.11 ', prof%sun_LEstoma_new(1), prof%sun_LEstoma_new(ncl)
+           ! write(*,'(a,3f20.14)') 'CV52.12 ', prof%shd_LEstoma_new(1), prof%shd_LEstoma_new(ncl)
            ! isotope canopy transpiration and evaporation
            call canopy_flux_wiso()
+           ! write(*,'(a,3f20.14)') 'CV52.13 ', prof%sun_alpha_k(1,1), prof%sun_alpha_k(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.14 ', prof%shd_alpha_k(1,1), prof%shd_alpha_k(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.15 ', prof%sun_alpha_equ(1,1), prof%sun_alpha_equ(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.16 ', prof%shd_alpha_equ(1,1), prof%shd_alpha_equ(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.17 ', prof%sun_peclet(1,1), prof%sun_peclet(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.18 ', prof%shd_peclet(1,1), prof%shd_peclet(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.19 ', prof%sun_fem(1,1), prof%sun_fem(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.20 ', prof%shd_fem(1,1), prof%shd_fem(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.21 ', prof%sun_craig(1,1), prof%sun_craig(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.22 ', prof%shd_craig(1,1), prof%shd_craig(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.23 ', prof%sun_leafwater_e(1,1), prof%sun_leafwater_e(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.24 ', prof%shd_leafwater_e(1,1), prof%shd_leafwater_e(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.25 ', prof%sun_leafwater(1,1), prof%sun_leafwater(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.26 ', prof%shd_leafwater(1,1), prof%shd_leafwater(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.27 ', prof%sun_trans_rtrans(1,1), prof%sun_trans_rtrans(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.28 ', prof%shd_trans_rtrans(1,1), prof%shd_trans_rtrans(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.29 ', prof%sun_rtrans(1,1), prof%sun_rtrans(ncl,nwiso-1)
+           ! write(*,'(a,3f20.14)') 'CV52.30 ', prof%shd_rtrans(1,1), prof%shd_rtrans(ncl,nwiso-1)
            ! turbulent transport of H2O18, DHO and H216O
            do mc=2, nwiso
               ! Vapour input in layers
@@ -677,18 +833,20 @@ PROGRAM canveg
         ! the profile was converted to units of mg m-2 s-1 to be
         ! consistent with inputs to CONC
         ! change sign of dPsdz
-        !! NO, prof%dPsdz is positive !!!!!!!!!!! Yuan 2018.03.05
-        !! prof%source_co2 will be negetive !!!!! Yuan 2018.03.05
-        prof%source_co2(1:ncl) = -prof%dPsdz(1:ncl) ! layer photosynthesis is negetive
-!print *, "source_co2=:/n"
-!print *, prof%source_co2
-!print *, "Ps=:/n"
-!print *, prof%dPsdz
+        prof%source_co2(1:ncl) = -prof%dPsdz(1:ncl)
+        ! write(*,'(a,3f20.14)') 'CV50.01 ', prof%source_co2(1), prof%source_co2(ncl)
+
         ! compute bole respiration
         ! It is added to the prof%source_CO2 array.
         call bole_respiration()
+        ! write(*,'(a,3f20.14)') 'CV50.02 ', bole%calc, bole%factor
+        ! write(*,'(a,3f20.14)') 'CV50.03 ', bole%respiration_mole, bole%respiration_mg
+        ! write(*,'(a,3f20.14)') 'CV50.04 ', bole%layer(1), bole%layer(ncl)
+        ! write(*,'(a,3f20.14)') 'CV50.05 ', prof%source_co2(1), prof%source_co2(ncl)
         ! compute soil respiration
         call soil_respiration()
+        ! write(*,'(a,3f20.14)') 'CV50.06 ', soil%respiration_mole, soil%respiration_mg
+        ! write(*,'(a,3f20.14)') 'CV50.07 ', soil%respiration_auto, soil%respiration_hetero
 
         ! to convert umol m-3 to umol/mol we have to consider
         ! Pc/Pa (CO2 density/ air density) = (CO2)ppm = rhoc ma/ rhoa mc
@@ -702,6 +860,11 @@ PROGRAM canveg
         if (iswitch%oxygen==1) then
             call OXYFLUX ()
         end if
+!        call conc(prof%source_co2, prof%co2_air, input%co2air, soil%respiration_mole, fact%co2)
+        ! write(*,'(a,3f20.14)') 'CV50.08 ', prof%source_co2(1), prof%source_co2(ncl)
+        ! write(*,'(a,3f20.14)') 'CV50.09 ', input%co2air, soil%respiration_mole, fact%co2
+        ! write(*,'(a,3f20.14)') 'CV50.10 ', prof%co2_air(1), prof%co2_air(ntl-1)
+
         ! Integrate source-sink strengths to estimate canopy flux
         sumh       = sum(prof%dHdz(1:ncl))       ! sensible heat
         sumle      = sum(prof%dLEdz(1:ncl,1))    ! latent heat
@@ -729,9 +892,26 @@ PROGRAM canveg
         ! need to weight by sun and shaded leaf areas then divide by LAI
         tavg_sun   = sum(prof%sun_tleaf(1:ncl)*prof%dPAIdz(1:ncl)) ! avg sunlit temperature USE PAI YUAN 2018.03.04
         tavg_shd   = sum(prof%shd_tleaf(1:ncl)*prof%dPAIdz(1:ncl)) ! avg shaded temperature
+        ! write(*,'(a,3f20.14)') 'CV50.11 ', sumh, sumle, sumrn
+        ! write(*,'(a,3f20.14)') 'CV50.12 ', sumlout, can_ps_mol, can_gpp
+        ! write(*,'(a,3f20.14)') 'CV50.13 ', canresp, sumksi, sumlai
+        ! write(*,'(a,i5,2f20.14)') 'T: ', i_count, prof%shd_tleaf(1), prof%shd_tleaf(40)
+        !tleaf_mean = sum(prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &
+        !     + sum(prof%shd_tleaf(1:ncl)*solar%prob_shd(1:ncl))    ! mean leaf temperature
+        ! ztmp = one / real(ncl,wp)
+        ! prof%tleaf(1:ncl) = (sum(prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &
+        !      + sum(prof%shd_tleaf(1:ncl)*solar%prob_shd(1:ncl))) * ztmp    ! Tleaf per layer (sun and shade)
+        !prof%tleaf(1:ncl) = prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl) &
+        !     + prof%shd_tleaf(1:ncl)*solar%prob_shd(1:ncl) ! Tleaf per layer (sun and shade)
+        ! write(*,'(a,3f20.14)') 'CV50.14 ', prof%tleaf(1), prof%tleaf(ncl)
+        ! need to weight by sun and shaded leaf areas then divide by LAI
+        !tavg_sun   = sum(prof%sun_tleaf(1:ncl)*prof%dLAIdz(1:ncl)) ! avg sunlit temperature
+        !tavg_shd   = sum(prof%shd_tleaf(1:ncl)*prof%dLAIdz(1:ncl)) ! avg shaded temperature
+        ! write(*,'(a,3f20.14)') 'CV50.15 ', tavg_sun, tavg_shd
 
         ebalance      = sumrn - sumle - sumh
         flux%photosyn = can_ps_mol
+        ! write(*,'(a,3f20.14)') 'CV50.16 ', ebalance, flux%photosyn
         ! calculate gpp : can_ps_mol = photosynthesis - photorespiration
         !                              - dark respiration or can_ps_mol
         !                            = GPP - leaf respiration
@@ -742,9 +922,13 @@ PROGRAM canveg
         ! leaf area weighted temperatures
         tavg_sun = tavg_sun / sumpai
         tavg_shd = tavg_shd / sumpai
+        !tavg_sun = tavg_sun / sumlai
+        !tavg_shd = tavg_shd / sumlai
+        ! write(*,'(a,3f20.14)') 'CV50.017 ', tleaf_mean, tavg_sun, tavg_shd
         ! Energy exchanges at the soil
         rnet_soil = soil%rnet - soil%lout
         sbalance  = rnet_soil - soil%soilevap - soil%litterevap - soil%heat - soil%gsoil
+        ! write(*,'(a,3f20.14)') 'CV50.18 ', rnet_soil, sbalance
         ! canopy scale flux densities, vegetation plus soil
         sumh     = sumh + soil%heat
         sumle    = sumle + soil%evap
@@ -754,6 +938,9 @@ PROGRAM canveg
         temp3    = temp3 + soil%rnet
         tbalance = sbalance + ebalance
         met%H    = sumh
+        ! write(*,'(a,3f20.14)') 'CV50.19 ', sumh, sumle, sumrn
+        ! write(*,'(a,3f20.14)') 'CV50.20 ', sumlout, temp3, tbalance
+        ! write(*,'(a,3f20.14)') 'CV50.21 ', met%H
 
         ! filter iterative variables
         ! soil temp and fluxes
@@ -767,9 +954,13 @@ PROGRAM canveg
              + (one-fact%a_filt) * soil%T_l_filter
         soil%T_soil_filter(0:nsoil+1) = fact%a_filt * soil%T_soil(0:nsoil+1) &
              + (one-fact%a_filt) * soil%T_soil_filter(0:nsoil+1)
+        ! write(*,'(a,3f20.14)') 'CV50.22 ', soil%tsrf_filter, soil%soilevap_filter, soil%litterevap_filter
+        ! write(*,'(a,3f20.14)') 'CV50.23 ', soil%T_l_filter
+        ! write(*,'(a,3f20.14)') 'CV50.231 ', soil%T_soil_filter(0), soil%T_soil_filter(nsoil+1)
         ! met variables
         met%H_filter     = fact%a_filt * met%H + (one-fact%a_filt) * met%H_filter
         met%ustar_filter = fact%a_filt * met%ustar + (one-fact%a_filt) * met%ustar_filter
+        ! write(*,'(a,3f20.14)') 'CV50.24 ', met%H_filter, met%ustar_filter
         ! air variables
 !        print *, "3\n"
 !        print *, prof%tair
@@ -788,6 +979,9 @@ PROGRAM canveg
              + (one-fact%a_filt) * prof%co2_air_filter(1:ntl)
         prof%O2_air_filter(1:ntl)    = fact%a_filt * prof%O2_air(1:ntl) &
              + (one-fact%a_filt) * prof%O2_air_filter(1:ntl) ! Yuan 2018.07.02
+        ! write(*,'(a,3f20.14)') 'CV50.25 ', prof%tair_filter(1), prof%tair_filter(ntl-1)
+        ! write(*,'(a,3f20.14)') 'CV50.26 ', prof%rhov_air_filter(1,1), prof%rhov_air_filter(ntl-1,1)
+        ! write(*,'(a,3f20.14)') 'CV50.27 ', prof%co2_air_filter(1), prof%co2_air_filter(ntl-1)
         ! leaf variables
         prof%sun_tleaf_filter(1:ncl) = fact%a_filt * prof%sun_tleaf(1:ncl) &
              + (one-fact%a_filt) * prof%sun_tleaf_filter(1:ncl)
@@ -795,6 +989,9 @@ PROGRAM canveg
              + (one-fact%a_filt) * prof%shd_tleaf_filter(1:ncl)
         prof%wet_coef_filter(1:ncl)  = fact%a_filt * prof%wet_coef(1:ncl) &
              + (one-fact%a_filt) * prof%wet_coef_filter(1:ncl)
+        ! write(*,'(a,3f20.14)') 'CV50.28 ', prof%sun_tleaf_filter(1), prof%sun_tleaf_filter(ncl)
+        ! write(*,'(a,3f20.14)') 'CV50.29 ', prof%shd_tleaf_filter(1), prof%shd_tleaf_filter(ncl)
+        ! write(*,'(a,3f20.14)') 'CV50.30 ', prof%wet_coef_filter(1), prof%wet_coef_filter(ncl)
 
         ! Implicit water isotopes diagnostics
         if (iswitch%wiso==1 .and. wiso%implicit==1) then
@@ -824,6 +1021,7 @@ PROGRAM canveg
         netrad = (solar%beam_flux_par(ncl+1) + solar%par_down(ncl+1) - solar%par_up(ncl+1)) / 4.6_wp &
              + solar%beam_flux_nir(ncl+1) + solar%nir_dn(ncl+1) - solar%nir_up(ncl+1) &
              + solar%ir_dn(ncl+1) - solar%ir_up(ncl+1)
+        ! write(*,'(a,3f20.14)') 'CV50.31 ', netrad
 
         ! test for convergence between the sum of the net radiation flux profile and the
         ! net flux exiting the canopy
@@ -841,12 +1039,20 @@ PROGRAM canveg
         itest_diff2 = itest_old2 - itest_old1
         itest_old2  = itest_old1
         itest_old1  = itest
+        ! write(*,'(a,3f20.14)') 'CV50.32 ', etest, etest_diff1, etest_diff2
+        ! write(*,'(a,3f20.14)') 'CV50.33 ', etest_old2, etest_old1
+        ! write(*,'(a,3f20.14)') 'CV50.34 ', itest, itest_diff1, itest_diff2
+        ! write(*,'(a,3f20.14)') 'CV50.35 ', itest_old2, itest_old1
 
         i_count    = i_count + 1
         time%count = i_count
+        ! write(*,'(a,3i10)') 'CV50.36 ', time%count
 
         ! check for convergence
         ! if (etest <= 0.005_wp .or. i_count >= i_max) exit
+        !MC if ((abs(etest_diff1) <= 0.001_wp .and. abs(etest_diff2) <= 0.001_wp &
+        !MC     .and. abs(itest_diff1) <= 0.01_wp .and. abs(itest_diff2) <= 0.01_wp) &
+        !MC     .or. i_count >= i_max) exit
         if ((abs(etest_diff1) <= 0.005_wp .and. abs(etest_diff2) <= 0.005_wp &
              .and. abs(itest_diff1) <= 0.03_wp .and. abs(itest_diff2) <= 0.03_wp) &
              .or. i_count >= i_max) exit
@@ -857,14 +1063,14 @@ PROGRAM canveg
      end do ! until energy balance closure in this time step (or i_max)
 !     print *, etest, etest_diff1,etest_diff2,itest_diff1,itest_diff2
      totalcount = totalcount + 1
-     if (judgenight) then
+     if (solar%sine_beta <= isnight) then
         ntotalcount = ntotalcount + 1
      else
         dtotalcount = dtotalcount + 1
      end if
      if (i_count == i_max) then
         count40 = count40 + 1
-        if (judgenight) then
+        if (solar%sine_beta <= isnight) then
            ncount40 = ncount40 + 1
         else
            dcount40 = dcount40 + 1
@@ -886,6 +1092,7 @@ PROGRAM canveg
         ! like that, we do not have to transport isotopes all the time
         !   but take the isotopes from one time step before
 !        print *, prof%rhov_air_filter(1,1)
+        ! but take the isotopes from one time step before
         prof%rhov_air_filter(1:ntl,2:nwiso) = spread(prof%rhov_air_filter_save(1:ntl),2,nwiso) * prof%rvapour(1:ntl,2:nwiso)
 if (prof%rhov_air_filter(1,1)==zero) then
 !    print *, prof%rhov_air_filter_save(1)
@@ -895,10 +1102,41 @@ end if
 !        print *, wiso%lost(1:nwiso)
         call soil_flux_wiso()
 !                print *, wiso%lost(1:nwiso)
+        ! write(*,'(a,3f20.14)') 'CV51.01 ', flux%soilevap(1), flux%soilevap(nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.02 ', flux%litterevap(1), flux%litterevap(nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.03 ', flux%s_evap(1), flux%s_evap(nwiso-1)
         ! leaf water enrichment
         call leaf_wiso()
+        ! write(*,'(a,3f20.14)') 'CV51.04 ', prof%sun_wi(1), prof%sun_wi(ncl)
+        ! write(*,'(a,3f20.14)') 'CV51.05 ', prof%shd_wi(1), prof%shd_wi(ncl)
+        ! write(*,'(a,3f20.14)') 'CV51.06 ', prof%wa(1), prof%wa(ncl)
+        ! write(*,'(a,3f20.14)') 'CV51.07 ', prof%sun_h(1), prof%sun_h(ncl)
+        ! write(*,'(a,3f20.14)') 'CV51.08 ', prof%rs_fact(1), prof%rs_fact(ncl)
+        ! write(*,'(a,3f20.14)') 'CV51.09 ', prof%sun_gross(1), prof%sun_gross(ncl)
+        ! write(*,'(a,3f20.14)') 'CV51.10 ', prof%shd_gross(1), prof%shd_gross(ncl)
+        ! write(*,'(a,3f20.14)') 'CV51.11 ', prof%sun_LEstoma_new(1), prof%sun_LEstoma_new(ncl)
+        ! write(*,'(a,3f20.14)') 'CV51.12 ', prof%shd_LEstoma_new(1), prof%shd_LEstoma_new(ncl)
         ! isotope canopy transpiration and evaporation
         call canopy_flux_wiso()
+        ! write(*,'(a,3f20.14)') 'CV51.13 ', prof%sun_alpha_k(1,1), prof%sun_alpha_k(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.14 ', prof%shd_alpha_k(1,1), prof%shd_alpha_k(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.15 ', prof%sun_alpha_equ(1,1), prof%sun_alpha_equ(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.16 ', prof%shd_alpha_equ(1,1), prof%shd_alpha_equ(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.17 ', prof%sun_peclet(1,1), prof%sun_peclet(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.18 ', prof%shd_peclet(1,1), prof%shd_peclet(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.19 ', prof%sun_fem(1,1), prof%sun_fem(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.20 ', prof%shd_fem(1,1), prof%shd_fem(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.21 ', prof%sun_craig(1,1), prof%sun_craig(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.22 ', prof%shd_craig(1,1), prof%shd_craig(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.23 ', prof%sun_leafwater_e(1,1), prof%sun_leafwater_e(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.24 ', prof%shd_leafwater_e(1,1), prof%shd_leafwater_e(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.25 ', prof%sun_leafwater(1,1), prof%sun_leafwater(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.26 ', prof%shd_leafwater(1,1), prof%shd_leafwater(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.27 ', prof%sun_trans_rtrans(1,1), prof%sun_trans_rtrans(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.28 ', prof%shd_trans_rtrans(1,1), prof%shd_trans_rtrans(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.29 ', prof%sun_rtrans(1,1), prof%sun_rtrans(ncl,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV51.30 ', prof%shd_rtrans(1,1), prof%shd_rtrans(ncl,nwiso-1)
+
         ! turbulent transport of H2O18, DHO and H216O
         do mc=2, nwiso
            ! Vapour input in layers
@@ -977,8 +1215,22 @@ end if
      if (soil%camillo == 0) then
         ! compute litter moisture and litter drainage
         call litter_h2o()
+        ! write(*,'(a,3f20.14)') 'CV53.01 ', flux%soilinfl(1), flux%soilinfl(nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV53.02 ', soil%qinfl(1), soil%qinfl(nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV53.03 ', soil%theta_l(1), soil%theta_l(nwiso-1)
         ! compute soil moisture in different layers
         call soil_h2o()
+        ! write(*,'(a,3f20.14)') 'CV54.01 ', soil%qseva(1), soil%qseva(nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV54.03 ', soil%qdrai(1), soil%qdrai(nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV54.04 ', soil%swp(1), soil%swp(nsoil)
+        ! write(*,'(a,3f20.14)') 'CV54.05 ', soil%swp_mm(1), soil%swp_mm(nsoil)
+        ! write(*,'(a,3f20.14)') 'CV54.06 ', soil%k_theta(1), soil%k_theta(nsoil)
+        ! write(*,'(a,3f20.14)') 'CV54.07 ', soil%a(1), soil%a(nsoil)
+        ! write(*,'(a,3f20.14)') 'CV54.08 ', soil%b(1), soil%b(nsoil)
+        ! write(*,'(a,3f20.14)') 'CV54.09 ', soil%c(1), soil%c(nsoil)
+        ! write(*,'(a,3f20.14)') 'CV54.10 ', soil%r(1,1), soil%r(nsoil,nwiso-1)
+        ! write(*,'(a,3f20.14)') 'CV54.11 ', soil%soil_mm, soil%soil_mm_root, soil%soil_mm_50
+        ! write(*,'(a,3f20.14)') 'CV54.13 ', soil%theta(1,1), soil%theta(nsoil,nwiso-1)
      endif
 
      ! check and convert units of all components to desirable values
@@ -1211,11 +1463,12 @@ end if
 
      ! hourly output
      call write_output()
-
      ! output profiles for only specified periods
-     if (time%daytime >= start_profiles .and. time%daytime <= end_profiles) call write_profiles()
+     if ((time%daytime >= start_profiles) .and. (time%daytime <= end_profiles)) call write_profiles()
 
      ! End of day
+     ! Matthias: > or >= ?
+     ! Yuan 2017: >
      if ((time%daytime+(nint(time%time_step,kind=i8)*100_i8/3600_i8)) & ! cf. mo_io_text.f90:read_text_in
           > (int(input%dayy,kind=i8)*10000_i8+2400)) then ! Yuan 20180104 >= to >
         ! compute daily averages
@@ -1323,6 +1576,7 @@ end if
      end if ! end if new day
 
 !     print*, 'T: ', prof%shd_tleaf_filter(1), prof%shd_tleaf_filter(40)
+     ! write(*,'(a,3f20.14)') 'T: ', time%daytime, prof%shd_tleaf_filter(1), prof%shd_tleaf_filter(40)
 
      if (lastin == 1) exit ! interrupt timestep loop
 
@@ -1345,17 +1599,17 @@ end if
   call cpu_time(ctime2)
   call date_and_time(values=dtime)
   call message()
-  message_text = 'Done '//trim(num2str(totalcount,'(I6.6)'))//" time steps."
+  message_text = 'Done '//trim(num2str(totalcount,'(I6)'))//" time steps."
   call message(trim(message_text))
   message_text = 'Energy and carbon balance converged'//' ' &
-       //trim(num2str(totalcount-count40,'(I6.6)'))//' times = ' &
+       //trim(num2str(totalcount-count40,'(I6)'))//' times = ' &
        //trim(num2str(100._wp*real(totalcount-count40,wp)/real(totalcount,wp),'(F6.2)'))//"%."
   call message(trim(message_text))
   if (dtotalcount > 0 .and. ntotalcount > 0) then
-     message_text = 'Converged '//trim(num2str(dtotalcount-dcount40,'(I6.6)')) &
+     message_text = 'Converged '//trim(num2str(dtotalcount-dcount40,'(I6)')) &
           //' times during daytime = ' &
           //trim(num2str(100._wp*real(dtotalcount-dcount40,wp)/real(dtotalcount,wp),'(F6.2)')) &
-          //"% and "//trim(num2str(ntotalcount-ncount40,'(I6.6)'))//' times during night time = ' &
+          //"% and "//trim(num2str(ntotalcount-ncount40,'(I6)'))//' times during night time = ' &
           //trim(num2str(100._wp*real(ntotalcount-ncount40,wp)/real(ntotalcount,wp),'(F6.2)'))//"%."
      call message(trim(message_text))
   endif

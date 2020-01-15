@@ -132,7 +132,7 @@ CONTAINS
     USE constants, ONLY: noutseas, noutopti, noutsoil, noutdaily, noutprof, &
          noutflux, nouth2osoil, &
          noutcisodaily, noutcisoseason, noutcisoprof, &
-         noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, noutdebug
+         noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, noutdebug, nouttpu
     USE types,      ONLY: iswitch
 
     IMPLICIT NONE
@@ -145,6 +145,7 @@ CONTAINS
     close(unit=noutflux)
     close(unit=nouth2osoil)
     close(unit=noutdebug)
+    close(unit=nouttpu)
     ! 13CO2 isotope files
     if (iswitch%d13c == 1) then
        close(unit=noutcisodaily)
@@ -298,13 +299,13 @@ CONTAINS
     ! Calls the routines to open input and output files
     USE constants, ONLY: &
          noutseas, noutopti, noutsoil, noutdaily, noutprof, &                ! units
-         noutflux, nouth2osoil, &
+         noutflux, nouth2osoil, nouttpu, &
          noutcisodaily, noutcisoseason, noutcisoprof, &
          noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, noutdebug, &
          dailyfile, daily13cfile, hourlyfile, hourly13cfile, optimisefile, & ! filenames
          profilefile, profile13cfile, profileisofile, fluxprofilefile, &
          fluxprofileisofile, soilfile, h2osoilfile, &
-         h2osoilisofile, h2oleafisofile, debugfile
+         h2osoilisofile, h2oleafisofile, debugfile, tpufile
     USE parameters, ONLY: outdir, outsuffix
     USE types,      ONLY: iswitch
 
@@ -386,9 +387,9 @@ CONTAINS
     ! Profile fluxes
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(fluxprofilefile), trim(outsuffix)
     open(unit=noutflux, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*67, iostat=ierr) ! original 40*25
+         form="formatted", recl=40*69, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 67, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 69, '(",",a))'
     write(noutflux,form1) "daytime ", "i ", "dHdz ", "dLEdz ", "dLEdz%sun ", "dLEdz%shd ", &
          "sun_A ", "shd_A ", "dGPPdz ", "dGPPdz%sun ", "dGPPdz%shd ", "dPsdz ", &
          "dPsdz%sun ", "dPsdz%shd ", "dRESPdz ", "dRESPdz%sun ", "dRESPdz%shd ", &
@@ -401,9 +402,26 @@ CONTAINS
          "par_beam_dn ", "nir_beam_dn ", &
          "T_sun_f ", "T_shd_f ", "filt_T ", "filt_H ", "filt_LE ", &
          "sun_rs ", "shd_rs ", "LAI_sun ", "LAI_shd ", "par_diff ", "nir_diff ", &
-         "PSN_O2 ", "cws ", "wet coef"
+         "PSN_O2 ", "cws ", "wet coef ", "sun_tpucoef ", "shd_tpucoef"
         ! write(form1,'(A,I3,A)') '(a,', 44-1, '(",",a))'
     !write(noutflux,form1) "daytime",
+
+        ! Profile tpu limits
+    write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(tpufile), trim(outsuffix)
+    open(unit=nouttpu, file=stmp,action="write", status="replace", &
+         form="formatted", recl=40*18, iostat=ierr) ! original 40*25
+    if (ierr > 0) call error_opening(isroutine, stmp)
+    write(form1,'(A,I3,A)') '(a,', 18, '(",",a))'
+    write(nouttpu,form1) "daytime ", "i ", &
+                       "air_co2 ", &
+                       "sun_ci ", "shd_ci ", &
+                       "sun_cs ", "shd_cs ", &
+                       "sun_cc ", "shd_cc ", &
+                       "sun_wc ", "shd_wc ", &
+                       "sun_wj ", "shd_wj ", &
+                       "sun_wp ", "shd_wp ", &
+                       "sun_tpu_coeff ", "shd_tpu_coeff"
+
 
     ! Soil water
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(h2osoilfile), trim(outsuffix)
@@ -894,7 +912,7 @@ CONTAINS
   ! ------------------------------------------------------------------
   SUBROUTINE write_prof_text()
     ! Calls the routines to open input and output files
-    USE constants, ONLY: noutprof, noutflux, noutcisoprof, noutwisoprof, noutwisoflux
+    USE constants, ONLY: noutprof, noutflux, noutcisoprof, noutwisoprof, noutwisoflux, nouttpu
     USE types,     ONLY: iswitch, prof, solar, time, input, fact
     USE setup,     ONLY: ncl, ntl, nwiso
 
@@ -918,7 +936,7 @@ CONTAINS
     if (ierr > 0) call error_writing(isroutine, noutprof, ' - 1')
 
     ! Profile fluxes
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 66, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 69, '(",",es22.14))'
     do j=1, ncl
        write(noutflux,form1,iostat=ierr) &
             time%daytime,j,prof%dHdz(j), prof%dLEdz(j,1), &
@@ -941,7 +959,7 @@ CONTAINS
             solar%beam_flux_par(j), solar%beam_flux_nir(j), &
             prof%sun_tleaf_filter(j), prof%shd_tleaf_filter(j), fact%a_filt, fact%heatcoef, fact%latent, &
             prof%sun_rs_filter(j), prof%shd_rs_filter(j), prof%sun_lai(j),prof%shd_lai(j),solar%par_diffuse,solar%nir_diffuse, &
-            prof%dPsdz_O2(j), prof%cws(j,1), prof%wet_coef(j)
+            prof%dPsdz_O2(j), prof%cws(j,1), prof%wet_coef(j), real(prof%sun_tpu_coeff(j)), real(prof%shd_tpu_coeff(j))
 
 !print *, prof%dLEdz(j,1)
 if (ISNAN(prof%dLEdz(j,1))) then
@@ -949,6 +967,26 @@ if (ISNAN(prof%dLEdz(j,1))) then
  else
  !   print *, "normal"
 end if
+    end do
+    if (ierr > 0) call error_writing(isroutine, noutflux, ' - 2')
+
+     ! Profile tpu
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 18, '(",",es22.14))'
+    do j=1, ncl
+       write(nouttpu,form1,iostat=ierr) &
+            time%daytime,j,&
+            prof%co2_air_filter(j), &
+            prof%sun_ci(j), prof%shd_ci(j), &
+            prof%sun_cs(j), prof%shd_cs(j), &
+            prof%sun_cc(j), prof%shd_cc(j), &
+            prof%sun_wc(j), prof%shd_wc(j), &
+            prof%sun_wj(j), prof%shd_wj(j), &
+            prof%sun_wp(j), prof%shd_wp(j), &
+            !prof%sun_wp(j), prof%shd_wp(j)
+            prof%sun_tpu_coeff(j), prof%shd_tpu_coeff(j)
+            !prof%sun_wp(j), prof%shd_wp(j), &
+
+!print *, prof%sun_tpu_coeff, prof%shd_tpu_coeff
     end do
     if (ierr > 0) call error_writing(isroutine, noutflux, ' - 2')
 

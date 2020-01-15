@@ -96,6 +96,7 @@ MODULE parameters
   INTEGER(i4)        :: switch_wiso       ! (1) calc water isotopes ! (0) no water isotopes
   INTEGER(i4)        :: switch_oxygen       ! (1) calc O2 FLUX ! (0) no O2 FLUX; YUAN 2018.01.16
   INTEGER(i4)        :: switch_wai_new
+  INTEGER(i4)        :: switch_tpu
 
   ! How to determine autotrophic respiration
   !   (0) total = 50% auto + 50% hetero
@@ -370,6 +371,7 @@ CONTAINS
     ! O2 flux
     switch_oxygen = 0           ! (1) calc O2 flux ! (0) no O2 flux Yuan 2018.01.16
     switch_wai_new = 0          ! (1) Yuan's wai distr; (0) default wai distr 2018.07.16
+    switch_tpu   = 0            ! (1) tpu limits 2019.12.20
 
     ! How to determine autotrophic respiration
     !   (0) total = 50% auto + 50% hetero
@@ -648,7 +650,7 @@ CONTAINS
          gravel_in, theta_in, wiso_nofracsoil, wiso_nofraclitter, wiso_nofracleaf, wiso_nofracin, wiso_implicit, merlivat, &
          theta1_in, theta2_in, theta3_in, extra_nate, nup, vc25_up, vc25_down, jm_vc_up, jm_vc_down, rd_vc_up, rd_vc_down, &
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
-         switch_oxygen, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in ! oxygen module; Yuan 2018.01.16
+         switch_oxygen, switch_wai_new, switch_tpu, ROC_leaf_in, ROC_bole_in, ROC_soil_in ! oxygen module; Yuan 2018.01.16
 
     call ini_namelist()
 !    print *, outdir
@@ -693,6 +695,7 @@ CONTAINS
     iswitch%no_neg_water_flux = switch_no_negative_water_flux
     iswitch%oxygen = switch_oxygen ! Yuan 2018.01.16
     iswitch%wai_new = switch_wai_new ! 2018.07.16
+    iswitch%tpu = switch_tpu
     srf_res%fthreshold = fthreshold
     srf_res%fslope     = fslope
     ciso%delta_soil = delta_soil

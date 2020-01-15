@@ -477,6 +477,7 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: isopreneflux ! isoprene flux per layer (sun and shade) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: vcmax ! vcmax in per layer (temperature corrected) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: jmax ! jmax per layer (temperature corrected) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: tp
      REAL(wp), DIMENSION(:), ALLOCATABLE :: rd ! rd per layer ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: vcmaxz ! vcmaxz per layer ! [ncl]
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: throughfall ! throughfall in layer [mm], one extra layer for input as precipitation ! [ncl+1,nwiso]
@@ -520,6 +521,9 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGPPdz       ! layer gross primary productivity (Ps + Resp) (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGPPdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGPPdz_shd ! layer gross primary productivity (Ps + Resp) of shaded area (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz       ! layer gross primary productivity (Ps + Resp) (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dHdz ! layer sensible heat flux (W m-2) ! [ncl]
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: dLEdz ! layer latent heat flux ! [ncl,nwiso]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dLEdz_sun ! layer latent heat flux of sunlit area (W m-2) ! [ncl]
@@ -537,6 +541,7 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_frac ! sun leaf fraction ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_tleaf ! leaf temp (C) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_GPP ! layer GPP flux for sun only (micromol mn-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_GOP
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_A ! layer A flux for sun only (micromol mn-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_gs ! stomatal conductance (m s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_gs_mol ! stomatal conductance of sun leaves mol m-2 s-1 ! [ncl]
@@ -562,6 +567,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_tleaf_filter ! filtered sunlit temperature ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_wj ! electron transport rate of Ps for sun leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_wc ! carboxylatio velocity for sun leaves ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_wp !
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_tpu_coeff ! tpu occurs = 1 else = 0
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_resp ! respiration ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_isopreneflux ! isoprene flux per layer for sunleaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: iso_sun ! isoprene flux per leaf area in the sun ! [ncl]
@@ -573,6 +580,7 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_frac ! shade leaf fraction ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_tleaf ! temperature of shaded leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_GPP ! photosynthesis (GPP) of shaded leaves ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_GOP
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_A ! photosynthesis of shaded leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_gs ! stomatal conductance of shade leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_gs_mol ! stomatal conductance of shade leaves mol m-2 s-1 ! [ncl]
@@ -598,6 +606,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_tleaf_filter ! previous temperature ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_wc ! carboxylation rate for shade leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_wj ! electron transport rate for shade leaves ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_wp
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_tpu_coeff ! tpu occurs = 1 else = 0
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_resp ! respiration ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_isopreneflux ! isoprene flux per layer for shade leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: iso_shd ! isoprene flux per leaf area in the shade ! [ncl]
@@ -688,6 +698,7 @@ MODULE types
      INTEGER(i4) :: no_neg_water_flux ! 1: restrict water fluxes >= 0
      INTEGER(i4) :: oxygen ! 1: calc oxygen flux
      INTEGER(i4) :: wai_new ! to switch between default wai distribution and Yuan's field measurement. 2018.07.16
+     INTEGER(i4) :: tpu    ! add tpu limits
   END TYPE switch_variables
 
 
@@ -950,6 +961,7 @@ CONTAINS
     if (.not. allocated(prof%isopreneflux)) allocate(prof%isopreneflux(ncl))
     if (.not. allocated(prof%vcmax)) allocate(prof%vcmax(ncl))
     if (.not. allocated(prof%jmax)) allocate(prof%jmax(ncl))
+    if (.not. allocated(prof%tp)) allocate(prof%tp(ncl))
     if (.not. allocated(prof%rd)) allocate(prof%rd(ncl))
     if (.not. allocated(prof%vcmaxz)) allocate(prof%vcmaxz(ncl))
     if (.not. allocated(prof%throughfall)) allocate(prof%throughfall(ncl+1,nwiso))
@@ -990,6 +1002,9 @@ CONTAINS
     if (.not. allocated(prof%dGPPdz)) allocate(prof%dGPPdz(ncl))
     if (.not. allocated(prof%dGPPdz_sun)) allocate(prof%dGPPdz_sun(ncl))
     if (.not. allocated(prof%dGPPdz_shd)) allocate(prof%dGPPdz_shd(ncl))
+    if (.not. allocated(prof%dGOPdz)) allocate(prof%dGOPdz(ncl))
+    if (.not. allocated(prof%dGOPdz_sun)) allocate(prof%dGOPdz_sun(ncl))
+    if (.not. allocated(prof%dGOPdz_shd)) allocate(prof%dGOPdz_shd(ncl))
     if (.not. allocated(prof%dHdz)) allocate(prof%dHdz(ncl))
     if (.not. allocated(prof%dLEdz)) allocate(prof%dLEdz(ncl,nwiso))
     if (.not. allocated(prof%dLEdz_sun)) allocate(prof%dLEdz_sun(ncl))
@@ -1006,6 +1021,7 @@ CONTAINS
     if (.not. allocated(prof%sun_frac)) allocate(prof%sun_frac(ncl))
     if (.not. allocated(prof%sun_tleaf)) allocate(prof%sun_tleaf(ncl))
     if (.not. allocated(prof%sun_GPP)) allocate(prof%sun_GPP(ncl))
+    if (.not. allocated(prof%sun_GOP)) allocate(prof%sun_GOP(ncl))
     if (.not. allocated(prof%sun_A)) allocate(prof%sun_A(ncl))
     if (.not. allocated(prof%sun_gs)) allocate(prof%sun_gs(ncl))
     if (.not. allocated(prof%sun_gs_mol)) allocate(prof%sun_gs_mol(ncl))
@@ -1031,6 +1047,8 @@ CONTAINS
     if (.not. allocated(prof%sun_tleaf_filter)) allocate(prof%sun_tleaf_filter(ncl))
     if (.not. allocated(prof%sun_wj)) allocate(prof%sun_wj(ncl))
     if (.not. allocated(prof%sun_wc)) allocate(prof%sun_wc(ncl))
+    if (.not. allocated(prof%sun_wp)) allocate(prof%sun_wp(ncl))
+    if (.not. allocated(prof%sun_tpu_coeff)) allocate(prof%sun_tpu_coeff(ncl))
     if (.not. allocated(prof%sun_resp)) allocate(prof%sun_resp(ncl))
     if (.not. allocated(prof%sun_isopreneflux)) allocate(prof%sun_isopreneflux(ncl))
     if (.not. allocated(prof%iso_sun)) allocate(prof%iso_sun(ncl))
@@ -1041,6 +1059,7 @@ CONTAINS
     if (.not. allocated(prof%shd_frac)) allocate(prof%shd_frac(ncl))
     if (.not. allocated(prof%shd_tleaf)) allocate(prof%shd_tleaf(ncl))
     if (.not. allocated(prof%shd_GPP)) allocate(prof%shd_GPP(ncl))
+    if (.not. allocated(prof%shd_GOP)) allocate(prof%shd_GOP(ncl))
     if (.not. allocated(prof%shd_A)) allocate(prof%shd_A(ncl))
     if (.not. allocated(prof%shd_gs)) allocate(prof%shd_gs(ncl))
     if (.not. allocated(prof%shd_gs_mol)) allocate(prof%shd_gs_mol(ncl))
@@ -1066,6 +1085,8 @@ CONTAINS
     if (.not. allocated(prof%shd_tleaf_filter)) allocate(prof%shd_tleaf_filter(ncl))
     if (.not. allocated(prof%shd_wc)) allocate(prof%shd_wc(ncl))
     if (.not. allocated(prof%shd_wj)) allocate(prof%shd_wj(ncl))
+    if (.not. allocated(prof%shd_wp)) allocate(prof%shd_wp(ncl))
+    if (.not. allocated(prof%shd_tpu_coeff)) allocate(prof%shd_tpu_coeff(ncl))
     if (.not. allocated(prof%shd_resp)) allocate(prof%shd_resp(ncl))
     if (.not. allocated(prof%shd_isopreneflux)) allocate(prof%shd_isopreneflux(ncl))
     if (.not. allocated(prof%iso_shd)) allocate(prof%iso_shd(ncl))
@@ -1655,6 +1676,7 @@ CONTAINS
     prof%isopreneflux = zero
     prof%vcmax = zero
     prof%jmax = zero
+    prof%tp = zero
     prof%rd = zero
     prof%vcmaxz = zero
     prof%throughfall = zero
@@ -1698,6 +1720,9 @@ CONTAINS
     prof%dGPPdz = zero
     prof%dGPPdz_sun = zero
     prof%dGPPdz_shd = zero
+    prof%dGOPdz = zero
+    prof%dGOPdz_sun = zero
+    prof%dGOPdz_shd = zero
     prof%dHdz = zero
     prof%dLEdz = zero
     prof%dLEdz_sun = zero
@@ -1717,6 +1742,7 @@ CONTAINS
     prof%sun_frac = zero
     !prof%sun_tleaf = zero
     prof%sun_GPP = zero
+    prof%sun_GOP = zero
     prof%sun_A = zero
     prof%sun_gs = zero
     prof%sun_gs_mol = zero
@@ -1742,6 +1768,8 @@ CONTAINS
     !prof%sun_tleaf_filter = zero
     prof%sun_wj = zero
     prof%sun_wc = zero
+    prof%sun_wp = zero
+    prof%sun_tpu_coeff = zero
     prof%sun_resp = zero
     prof%sun_isopreneflux = zero
     prof%iso_sun = zero
@@ -1752,6 +1780,7 @@ CONTAINS
     prof%shd_frac = zero
     !prof%shd_tleaf = zero
     prof%shd_GPP = zero
+    prof%shd_GOP = zero
     prof%shd_A = zero
     prof%shd_gs = zero
     prof%shd_gs_mol = zero
@@ -1777,6 +1806,8 @@ CONTAINS
     !prof%shd_tleaf_filter = zero
     prof%shd_wc = zero
     prof%shd_wj = zero
+    prof%shd_wp = zero
+    prof%shd_tpu_coeff = zero
     prof%shd_resp = zero
     prof%shd_isopreneflux = zero
     prof%iso_shd = zero

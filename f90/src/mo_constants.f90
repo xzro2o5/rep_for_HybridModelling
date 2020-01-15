@@ -52,8 +52,9 @@ MODULE constants
   INTEGER, PARAMETER :: noutcisoseason = 121 ! fptr21  13c season out
   INTEGER, PARAMETER :: noutcisoprof   = 122 ! fptr22  13c profile air out
   INTEGER, PARAMETER :: noutcisoflux   = 123 ! fptr23  13c profile flux out
-  INTEGER, PARAMETER :: noutoxy        = 124 ! fptr23  oxygen profile flux out
-  INTEGER, PARAMETER :: noutdebug      = 125 ! fptr23  debugfile Yuan 2018.09.14
+  INTEGER, PARAMETER :: noutoxy        = 124 ! fptr24  oxygen profile flux out
+  INTEGER, PARAMETER :: noutdebug      = 125 ! fptr25  debugfile Yuan 2018.09.14
+  INTEGER, PARAMETER :: nouttpu        = 126 ! fptr26  tpu limits Yuan 2019.12.20
 
 
   CHARACTER(len=*), PARAMETER :: dailyfile          = "daily_ave"
@@ -73,6 +74,7 @@ MODULE constants
   CHARACTER(len=*), PARAMETER :: h2osoilisofile     = "h2osoil_wiso"
   CHARACTER(len=*), PARAMETER :: h2oleafisofile     = "h2oleaf_wiso"
   CHARACTER(len=*), PARAMETER :: debugfile          = "canveg_debug"
+  CHARACTER(len=*), PARAMETER :: tpufile            = "tpu_limit"
 
   ! computational
   REAL(wp), PARAMETER :: zero     = 0.0_wp      ! 0

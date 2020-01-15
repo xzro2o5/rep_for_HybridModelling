@@ -67,7 +67,12 @@ MODULE OXYGEN
 !     rd_o2 updated in photosynthesis()
 !     prof%rd_O2(1:ncl) = prof%dRESPdz_sun(1:ncl)/prof%RQ_sun(1:ncl)+prof%dRESPdz_shd(1:ncl)/prof%RQ_shade(1:ncl)
     ! prof%gpp_O2(1:ncl) = prof%dPsdz(1:ncl)*prof%ROC_leaf_air(1:ncl) + prof%rd_O2(1:ncl)! o2 flux of gpp = psn + rd
-     prof%gpp_O2(1:ncl) = prof%dPsdz_O2(1:ncl) + prof%dRESPdz_O2(1:ncl)! o2 flux of gpp = psn + rd
+    ! prof%gpp_O2(1:ncl) = prof%dPsdz_O2(1:ncl) + prof%dRESPdz_O2(1:ncl)! o2 flux of gpp = psn + rd
+     prof%dGOPdz_sun(1:ncl) = prof%dLAIdz(1:ncl) * prof%sun_GOP(1:ncl) * solar%prob_beam(1:ncl)
+     prof%dGOPdz_shd(1:ncl) = prof%dLAIdz(1:ncl) * prof%shd_GOP(1:ncl) * solar%prob_shd(1:ncl)
+     prof%dGOPdz(1:ncl)     = prof%dGOPdz_sun(1:ncl) + prof%dGOPdz_shd(1:ncl)
+     prof%gpp_O2(1:ncl) = prof%dGOPdz(1:ncl)
+!     print *, prof%shd_GOP
 !print *, sum(prof%gpp_O2(1:ncl))
 !print *, sum(prof%dGPPdz(1:ncl))
 !print *, sum(prof%dPsdz(1:ncl)*prof%ROC_leaf_air(j))

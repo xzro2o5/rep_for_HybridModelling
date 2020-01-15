@@ -319,13 +319,16 @@ CONTAINS
     ! Hourly/Season
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(hourlyfile), trim(outsuffix)
     open(unit=noutseas, file=stmp,action="write", status="replace", &
-         form="formatted", recl=19*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
+         form="formatted", recl=28*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 19-1, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 19-1+9, '(",",a))'
+!    print *, form1
     write(noutseas,form1) "daytime ", "netrn ", "sumrn ", "sumh ", "sumle ", &
     "canps ", "gpp ", "canresp ", "soilresp ", "boleresp ", &
     "sumOXY ", "netOXY ", "netROC ", "ROC_leaf ", "ROC_bole ", "ROC_soil ", &
-    "ustar ", "canresp_o"
+    "ustar ", "canresp_o ", &
+    "inputPAR ","PAR_dir ","PAR_dn ", "PAR_up ", &
+    "NIR_dir ","NIR_dn ","NIR_up ","IR_dn ","IR_up"
     !write(noutseas,form1) &
     !     "daytime", "netrn", "sumrn", "sumh", "sumle"
 
@@ -356,9 +359,9 @@ CONTAINS
     open(unit=noutdaily, file=stmp,action="write", status="replace", &
          form="formatted", recl=22*25, iostat=ierr)
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 21-1, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 22-1, '(",",a))'
     write(noutdaily,form1) "Day ", "Avg_NEE ", "Avg_EVAP ", &
-         "AVG_H ", "Avg_PAR ", "Avg_RNET ", "lai ", "wai ", "pai ", "Avg_PS ", &
+         "Avg_H ", "Avg_PAR ", "Avg_RNET ", "lai ", "wai ", "pai ", "Avg_PS ", &
          "Ave_Resp ", "Avg_BOLE ", "Avg_SOIL ", "Avg_TLeaf ", "Avg_Gs ", "Tleaf_day ", &
          "Avg_GPP ", "Avg_OXY ", "Net_OXY ", "Avg_ROC ", "Avg_respo" ! add daily mean ROC
     !     form="formatted", recl=14*25, iostat=ierr)
@@ -373,7 +376,8 @@ CONTAINS
     open(unit=noutprof, file=stmp,action="write", status="replace", &
          form="formatted", recl=13*25, iostat=ierr)
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 13-1, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 14-1, '(",",a))'
+   ! print *, form1
     write(noutprof,form1) "Time ", "i ", "tair ", "tair_f ", "qair ", "co2 ", "o2 ", "co2_f ", "o2_f ", &
           "co2_soil ", "o2_soil ", "wnd ", "vpd"!"co2_disp ", "o2_disp" !
     !write(form1,'(A,I3,A)') '(a,', 5-1, '(",",a))'
@@ -382,21 +386,22 @@ CONTAINS
     ! Profile fluxes
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(fluxprofilefile), trim(outsuffix)
     open(unit=noutflux, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*64, iostat=ierr) ! original 40*25
+         form="formatted", recl=40*67, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 64, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 67, '(",",a))'
     write(noutflux,form1) "daytime ", "i ", "dHdz ", "dLEdz ", "dLEdz%sun ", "dLEdz%shd ", &
          "sun_A ", "shd_A ", "dGPPdz ", "dGPPdz%sun ", "dGPPdz%shd ", "dPsdz ", &
          "dPsdz%sun ", "dPsdz%shd ", "dRESPdz ", "dRESPdz%sun ", "dRESPdz%shd ", &
          "PARdirect ", "PARdiffuse ", "Tleaf ", "Tleaf_sun ", "Tleaf_shd ", &
          "Beam ", "Nonbeam ", "LAI ", "gs ", "gs%sun ", "gs%shd ", &
-         "PARin ", "CO2_source ", "O2_source ", "RQ_sun ", "RQ_shade ", "rd_O2 ", &
+         "PARin ", "CO2_source ", "O2_source ", "RQ_sun ", "RQ_shade ", "RESP_O2 ", &
          "bole_resp ", "ROC_layer ", "PAI ", "WAI ", "RN ", &
          "netrn_sun ", "netrn_shd ","par_sun ", "nir_sun ", "par_shd ", "nir_shd ", &
          "par_up ","par_dn ","nir_up ","nir_dn ","ir_dn ", "ir_up ", &
          "par_beam_dn ", "nir_beam_dn ", &
          "T_sun_f ", "T_shd_f ", "filt_T ", "filt_H ", "filt_LE ", &
-         "sun_rs ", "shd_rs ", "LAI_sun ", "LAI_shd ", "par_diff ", "nir_diff"
+         "sun_rs ", "shd_rs ", "LAI_sun ", "LAI_shd ", "par_diff ", "nir_diff ", &
+         "PSN_O2 ", "cws ", "wet coef"
         ! write(form1,'(A,I3,A)') '(a,', 44-1, '(",",a))'
     !write(noutflux,form1) "daytime",
 
@@ -593,6 +598,7 @@ CONTAINS
     input%d13CO2       = in13
     input%d18CO2       = in14
     input%o2air        = in15
+!        print *, "inputPAR:    ",input%parin
     ! write(*,'(a,i10,3f20.14)') 'RI01.01 ', input%dayy, input%hhrr, input%ta
     ! write(*,'(a,3f20.14)') 'RI01.02 ', input%rglobal, input%parin, input%pardif
     ! write(*,'(a,3f20.14)') 'RI01.03 ', input%ea, input%wnd, input%ppt(1)
@@ -629,6 +635,7 @@ CONTAINS
     if (abs(input%co2air) >= 998._wp) input%co2air = 370._wp
     ! write(*,'(a,3f20.14)') 'RI01.07 ', input%parin
     if (input%parin < zero) input%parin = zero ! check for bad par data
+ !   print *, "inputPAR:    ",input%parin
     ! write(*,'(a,3f20.14)') 'RI01.08 ', input%parin
     ! if (input%parin <= zero) then ! check for night
     !    solar%par_beam = zero
@@ -805,13 +812,17 @@ CONTAINS
 
     ierr = 0
     ! Hourly/Season
-    write(form1,'(A,I3,A)') '(i07,', 19-1, '(",",es22.14))'
+!write(form1,'(A,I3,A)') '(i07,",",i03,', 19-1+4, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,', 19-1+9, '(",",es22.14))'
+    !print *, form1
     write(noutseas,form1,iostat=ierr) &
          time%daytime, output%netrad, output%sumrn, output%sumh, output%sumle, &
          output%can_ps_mol, output%can_gpp, output%canresp, soil%respiration_mole, bole%respiration_mole, &
          output%houro, output%hourneto, output%hourROC, ROC_leaf_in, ROC_bole_in, ROC_soil_in, met%ustar_filter, &
-         output%hour_canrespo ! oxygen flux Yuan 2018.01.30
-!print *, solar%quantum_sun(ncl)
+         output%hour_canrespo,&
+         input%parin,solar%beam_flux_par(ncl+1)/ 4.6_wp,solar%par_down(ncl+1)/ 4.6_wp,solar%par_up(ncl+1)/ 4.6_wp,&
+         solar%beam_flux_nir(ncl+1),solar%nir_dn(ncl+1),solar%nir_up(ncl+1),&
+         solar%ir_dn(ncl+1),solar%ir_up(ncl+1)
     if (ierr > 0) call error_writing(isroutine, noutseas)
 
     ! Optimise
@@ -907,7 +918,7 @@ CONTAINS
     if (ierr > 0) call error_writing(isroutine, noutprof, ' - 1')
 
     ! Profile fluxes
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 64, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 66, '(",",es22.14))'
     do j=1, ncl
        write(noutflux,form1,iostat=ierr) &
             time%daytime,j,prof%dHdz(j), prof%dLEdz(j,1), &
@@ -920,7 +931,7 @@ CONTAINS
             prof%shd_tleaf(j), solar%prob_beam(j), solar%prob_shd(j), &
             prof%dLAIdz(j), &
             prof%dStomCondz(j)*1e3_wp,prof%dStomCondz_sun(j)*1e3_wp,prof%dStomCondz_shd(j)*1e3_wp, &
-            input%parin, prof%source_co2(j), prof%source_O2(j), prof%RQ_sun(j), prof%RQ_shade(j), prof%rd_O2(j),&
+            input%parin, prof%source_co2(j), prof%source_O2(j), prof%RQ_sun(j), prof%RQ_shd(j), prof%dRESPdz_O2(j),&
             prof%dboledz(j),prof%ROC_layer(j),prof%dPAIdz(j),prof%dWAIdz(j), &
             prof%dRNdz(j), solar%rnet_sun(j), solar%rnet_shd(j), solar%par_sun(j), solar%nir_sun(j),  &
             solar%par_shd(j), solar%nir_shd(j), &
@@ -929,7 +940,8 @@ CONTAINS
             solar%ir_dn(j), solar%ir_up(j), &
             solar%beam_flux_par(j), solar%beam_flux_nir(j), &
             prof%sun_tleaf_filter(j), prof%shd_tleaf_filter(j), fact%a_filt, fact%heatcoef, fact%latent, &
-            prof%sun_rs_filter(j), prof%shd_rs_filter(j), prof%sun_lai(j),prof%shd_lai(j),solar%par_diffuse,solar%nir_diffuse
+            prof%sun_rs_filter(j), prof%shd_rs_filter(j), prof%sun_lai(j),prof%shd_lai(j),solar%par_diffuse,solar%nir_diffuse, &
+            prof%dPsdz_O2(j), prof%cws(j,1), prof%wet_coef(j)
 
 !print *, prof%dLEdz(j,1)
 if (ISNAN(prof%dLEdz(j,1))) then

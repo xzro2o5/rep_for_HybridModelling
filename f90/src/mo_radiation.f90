@@ -1445,8 +1445,8 @@ CONTAINS
        ! downward beam PAR flux density, incident on the horizontal
        solar%beam_flux_par(1:ncl+1) = beam(1:ncl+1) * input%parin
        !print *, solar%beam_flux_par
-      ! print *, input%parin
-      ! print *, beam(1:ncl+1)
+!       print *, "PAR_in:   ", input%parin
+!       print *, "beam%:    ", beam(ncl+1)
       ! print *, sum(beam(1:ncl))
        where (solar%beam_flux_par(1:ncl+1) < e3) solar%beam_flux_par(1:ncl+1) = e3
        ! Downward diffuse radiatIon flux density on the horizontal
@@ -1528,9 +1528,9 @@ CONTAINS
 
     ! Sunlit, shaded values
     solar%rnet_sun(1:ncl) = solar%par_sun(1:ncl) + solar%nir_sun(1:ncl) + ir_shade(1:ncl)
- !print *, solar%rnet_sun(ncl)
+! print *, solar%rnet_sun(ncl)
  !print *, solar%par_sun(ncl)
- !print *, solar%nir_sun(ncl)
+! print *, solar%nir_sun(ncl)
  !print *, ir_shade(ncl)
  !print *, solar%ratrad
  !print *, solar%ir_up(ncl+1)

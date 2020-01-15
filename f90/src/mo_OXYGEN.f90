@@ -39,7 +39,7 @@ MODULE OXYGEN
     USE parameters,       only: o2
   IMPLICIT NONE
   ! respiratory quotient of leaf respiration as a function of leaf temperature. Yuan 2019.03.11
-        REAL(wp) :: source_sun, source_shade, RQ_sun, RQ_shade
+        REAL(wp) :: source_sun, source_shade!, RQ_sun, RQ_shade
         REAL(wp) :: o2air
         INTEGER(i4) :: j
         do j=1, ncl
@@ -59,13 +59,15 @@ MODULE OXYGEN
        ! source_O2 is positive when emitted, negetive when consumed
        ! prof%source_O2(j) = prof%dLAIdz(j) * (source_shade+source_sun) ! o2 source/sink from photosynthesis
      ! RQ = -0.0147*(T) +1.24
-     RQ_sun = -0.0147_wp*prof%sun_tleaf(j)+1.24_wp
-     RQ_shade = -0.0147_wp*prof%shd_tleaf(j) +1.24_wp
-     prof%RQ_sun(j) = RQ_sun
-     prof%RQ_shade(j) = RQ_shade
+     !RQ_sun = -0.0147_wp*prof%sun_tleaf(j)+1.24_wp
+     !RQ_shade = -0.0147_wp*prof%shd_tleaf(j) +1.24_wp
+     !prof%RQ_sun(j) = RQ_sun
+     !prof%RQ_shade(j) = RQ_shade
         end do
-     prof%rd_O2(1:ncl) = prof%dRESPdz_sun(1:ncl)/prof%RQ_sun(1:ncl)+prof%dRESPdz_shd(1:ncl)/prof%RQ_shade(1:ncl)
-     prof%gpp_O2(1:ncl) = prof%dPsdz(1:ncl)*prof%ROC_leaf_air(1:ncl) + prof%rd_O2(1:ncl)! o2 flux of gpp = psn + rd
+!     rd_o2 updated in photosynthesis()
+!     prof%rd_O2(1:ncl) = prof%dRESPdz_sun(1:ncl)/prof%RQ_sun(1:ncl)+prof%dRESPdz_shd(1:ncl)/prof%RQ_shade(1:ncl)
+    ! prof%gpp_O2(1:ncl) = prof%dPsdz(1:ncl)*prof%ROC_leaf_air(1:ncl) + prof%rd_O2(1:ncl)! o2 flux of gpp = psn + rd
+     prof%gpp_O2(1:ncl) = prof%dPsdz_O2(1:ncl) + prof%dRESPdz_O2(1:ncl)! o2 flux of gpp = psn + rd
 !print *, sum(prof%gpp_O2(1:ncl))
 !print *, sum(prof%dGPPdz(1:ncl))
 !print *, sum(prof%dPsdz(1:ncl)*prof%ROC_leaf_air(j))
@@ -73,7 +75,10 @@ MODULE OXYGEN
 !    prof%source_co2(1:ncl) = -prof%dPsdz(1:ncl) + bole%layer(1:ncl) (negative + positive)
 !    prof%source_O2(1:ncl) = prof%dPsdz(1:ncl)* prof%ROC_leaf_air(1:ncl)- &! add o2 source/sink from bole respiration
 !                            bole%layer(1:ncl)* prof%ROC_bole_air(1:ncl)
-     prof%source_O2(1:ncl) = prof%gpp_O2(1:ncl) - prof%rd_O2(1:ncl) - bole%layer(1:ncl)* prof%ROC_bole_air(1:ncl)
+     prof%source_O2(1:ncl) = prof%gpp_O2(1:ncl) - prof%dRESPdz_O2(1:ncl) - bole%layer(1:ncl)* prof%ROC_bole_air(1:ncl)
+   !  print *, prof%source_O2(33)
+   !  print *, prof%dPsdz(33)
+   !  print *, bole%layer(33)
      soil%o2 = -soil%respiration_mole*soil%ROC_soil_air ! negative!!!
    !  print *, prof%dGPPdz(33), bole%layer(33), soil%respiration_mole
    !  print *, prof%gpp_O2(33), bole%layer(33)*prof%ROC_bole_air(33), soil%o2
@@ -85,7 +90,7 @@ MODULE OXYGEN
 !     call conc(prof%source_O2, prof%O2_air, input%o2air, soil%o2, fact%o2) ! use input o2 con. Yuan 2018.02.14
      call conc_seperate(prof%source_O2, prof%O2_air, input%o2air, soil%o2, prof%O2_soil, prof%O2_disp, fact%o2)
 !    calculate ROC of each layer
-     prof%ROC_layer(1:ncl) = prof%source_O2(1:ncl)/prof%source_co2(1:ncl)
+     prof%ROC_layer(1:ncl) = abs(prof%source_O2(1:ncl)/prof%source_co2(1:ncl))
 !    print *, prof%ROC_layer
 !    call conc(prof%source_co2, prof%co2_air, input%co2air, soil%respiration_mole, fact%co2)
 

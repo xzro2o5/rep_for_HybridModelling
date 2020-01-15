@@ -116,11 +116,12 @@ CONTAINS
     INTEGER(i4) :: j
     REAL(wp) :: Tair_K_filtered ! temporary absolute air temperature
     REAL(wp) :: T_srf_K, T_srf_C ! surface temperatures in Kelvin and Centigrade
-    REAL(wp) :: H_sun, loutsun, Rn_sun, A_sun ! energy fluxes on sun leaves
+    REAL(wp) :: H_sun, loutsun, Rn_sun, A_sun! energy fluxes on sun leaves
     REAL(wp) :: H_shade, loutsh, Rn_shade, A_shade ! energy fluxes on shaded leaves
     REAL(wp) :: LE_leaf, LE_wet, H_leaf, lout_leaf
     REAL(wp) :: wj_leaf, wc_leaf, surface_rh, surface_vpd
     REAL(wp) :: rs_sun, rs_shade, A_mg, GPP, resp, internal_CO2, surface_CO2, chloroplast_CO2
+    REAL(wp) :: O_sun, O_shade, A_O2, resp_O2, resp_ROC ! leaf level oxygen flux in photosynthesis and dark respirations
     REAL(wp) :: csca, cica, ccca
     REAL(wp) :: fact_rs_sun, fact_rs_shd
 
@@ -143,9 +144,12 @@ CONTAINS
 !       prof%sun_rs_save(j) = rs_sun
 !       prof%sun_gs(j)      = one / rs_sun
        A_sun   = zero
+       O_sun   = zero
        A_mg    = zero
+       A_O2    = zero
        GPP     = zero
        resp    = zero
+       resp_O2 = zero
        internal_CO2    = prof%co2_air_filter(j)
        surface_CO2     = prof%co2_air_filter(j)
        chloroplast_CO2 = prof%co2_air_filter(j)
@@ -197,8 +201,8 @@ CONTAINS
  !print *, "rs_sun before ps:"
  !print *, rs_sun
              call photosynthesis(solar%quantum_sun(j), rs_sun, prof%ht(j), &
-                  prof%co2_air_filter(j), T_srf_K, LE_leaf, A_mg, GPP, &
-                  resp, internal_CO2, surface_CO2, chloroplast_CO2, cica, ccca, &
+                  prof%co2_air_filter(j), T_srf_K, LE_leaf, A_mg, A_O2, GPP, &
+                  resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, chloroplast_CO2, cica, ccca, &
                   surface_rh, surface_vpd, wj_leaf, wc_leaf, j)
           end if
           ! Assign values of function to the LE and H source/sink strengths
@@ -209,9 +213,15 @@ CONTAINS
           prof%sun_tleaf(j)     = T_srf_C
           loutsun               = lout_leaf ! long wave out
           Rn_sun                = solar%rnet_sun(j) - lout_leaf ! net radiation
-          !print *, Rn_sun, solar%rnet_sun(j) , lout_leaf
+!          if (j==40) then
+!          print *, "Rn_leaf,  net_leaf,    longwave_leaf",Rn_sun, solar%rnet_sun(j) , lout_leaf
+!          endif
           A_sun                 = A_mg ! leaf photosynthesis, mg CO2 m-2 s-1
+          O_sun                 = A_O2
           prof%sun_resp(j)      = resp ! respiration on sun leaves
+          prof%sun_resp_O2(j)   = resp_O2
+          prof%RQ_sun(j)        = 1/resp_ROC
+          prof%ROC_sun(j)       = resp_ROC
           prof%sun_gs(j)        = one / rs_sun ! stomatal conductance
           prof%sun_rs(j)        = rs_sun
           prof%sun_rs_filter(j) = prof%sun_rs(j)! filter should be updated because it is used in every iteration. Yuan 2018.09.13
@@ -225,6 +235,7 @@ CONTAINS
           prof%sun_wc(j)        = wc_leaf
           prof%sun_GPP(j)       = GPP ! micromolC m-2 s-1
           prof%sun_A(j)         = A_sun * 1000._wp / mass_CO2 ! micromolC m-2 s-1
+          prof%sun_psn_O2(j)    = O_sun
           prof%sun_rbh(j)       = bound_lay_res%heat
           prof%sun_rbv(j)       = bound_lay_res%vapor
           prof%sun_rbco2(j)     = bound_lay_res%co2
@@ -255,12 +266,12 @@ CONTAINS
        ! if (j==1 .or. j==40) print*, 'EC06.1 ', bound_lay_res%vapor, rs_shade, prof%wet_coef_filter(j)
        ! if (j==1 .or. j==40) print*, 'EC06 ', T_srf_K, LE_leaf, LE_wet
        ! if (j==1 .or. j==40) print*, 'EC07 ', H_leaf, lout_leaf
-       
+
        ! compute photosynthesis and stomatal conductance of shaded leaves
    !    if (prof%dLAIdz(j) > pai/ncl) then
         if (prof%dLAIdz(j) > zero) then
           call photosynthesis(solar%quantum_shd(j), rs_shade,prof%ht(j), prof%co2_air_filter(j), &
-               T_srf_K, LE_leaf, A_mg, GPP, resp, internal_CO2, surface_CO2, &
+               T_srf_K, LE_leaf, A_mg, A_O2, GPP, resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, &
                chloroplast_CO2, cica, ccca, surface_rh, surface_vpd, wj_leaf, wc_leaf, j)
       ! call energy_balance(solar%rnet_shd(j), T_srf_K, Tair_K_filtered, prof%rhov_air_filter(j,1), &
       !      bound_lay_res%vapor, rs_shade, LE_leaf, LE_wet, H_leaf, lout_leaf, &
@@ -276,10 +287,14 @@ CONTAINS
        prof%shd_wj(j)        = wj_leaf ! electron transport velocity, shaded leaves, micromol m-2 s-1
        prof%shd_wc(j)        = wc_leaf ! carboxylation velocity, shaded leaves, micromol m-2 s-1
        A_shade               = A_mg ! photosynthesis, shaded leaves, mgCO2 m-2 s-1
+       O_shade               = A_O2
        prof%shd_rh(j)        = surface_rh ! relative humidity at leaf surface (0 to 1)
        prof%shd_vpd(j)       = surface_vpd ! vapor pressure deficit at leaf surface (hPa)
        ! compute profiles
        prof%shd_resp(j)   = resp
+       prof%shd_resp_O2(j)   = resp_O2
+       prof%RQ_shd(j)        = 1/resp_ROC
+       prof%ROC_shd(j)       = resp_ROC
        prof%shd_tleaf(j)  = T_srf_C
        prof%shd_gs(j)     = one/rs_shade ! stomatal conductance, shaded leaf
        prof%shd_rs(j)     = rs_shade ! stomatal resistance, shaded leaf
@@ -289,6 +304,7 @@ CONTAINS
        prof%shd_gs_mol(j) = one/(prof%shd_rs(j)*fact_rs_shd*1.577_wp) ! convert to mol m-2 s-1 CO2
        prof%shd_GPP(j)    = GPP ! micromolC m-2 s-1
        prof%shd_A(j)      = A_shade*1000._wp/mass_CO2 ! micromolC m-2 s-1
+       prof%shd_psn_O2(j) = O_shade! net O2 flux in photosynthesis
        prof%shd_rbh(j)    = bound_lay_res%heat
        prof%shd_rbv(j)    = bound_lay_res%vapor
        prof%shd_rbco2(j)  = bound_lay_res%co2
@@ -302,14 +318,17 @@ CONTAINS
        ! prof%dLEdz_sun(j) = prof%dPAIdz(j) * solar%prob_beam(j) * &
        !     (prof%sun_LEstoma(j,1)+prof%sun_LEwet(j,1))
        ! scale transpiration with LAI but wet leaf evaperation with WAI, Yuan 2018.08.28
-       prof%dLEdz_sun(j) = prof%dLAIdz(j) * solar%prob_beam(j) * &
-            prof%sun_LEstoma(j,1)+ prof%dWAIdz(j) * solar%prob_beam(j)* prof%sun_LEwet(j,1)
+      ! prof%dLEdz_sun(j) = prof%dLAIdz(j) * solar%prob_beam(j) * &
+      !      prof%sun_LEstoma(j,1)+ prof%dWAIdz(j) * solar%prob_beam(j)* prof%sun_LEwet(j,1)
+        prof%dLEdz_sun(j) = prof%dLAIdz(j) * solar%prob_beam(j) * prof%sun_LEstoma(j,1)+ &
+                            prof%dLAIdz(j) * solar%prob_beam(j)* prof%sun_LEwet(j,1)
 
        !prof%dLEdz_shd(j) = prof%dPAIdz(j) * solar%prob_shd(j) * &
        !     (prof%shd_LEstoma(j,1)+prof%shd_LEwet(j,1))
-       prof%dLEdz_shd(j) = prof%dLAIdz(j) * solar%prob_shd(j) * &
-            prof%shd_LEstoma(j,1)+ prof%dWAIdz(j) * solar%prob_shd(j)* prof%shd_LEwet(j,1)
-
+  !     prof%dLEdz_shd(j) = prof%dLAIdz(j) * solar%prob_shd(j) * &
+  !          prof%shd_LEstoma(j,1)+ prof%dWAIdz(j) * solar%prob_shd(j)* prof%shd_LEwet(j,1)
+       prof%dLEdz_shd(j) = prof%dLAIdz(j) * solar%prob_shd(j) * prof%shd_LEstoma(j,1)+ &
+                           prof%dLAIdz(j) * solar%prob_shd(j)* prof%shd_LEwet(j,1)
        prof%dLEdz(j,1)   = prof%dLEdz_sun(j) + prof%dLEdz_shd(j)
                if ((prof%dLEdz(j,1)==0)) then
                 !debug%R1=rvsrf
@@ -325,17 +344,17 @@ CONTAINS
 
                end if
                ! H, radiation should be scaled with PAI
-               if (iswitch%wai_new==0) then
+      !         if (iswitch%wai_new==0) then
                     prof%dHdz(j)      = prof%dLAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
                     prof%dRNdz(j)     = prof%dLAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
                     prof%dLoutdz(j)   = prof%dLAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
-                else
-                    prof%dHdz(j)      = prof%dPAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
-                    prof%dRNdz(j)     = prof%dPAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
-                    prof%dLoutdz(j)   = prof%dPAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
+      !          else
+      !              prof%dHdz(j)      = prof%dPAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
+      !              prof%dRNdz(j)     = prof%dPAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
+      !              prof%dLoutdz(j)   = prof%dPAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
 
 
-               end if
+      !         end if
  !      prof%dHdz(j)      = prof%dLAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
        !print *, prof%dHdz(j)
  !      if (ISNAN(prof%dHdz(j)) ) then
@@ -354,6 +373,10 @@ CONTAINS
        prof%dPsdz_sun(j) = prof%dLAIdz(j) * prof%sun_A(j) * solar%prob_beam(j)
        prof%dPsdz_shd(j) = prof%dLAIdz(j) * prof%shd_A(j) * solar%prob_shd(j)
        prof%dPsdz(j)     = prof%dPsdz_sun(j) + prof%dPsdz_shd(j)
+       ! photosynthetic O2 per ground level:
+       prof%dPsdz_O2_sun(j) = prof%dLAIdz(j) * prof%sun_psn_O2(j) * solar%prob_beam(j)
+       prof%dPsdz_O2_shd(j) = prof%dLAIdz(j) * prof%shd_psn_O2(j) * solar%prob_shd(j)
+       prof%dPsdz_O2(j)     = prof%dPsdz_O2_sun(j) + prof%dPsdz_O2_shd(j)
        ! GPP of layer, prof%dGPPdz has units of micromoles m-2 s-1
        prof%dGPPdz_sun(j) = prof%dLAIdz(j) * prof%sun_GPP(j) * solar%prob_beam(j)
        prof%dGPPdz_shd(j) = prof%dLAIdz(j) * prof%shd_GPP(j) * solar%prob_shd(j)
@@ -362,6 +385,13 @@ CONTAINS
        prof%dRESPdz_sun(j) = prof%dLAIdz(j) * prof%sun_resp(j) * solar%prob_beam(j)
        prof%dRESPdz_shd(j) = prof%dLAIdz(j) * prof%shd_resp(j) * solar%prob_shd(j)
        prof%dRESPdz(j)     = prof%dRESPdz_sun(j) + prof%dRESPdz_shd(j)
+       ! O2 in dark respiration:
+       prof%dRESPdz_O2_sun(j) = prof%dLAIdz(j) * prof%sun_resp_O2(j) * solar%prob_beam(j)
+       prof%dRESPdz_O2_shd(j) = prof%dLAIdz(j) * prof%shd_resp_O2(j) * solar%prob_shd(j)
+       prof%dRESPdz_O2(j)     = prof%dRESPdz_O2_sun(j) + prof%dRESPdz_O2_shd(j)
+ !      print *, 'leaf resp:'
+ !      print *, prof%dRESPdz_sun(j)
+ !      print *, prof%dRESPdz_shd(j)
        ! prof%sun_gs has units of: m s-1
        ! prof%dStomCondz has units of: mol m-2 s-1
        prof%dStomCondz_sun(j) = prof%dLAIdz(j) * solar%prob_beam(j)*prof%sun_gs(j)
@@ -370,6 +400,11 @@ CONTAINS
        if ((prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j)) /= zero) then
           prof%wet_coef(j) = max(min(prof%cws(j,1) * fact%latent / (time%time_step * prof%dPAIdz(j) * &
                (prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j))) , one), zero)
+        !   prof%wet_coef(j) = max(min((time%time_step * prof%dLAIdz(j) * &
+        !       (prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j))/prof%cws(j,1) * fact%latent) , &
+        !       one), zero)
+!               print *, prof%wet_coef(j)
+
        else
           prof%wet_coef(j) = zero
        end if
@@ -377,7 +412,7 @@ CONTAINS
 
   END SUBROUTINE energy_and_carbon_fluxes
 
-  
+
   ! ------------------------------------------------------------------
   SUBROUTINE energy_balance(qrad, tsrfkpt, taa, rhovva, rvsrf, stomsrf, &
        lept, lewet, H_leafpt, lout_leafpt, wet_coef)
@@ -451,7 +486,11 @@ CONTAINS
     ! of water on the leaves.
     !  Coefficient for latent heat flux
     ke     = one/ (rvsrf + stomsrf) + wet_coef/rvsrf
+!    print *,"wet_coef",wet_coef
+ !   print *, "rvsrf + stomsrf:         ", rvsrf , stomsrf
     lecoef = met%air_density * 0.622_wp * fact%latent * ke / met%press_Pa
+ !   print *, "air_density, fact%latent,ke,press"
+ !   print *, met%air_density, fact%latent,ke,met%press_Pa
     ! Coefficients for sensible heat flux
     hcoef  = met%air_density*cp/bound_lay_res%heat
     hcoef2 = two * hcoef
@@ -476,6 +515,9 @@ CONTAINS
     ctlf    = -qrad + llout + n_stomata_sides * lecoef * vpd_leaf
     product = btlf * btlf - 4._wp * atlf * ctlf
     ! print*, 'EB04 ', lecoef, hcoef
+   ! print *, "c=:" ,ctlf
+!    print *, "lecoef , vpd_leaf:  ", lecoef , vpd_leaf
+!    print *, "-b:      ", -btlf,"sqrt:   ",sqrt(product)
     if (product >= zero) then
        tsrfkpt = tkta + (-btlf + sqrt(product)) / (two * atlf) ! [K]
     else
@@ -490,10 +532,12 @@ CONTAINS
          epsigma12 * tkta*tkta * (tsrfkpt-tkta)*(tsrfkpt-tkta)
     ! H is sensible heat flux
     H_leafpt    = hcoef2 * (tsrfkpt-tkta)
+!    print *, "H_coef,    tleaf-tair,      sensible heat"
+!    print *, hcoef2,(tsrfkpt-tkta),H_leafpt
     ! lept is latent heat flux through stomata
     ! ToDo for isotopes ! transpiration from second Taylor expansion
     !*lept = n_stomata_sides * met%air_density * 0.622 * fact%latent
-    !  / (met%press_Pa * (rvsrf + stomsrf)) 
+    !  / (met%press_Pa * (rvsrf + stomsrf))
     !  * (vpd_leaf + dest*(*tsrfkpt-tkta) + d2est/2.*(*tsrfkpt-tkta)*(*tsrfkpt-tkta))
     lept = n_stomata_sides * met%air_density * 0.622_wp * fact%latent / &
          (met%press_Pa * (rvsrf + stomsrf)) * (es(tsrfkpt)*100._wp-ea)
@@ -515,8 +559,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 
 
   ! ------------------------------------------------------------------
-  SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, &
-       GPPpt, resppt, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
+  SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, O_pt, &
+       GPPpt, resppt, resOppt, ROC_rd, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
        wjpnt, wcpnt, JJ)
     ! This program solves a cubic equation to calculate
     ! leaf photosynthesis. This cubic expression is derived from solving
@@ -628,8 +672,11 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp),    INTENT(IN) :: tlk
     REAL(wp),    INTENT(IN) :: leleaf
     REAL(wp),    INTENT(OUT) :: A_mgpt
+    REAL(wp),    INTENT(OUT) :: O_pt ! net photosynthetic O2 in umol m-2 leaf area s-2
     REAL(wp),    INTENT(OUT) :: GPPpt
     REAL(wp),    INTENT(OUT) :: resppt
+    REAL(wp),    INTENT(OUT) :: resOppt ! leaf dark respiration!
+    REAL(wp),    INTENT(OUT) :: ROC_rd ! ROC of leaf dark respiration!
     REAL(wp),    INTENT(OUT) :: cipnt
     REAL(wp),    INTENT(OUT) :: cspnt
     REAL(wp),    INTENT(OUT) :: ccpnt
@@ -644,7 +691,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: tprime25, bc, ttemp, gammac
     REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z
     REAL(wp) :: kct, ko, tau
-    REAL(wp) :: rd, rdz
+    REAL(wp) :: rd, rdz, rd_O2, RQ_rd!O2 in dark respiration
     REAL(wp) :: rb_mole, gb_mole, dd, b8_dd
     REAL(wp) :: rh_leaf, vpd_leaf, es_leaf, k_rh, ci_guess
     REAL(wp) :: j_photon, alpha_ps, bbeta, ggamma
@@ -652,7 +699,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: P2, P3, Q, R
     REAL(wp) :: root1, root2
     REAL(wp) :: root3, arg_U, ang_L
-    REAL(wp) :: aphoto, gpp, j_sucrose, wj
+    REAL(wp) :: aphoto, Ophoto, gpp, gpp_o2, j_sucrose, wj ! Ophoto:net phptosynthetic O2
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
     REAL(wp) :: ps_1,delta_1, Aquad1, Bquad1, Cquad1
     REAL(wp) :: theta_ps, wc, b_ps, a_ps, e_ps, psguess
@@ -677,6 +724,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     Qcube        = zero
     Rcube        = zero
     aphoto       = zero
+    Ophoto       = zero
+    RQ_rd        = zero
     gpp          = zero
     gs_leaf_mole = zero
     theta_ps     = zero
@@ -707,6 +756,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     kct = temp_func(kc25, ekc, tprime25, tk_25, tlk) ! mubar
     ko  = temp_func(ko25, eko, tprime25, tk_25, tlk) ! mbar
     tau = temp_func(tau25, ektau, tprime25, tk_25, tlk) ! dimensonless
+    ! leaf dark RQ as a function of leaf temperature
+    RQ_rd = -0.0147*(tlk-TN0)+1.24 !RQ=CO2/O2
     bc  = kct * (one + o2 / ko) ! mubar*(1+mbar/mbar) = mubar
     ! gammac is the CO2 compensation point due to photorespiration, umol mol-1
     ! Recalculate gammac with the new temperature dependent KO and KC
@@ -740,7 +791,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !          print *, htFrac, (1-htFrac)
        end if
        ! growing season, full Ps capacity (note newer data by Wilson et al shows more
-       ! dynamics      
+       ! dynamics
        if (time%days >= time%leaffull .and. time%days < time%leaffall) then
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac))
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac))
@@ -767,10 +818,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! collatz 1991 gives rd=0.015*vcmax
     ! Farqhuar 1980 gives rd=0.011*vcmax
     ! reduce respiration by 50% in light according to Amthor (might be less, see Pinelli and Loreto, 2003)
-    if (Iphoton > 10._wp) rdz = rdz * half !changed to 40% reduction ! >10 or >1?
+    if (Iphoton > 10.0_wp) rdz = rdz * half !changed to 40% reduction ! >10 or >1?
     ! apply temperature correction for rd at 25 deg C to leaf level temperature
     rd          = temp_func(rdz, erd, tprime25, tk_25, tlk)
-    prof%rd(JJ) = rd !store rd in gobal structure
     ! Apply temperature correction to JMAX and vcmax
     jmax  = tboltz(jmaxz, ejm, toptjm, tlk, hkin)
     vcmax = tboltz(vcmaxz, evc, toptvc, tlk, hkin)
@@ -902,6 +952,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        bprime_local   = bprime(JJ)
        bprime16_local = bprime(JJ)/1.577_wp
     end if
+    rd_O2       = rd/RQ_rd
+    prof%rd(JJ) = rd !store rd in gobal structure
+!    prof%rd_O2(JJ) =  rd_O2!store rd_O2 in gobal structure
     ! if wj or wc are less than rd then A would probably be less than zero. This would yield a
     ! negative stomatal conductance. In this case, assume gs equals the cuticular value. This
     ! assumptions yields a quadratic rather than cubic solution for A
@@ -991,6 +1044,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (minroot > zero .and. midroot > zero .and. maxroot > zero) aphoto = minroot
        if (minroot < zero .and. midroot < zero .and. maxroot > zero) aphoto = maxroot
        if (minroot < zero .and. midroot > zero .and. maxroot > zero) aphoto = midroot
+       ! Ophoto = aphoto * prof%ROC_leaf_air(JJ)
        ! Here A = x - p / 3, allowing the cubic expression to be expressed
        ! as: x^3 + ax + b = 0
        ! aphoto=root3 ! back to original assumption
@@ -1001,6 +1055,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        cs = cca - aphoto / gb_mole
        if (cs > 3._wp*cca) cs = input%co2air
        gpp = aphoto + rd
+       gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
+       Ophoto = gpp_o2 - rd_O2
        ! Stomatal conductance for water vapor
        ! forest are hypostomatous.
        ! Hence we don''t divide the total resistance
@@ -1052,6 +1108,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (Iphoton < one) then ! shortcut dark
           gpp    = zero
           aphoto = -rd
+
        else
           ps_1 = cca * gb_mole * gs_co2
           delta_1 = gs_co2 + gb_mole
@@ -1065,13 +1122,15 @@ debug%R4=es(tsrfkpt)*100._wp-ea
              aphoto = (-Bquad1 - sqrprod) / (two * Aquad1)
              ! Tests suggest that APHOTO2 is the correct photosynthetic root when
              ! light is zero because root 2, not root 1 yields the dark respiration
-             ! value rd.
+             ! value rd.)
           else
              aphoto = zero
           end if
           ! correct for gpp>0 - should only be numerical adjustments
           gpp = max(aphoto+rd, zero)
           aphoto = gpp-rd
+          gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
+          Ophoto = gpp_o2 - rd_O2
        end if
        cs = cca - aphoto / gb_mole
        ci = cs - aphoto / gs_co2
@@ -1084,8 +1143,11 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! compute photosynthesis with units of mg m-2 s-1 and pass out as pointers
     ! A_mg = APHOTO * 44 / 1000
     A_mgpt      = aphoto * mass_CO2 * e3
+    O_pt        = Ophoto ! units of umol m-2 s-1
     GPPpt       = gpp
-    resppt      = rd
+    resppt      = rd ! leaf dark respiration!
+    resOppt     = rd_O2
+    ROC_rd      = 1/RQ_rd
     cipnt       = ci
     cspnt       = cs
     ccpnt       = cc
@@ -1112,12 +1174,12 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp), PARAMETER :: fautleaf = 0.40_wp
     REAL(wp), PARAMETER :: ccost = 0.1_wp
     REAL(wp) :: zass   ! GPP of entire canopy layer
-    REAL(wp) :: zrd    ! dark respiration of leaves 
+    REAL(wp) :: zrd    ! dark respiration of leaves
     REAL(wp) :: zauto  ! autotrophic respiration of entire canopy
     REAL(wp) :: ztmp2d ! maintenace respiration
 
     zass   = zero   ! GPP of entire canopy layer
-    zrd    = zero   ! dark respiration of leaves 
+    zrd    = zero   ! dark respiration of leaves
     zauto  = zero  ! autotrophic respiration of entire canopy
     ztmp2d = zero ! maintenace respiration
     ! OLD
@@ -1139,11 +1201,11 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        else
           ! set soil reference temperature to modeled soil temperature in 5 cm, depending on switch set in parameter file
           soil%SR_ref_temp = soil%T_soil(4)
-       end if  
+       end if
        ! canisotope v3.1
        ! soil.respiration_mole = 0.71*exp(0.09*soil.SR_ref_temp)    !factor changed, orignal 0.11
        ! from Hainich soil respiration measurements
-       soil%respiration_mole = 0.83_wp * exp(0.11_wp*soil%SR_ref_temp)
+       soil%respiration_mole = 0.69_wp * exp(0.07_wp*soil%SR_ref_temp)!0.11,0.09,0.06
     end if
 
     if (iswitch%bethy_resp == 1) then

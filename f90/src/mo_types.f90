@@ -648,6 +648,17 @@ MODULE types
 
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: Gfunc_sky ! leaf-sky sector direction cosine function ! [ncl,nl]
      ! oxygen profiles Yuan 2018.01.17
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     sun_psn_O2! O2 in net psn, per leaf level
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     shd_psn_O2!
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     dPsdz_O2_sun! per ground level
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     dPsdz_O2_shd!
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     dPsdz_O2!
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     sun_resp_O2! O2 in net dark resp, per leaf level
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     shd_resp_O2!
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     dRESPdz_O2_sun! per ground level
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     dRESPdz_O2_shd!
+     REAL(wp), DIMENSION(:), ALLOCATABLE ::     dRESPdz_O2!
+
      REAL(wp), DIMENSION(:), ALLOCATABLE :: O2_air ! O2 concentration (ppm) ! [ntl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: O2_soil ! dispersion of soil O2 flux ! [ntl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: CO2_soil ! dispersion of soil CO2 flux ! [ntl]
@@ -656,12 +667,14 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: O2_air_filter ! filtered O2 concentration (ppm) ! [ntl] Yuan 2018.07.02
      REAL(wp), DIMENSION(:), ALLOCATABLE :: source_O2 ! source/sink strength of O2 ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: gpp_O2 ! gross O2 flux
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: rd_O2 ! dark leaf respiration [ncl]
+!     REAL(wp), DIMENSION(:), ALLOCATABLE :: rd_O2 ! dark leaf respiration [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_layer ! ROC  of the layer Yuan 2018.02.26
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_leaf_air !ROC during leaf-air O2 exchange [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_bole_air !ROC during bole-air O2 exchange [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_sun    ! respiratory quotient of sunlit leaves
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_shade    ! respiratory quotient of shaded leaves
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_shd    ! respiratory quotient of shaded leaves
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_sun    ! respiratory quotient of sunlit leaves
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_shd    ! respiratory quotient of shaded leaves
   END TYPE profile
 
 
@@ -1107,10 +1120,24 @@ CONTAINS
     if (.not. allocated(prof%O2_disp)) allocate(prof%O2_disp(ntl))
     if (.not. allocated(prof%CO2_disp)) allocate(prof%CO2_disp(ntl))
     if (.not. allocated(prof%source_O2)) allocate(prof%source_O2(ncl))
+    if (.not. allocated(prof%sun_psn_O2)) allocate(prof%sun_psn_O2(ncl))
+    if (.not. allocated(prof%shd_psn_O2)) allocate(prof%shd_psn_O2(ncl))
+    if (.not. allocated(prof%dPsdz_O2_sun)) allocate(prof%dPsdz_O2_sun(ncl))
+    if (.not. allocated(prof%dPsdz_O2_shd)) allocate(prof%dPsdz_O2_shd(ncl))
+    if (.not. allocated(prof%dPsdz_O2)) allocate(prof%dPsdz_O2(ncl))
+    if (.not. allocated(prof%sun_resp_O2)) allocate(prof%sun_resp_O2(ncl))
+    if (.not. allocated(prof%shd_resp_O2)) allocate(prof%shd_resp_O2(ncl))
+    if (.not. allocated(prof%dRESPdz_O2_sun)) allocate(prof%dRESPdz_O2_sun(ncl))
+    if (.not. allocated(prof%dRESPdz_O2_shd)) allocate(prof%dRESPdz_O2_shd(ncl))
+    if (.not. allocated(prof%dRESPdz_O2)) allocate(prof%dRESPdz_O2(ncl))
+
+
     if (.not. allocated(prof%gpp_O2)) allocate(prof%gpp_O2(ncl))
-    if (.not. allocated(prof%rd_O2)) allocate(prof%rd_O2(ncl))
+!    if (.not. allocated(prof%rd_O2)) allocate(prof%rd_O2(ncl))
     if (.not. allocated(prof%RQ_sun)) allocate(prof%RQ_sun(ncl))
-    if (.not. allocated(prof%RQ_shade)) allocate(prof%RQ_shade(ncl))
+    if (.not. allocated(prof%RQ_shd)) allocate(prof%RQ_shd(ncl))
+    if (.not. allocated(prof%ROC_sun)) allocate(prof%ROC_sun(ncl))
+    if (.not. allocated(prof%ROC_shd)) allocate(prof%ROC_shd(ncl))
     if (.not. allocated(prof%ROC_layer)) allocate(prof%ROC_layer(ncl))
     if (.not. allocated(prof%ROC_leaf_air)) allocate(prof%ROC_leaf_air(ncl))
     if (.not. allocated(prof%ROC_bole_air)) allocate(prof%ROC_bole_air(ncl))
@@ -1665,6 +1692,9 @@ CONTAINS
     prof%dPsdz = zero
     prof%dPsdz_sun = zero
     prof%dPsdz_shd = zero
+    prof%dPsdz_O2 = zero
+    prof%dPsdz_O2_sun = zero
+    prof%dPsdz_O2_shd = zero
     prof%dGPPdz = zero
     prof%dGPPdz_sun = zero
     prof%dGPPdz_shd = zero
@@ -1678,6 +1708,9 @@ CONTAINS
     prof%dRESPdz = zero
     prof%dRESPdz_sun = zero
     prof%dRESPdz_shd = zero
+    prof%dRESPdz_O2 = zero
+    prof%dRESPdz_O2_sun = zero
+    prof%dRESPdz_O2_shd = zero
     prof%dStomCondz = zero
     prof%dStomCondz_sun = zero
     prof%dStomCondz_shd = zero
@@ -1796,10 +1829,10 @@ CONTAINS
     prof%O2_disp = zero
     prof%CO2_disp = zero
     prof%gpp_O2 = zero
-    prof%rd_O2 = zero
+!    prof%rd_O2 = zero
     prof%ROC_layer = zero
     prof%RQ_sun = zero
-    prof%RQ_shade = zero
+    prof%RQ_shd = zero
     !prof%ROC_leaf_air = zero
     !prof%ROC_bole_air = zero
 

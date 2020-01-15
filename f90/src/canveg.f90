@@ -863,19 +863,21 @@ PROGRAM canveg
         ! Integrate source-sink strengths to estimate canopy flux
         sumh       = sum(prof%dHdz(1:ncl))       ! sensible heat
         sumle      = sum(prof%dLEdz(1:ncl,1))    ! latent heat
-!        print *, sumle
+!        print *, "canopy H and LE:"
+!        print *, sumh, sumle
         sumrn      = sum(prof%dRNdz(1:ncl))      ! net radiation
         sumlout    = sum(prof%dLoutdz(1:ncl))    ! radiation
         can_ps_mol = sum(prof%dPsdz(1:ncl))      ! canopy photosynthesis
         can_gpp    = sum(prof%dGPPdz(1:ncl))     ! canopy GPP = can_ps_mol + dark respiration
         can_gpp_o  = sum(prof%gpp_O2(1:ncl))     ! O2 emmision via gpp
         canresp    = sum(prof%dRESPdz(1:ncl))    ! canopy respiration
-        canresp_o  = sum(prof%rd_O2(1:ncl))      ! O2 via canopy respiration
+        canresp_o  = sum(prof%dRESPdz_O2(1:ncl))      ! O2 via canopy respiration
         sumksi     = sum(prof%dStomCondz(1:ncl)) ! canopy stomatal conductance
         sumlai     = sum(prof%dLAIdz(1:ncl))     ! leaf area
         sumpai     = sum(prof%dPAIdz(1:ncl))     ! use plant area Yuan 2018.03.04
 
-!        print*, 'T: ', i_count, prof%shd_tleaf(1), prof%shd_tleaf(40)
+ !       print*, 'T: ', i_count, prof%shd_tleaf(1), prof%shd_tleaf(40)
+! print *, i_count
         tleaf_mean = sum(prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &
              + sum(prof%shd_tleaf(1:ncl)*solar%prob_shd(1:ncl))    ! mean leaf temperature
         ztmp = one / real(ncl,wp)
@@ -905,6 +907,8 @@ PROGRAM canveg
         ! write(*,'(a,3f20.14)') 'CV50.15 ', tavg_sun, tavg_shd
 
         ebalance      = sumrn - sumle - sumh
+!        print *, 'energy balance:'
+!        print *, ebalance
         flux%photosyn = can_ps_mol
         ! write(*,'(a,3f20.14)') 'CV50.16 ', ebalance, flux%photosyn
         ! calculate gpp : can_ps_mol = photosynthesis - photorespiration
@@ -927,7 +931,8 @@ PROGRAM canveg
         ! canopy scale flux densities, vegetation plus soil
         sumh     = sumh + soil%heat
         sumle    = sumle + soil%evap
-!        print *, soil%evap
+!        print *, "soil heat:"
+!        print *, soil%heat, soil%evap, rnet_soil
         sumrn    = sumrn + rnet_soil
         sumlout  = sumlout + soil%lout
         temp3    = temp3 + soil%rnet
@@ -1017,7 +1022,9 @@ PROGRAM canveg
              + solar%beam_flux_nir(ncl+1) + solar%nir_dn(ncl+1) - solar%nir_up(ncl+1) &
              + solar%ir_dn(ncl+1) - solar%ir_up(ncl+1)
         ! write(*,'(a,3f20.14)') 'CV50.31 ', netrad
-
+!print *, "direct par:   ", solar%beam_flux_par(ncl+1)/4.6_wp
+!print *, "downward par:   ", solar%par_down(ncl+1)/4.6_wp
+!print *, "upward par:   ", solar%par_down(ncl+1)/4.6_wp
         ! test for convergence between the sum of the net radiation flux profile and the
         ! net flux exiting the canopy
         ! etest = abs((sumrn-netrad)/sumrn)
@@ -1026,7 +1033,8 @@ PROGRAM canveg
         etest_diff2 = etest_old2 - etest_old1
         etest_old2  = etest_old1
         etest_old1  = etest
-
+!        print *, "sumrn, netrd"
+!        print *, sumrn,netrad
         itest = zero
         if (iswitch%wiso==1 .and. wiso%implicit==1) &
              itest = delta1000_h2o(flux%evapotranspiration(2), flux%evapotranspiration(1), 2)
@@ -1041,8 +1049,9 @@ PROGRAM canveg
 
         i_count    = i_count + 1
         time%count = i_count
+!!        print *,time%count
         ! write(*,'(a,3i10)') 'CV50.36 ', time%count
-
+!write (*,*) i_count
         ! check for convergence
         ! if (etest <= 0.005_wp .or. i_count >= i_max) exit
         !MC if ((abs(etest_diff1) <= 0.001_wp .and. abs(etest_diff2) <= 0.001_wp &
@@ -1194,6 +1203,7 @@ end if
                 prof%cws(j,1) - (prof%sun_LEwet(j,1)*solar%prob_beam(j) &
                 + prof%shd_LEwet(j,1)*solar%prob_shd(j)) * prof%dLAIdz(j) &
                 / lambda(prof%tair_filter_save(j) + TN0) * time%time_step)
+!                print *, "canopy water storage", j, prof%cws(j,1)
            if (iswitch%wiso == 1) then
               ! No fractionation for interception evaporation
               prof%cws(j,2:nwiso) = rcws(2:nwiso) * prof%cws(j,1)
@@ -1259,7 +1269,7 @@ end if
         if (fc_mol == zero) then
             output%hourROC = zero ! Yuan added hourly ROC output 2018.05.07
         else
-            output%hourROC = sumneto/fc_mol
+            output%hourROC = abs(sumneto/fc_mol)
         end if
      end if
      ! 13C calculations
@@ -1504,7 +1514,7 @@ end if
            if (output%sumfc==zero) then
             output%sumROC = zero
            else
-            output%sumROC = output%sumneto/output%sumfc
+            output%sumROC = abs(output%sumneto/output%sumfc)
            end if
 
         end if

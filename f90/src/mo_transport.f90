@@ -67,6 +67,7 @@ CONTAINS
     end if
     nnu_T_P      = nnu * (1013._wp/input%press_mb) * (T_kelvin/TN0)**1.81_wp
     prof%u(jlay) = uz(zzz)
+!    print *, 'wind speed:    ',  prof%u(jlay)
     Re           = lleaf * prof%u(jlay) / nnu_T_P
     if (Re > zero) then
        Re5 = sqrt(Re)
@@ -98,12 +99,14 @@ CONTAINS
        Sh_heat    = Res_factor * non_dim%pr33
        Sh_vapor   = Res_factor * non_dim%sc33
        Sh_CO2     = Res_factor * non_dim%scc33
+!       print *, "turbulent"
     else
        Res_factor = 0.66_wp * Re5 * betfact
        ! laminar sublayer
        ! SH = .66 * Re5 * pr33*betfact
        ! SHV = .66 * Re5 * sc33*betfact
        ! SHCO2 = .66 * Re5 * scc33*betfact
+!       print *, "laminar, Re5=  ", Re5
        Sh_heat    = Res_factor * non_dim%pr33
        Sh_vapor   = Res_factor * non_dim%sc33
        Sh_CO2     = Res_factor * non_dim%scc33
@@ -122,6 +125,9 @@ CONTAINS
        Sh_vapor = non_dim%sc33 * GR25
        Sh_CO2   = non_dim%scc33 * GR25
     end if
+
+!    print *, "Re     ",  "Res_factor       ",  "convection      ",  "Sh_heat      "
+!    print *, Re,  Res_factor,  graf/(Re*Re),  Sh_heat
     ! Correct diffusivities for temperature and pressure
     ddh_T_P = ddh * (1013._wp/input%press_mb) * (T_kelvin/TN0)**1.81_wp
     ddv_T_P = ddv * (1013._wp/input%press_mb) * (T_kelvin/TN0)**1.81_wp
@@ -326,6 +332,9 @@ CONTAINS
     if (zh >= 0.11_wp) then
        factor = log((ht-zd)/z0)/vonKarman
        uh     = factor*met%ustar ! wind speed at canopy top
+!       print *, "height:   ", zzz
+!       print *, "ustar:   ", met%ustar, met%ustar_filter
+!       print *, "wind on top          ",    uh
        ! calculating attenuation factor results in very large values (>8) due to the height canopy.
        ! Measured values are typically around 2.5
        aa     = (attfac-1.5_wp)*time%lai/lai + 1.5_wp ! vary attenuation factor between 1.5 and attfac (from parameterfile)

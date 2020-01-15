@@ -349,7 +349,7 @@ CONTAINS
     ! C3 = (pow(C1,1.-soil%theta_s(i)) * pow(0.6,soil%theta(i,1)) - C2 )
     !   * soil%theta(i,1)/soil%theta_s(i) + C2
     ! soil%k_conductivity_soil(i) = C3 / (soil%z_soil(i+1) - soil%z_soil(i))
-    
+
     ! Last layer is different (not in Campbell (1985) who has an extra layer underneath the last soil layer)
     ! Take thickness of last soil layer instead of mean thickness of two layers
     ztmp1 = one / 2.65_wp
@@ -1413,7 +1413,8 @@ CONTAINS
        ! check if canopy water storage is at maximum
        if (prof%cws(i,1) > cws_max*prof%dLAIdz(i)) then
           drip                = prof%cws(i,1) -  cws_max * prof%dLAIdz(i)
-          prof%cws(i,1:nwiso) = rcws(1:nwiso) * (cws_max * prof%dLAIdz(i))
+         prof%cws(i,1:nwiso) = rcws(1:nwiso) * (cws_max * prof%dLAIdz(i))
+         !  prof%cws(i,1:nwiso) = cws_max * prof%dLAIdz(i)
        else
           drip = zero
        end if

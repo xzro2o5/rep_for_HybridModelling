@@ -25,7 +25,7 @@ MODULE parameters
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
-       ROC_leaf_in, ROC_bole_in, ROC_soil_in ! Yuan added ROC 2017.11.21 R_base1, R_base2, 2018.02.13
+       ROC_leaf_in, ROC_bole_in, ROC_soil_in, g0_mly_in, g1_mly_in ! Yuan added ROC 2017.11.21 R_base1, R_base2, 2018.02.13
 
   ! Derived parameters
   INTEGER(i4) :: izref     ! array value of reference height = measurement height*ncl/ht
@@ -324,6 +324,10 @@ MODULE parameters
   REAL(wp)           :: ROC_leaf_in ! O2: CO2 ratio for leaf net photosynthesis
   REAL(wp)           :: ROC_bole_in ! O2: CO2 ratio for bole respirations
   REAL(wp)           :: ROC_soil_in ! O2: CO2 ratio for soil respirations
+
+  ! Medlyn's stomatal model
+  REAL(wp)           :: g0_mly_in
+  REAL(wp)           :: g1_mly_in
   ! ------------------------------------------------------------------
 
 CONTAINS
@@ -612,6 +616,8 @@ CONTAINS
     ROC_leaf_in = 1._wp    ! O2: CO2 ratio for leaf net photosynthesis
     ROC_bole_in = 1.02_wp  ! O2: CO2 ratio for bole respirations
     ROC_soil_in = 1.1_wp   ! O2: CO2 ratio for soil respirations
+    g0_mly_in   = -0.044_wp ! slope of Medlyn's stomatal model
+    g1_mly_in   = 6.99_wp   !intercept of MEdlyn's model
 
   END SUBROUTINE ini_namelist
 
@@ -650,7 +656,8 @@ CONTAINS
          gravel_in, theta_in, wiso_nofracsoil, wiso_nofraclitter, wiso_nofracleaf, wiso_nofracin, wiso_implicit, merlivat, &
          theta1_in, theta2_in, theta3_in, extra_nate, nup, vc25_up, vc25_down, jm_vc_up, jm_vc_down, rd_vc_up, rd_vc_down, &
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
-         switch_oxygen, switch_wai_new, switch_tpu, ROC_leaf_in, ROC_bole_in, ROC_soil_in ! oxygen module; Yuan 2018.01.16
+         switch_oxygen, switch_wai_new, switch_tpu, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
+         g0_mly_in, g1_mly_in ! Medlyn's model
 
     call ini_namelist()
 !    print *, outdir
@@ -662,7 +669,8 @@ CONTAINS
        read(nnml, canctl)
     end select
     call close_nml()
-
+!print *, g1_mly_in
+!print *, switch_ball
     ! if outdir =="", use system time as folder name
     if (outdir =="") then
         call time_and_date_dir(outdir)
@@ -812,6 +820,13 @@ CONTAINS
        kball(nup:ncl)  = kball_up
        bprime(nup:ncl) = bprime_up
     end if
+
+    ! Medlyn's model:
+ !   if (extra_nate == 2) then
+ !      g0_mly = g0_mly_in
+ !      g1_mly = g1_mly_in
+
+ !   end if
 
     ! Variables per layer
     if (.not. allocated(jm25)) allocate(jm25(ncl))

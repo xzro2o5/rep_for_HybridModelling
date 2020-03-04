@@ -503,6 +503,7 @@ CONTAINS
  !   print *, met%air_density, fact%latent,ke,met%press_Pa
     ! Coefficients for sensible heat flux
     hcoef  = met%air_density*cp/bound_lay_res%heat
+    print *, cp
     hcoef2 = two * hcoef
     ! now LE is not directly calculated with the quadratic solution anymore,
     ! but we first solve for leaf temperature with a quadratic equation. Then we use
@@ -542,8 +543,8 @@ CONTAINS
          epsigma12 * tkta*tkta * (tsrfkpt-tkta)*(tsrfkpt-tkta)
     ! H is sensible heat flux
     H_leafpt    = hcoef2 * (tsrfkpt-tkta)
-!    print *, "H_coef,    tleaf-tair,      sensible heat"
-!    print *, hcoef2,(tsrfkpt-tkta),H_leafpt
+    print *, "H_coef,    tleaf-tair,      sensible heat"
+    print *, hcoef2,(tsrfkpt-tkta),H_leafpt
     ! lept is latent heat flux through stomata
     ! ToDo for isotopes ! transpiration from second Taylor expansion
     !*lept = n_stomata_sides * met%air_density * 0.622 * fact%latent
@@ -666,7 +667,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     USE parameters,   ONLY: kc25, ko25, tau25, o2, extra_nate, hkin, skin, &
          ekc, eko, ektau, jmopt, vcopt, htFrac, zh65, lai, evc, &
          toptvc, rd_vc, ejm, toptjm, kball, g0, a1, erd, &
-         D0, gm_vc, qalpha, curvature, bprime
+         D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in
     USE types,        ONLY: time, prof, met, bound_lay_res, srf_res, soil, &
          iswitch, output, input
     USE utils,        ONLY: temp_func, tboltz, es
@@ -721,6 +722,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: rt
     REAL(wp) :: gm
     REAL(wp) :: beta_ps, gamma_ps, delta_ps, epsilon_ps, zeta_ps, eta_ps
+    REAL(wp) :: g1_local !alpha_ps1, alpha_ps2,  ! Medlyn's stomatal model Yuan 2020.02.27
     REAL(wp) :: theta_soil
     REAL(wp) :: g0_local, a1_local, D0_local
 
@@ -762,6 +764,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ci           = one
     cc           = one
     tpu_coeff    = zero
+   ! alpha_ps1    = zero
+   ! alpha_ps2    = zero
+    g1_local     = zero
 
     rt       = rugc * tlk ! product of universal gas constant and abs temperature
     tprime25 = tlk - tk_25 ! temperature difference
@@ -1015,7 +1020,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        bbeta          = cca * (gb_mole * k_rh - two * bprime16_local - gb_mole)
        ggamma         = cca * cca * gb_mole * bprime16_local
        theta_ps       = gb_mole * k_rh - bprime16_local
-    else  ! for the Leuning Farquhar model based on Knohls analytical solution
+    else if (iswitch%ball == 1) then ! for the Leuning Farquhar model based on Knohls analytical solution
        alpha_ps   = 1/gm + 1/gb_mole
        beta_ps    = (D0_local+vpd_leaf)*gb_mole*(cca-gammac)
        gamma_ps   = a1_local*gb_mole*vpd_leaf
@@ -1031,6 +1036,17 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! zeta_ps = gm*gamma_ps+gb_mole*gamma_ps-alpha_ps
        bprime_local   = bprime(JJ)
        bprime16_local = bprime(JJ)/1.577_wp
+    else if (iswitch%ball == 2) then ! for Medlyn Farquar model based on Yuan's analytical solution
+        ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
+        g0_local = g0_mly_in/1.6_wp
+!        print *, g0_mly_in
+        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))!*1.6_wp
+   !     alpha_ps1      = g0_local + gb_mole - g1_local * gb_mole
+   !     alpha_ps2      = g0_local + gb_mole - g1_local * g0_local
+        alpha_ps       = g0_local + gb_mole - g1_local * gb_mole
+        bbeta          = cca * gb_mole * ( gb_mole * g1_local - two * g0_local - gb_mole)
+        ggamma         = cca * cca * gb_mole * gb_mole* g0_local
+        theta_ps       = gb_mole * gb_mole * g1_local - g0_local * gb_mole
     end if
     rd_O2       = rd/RQ_rd
     prof%rd(JJ) = rd !store rd in gobal structure
@@ -1055,7 +1071,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           Rcube = -a_ps * ggamma + a_ps * dd * (ggamma / cca) + e_ps * rd * ggamma + &
                rd * b_ps * ggamma / cca
           Rcube = Rcube/denom
-       else  ! for the Leuning Farquhar model based on Knohls analytical solution
+       else if (iswitch%ball == 1) then! for the Leuning Farquhar model based on Knohls analytical solution
           denom = -alpha_ps*e_ps*gamma_ps + alpha_ps*e_ps*g0_local*zeta_ps + e_ps*zeta_ps
           Pcube = alpha_ps*epsilon_ps*gamma_ps - alpha_ps*epsilon_ps*g0_local*zeta_ps - &
                alpha_ps*e_ps*g0_local*beta_ps - zeta_ps*epsilon_ps - &
@@ -1074,6 +1090,18 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           ! Qcube = Qcube/denom
           ! Rcube = delta_ps*beta_ps*cca*gb_mole
           ! Rcube = Rcube/denom
+       else if (iswitch%ball == 2) then ! Medlyn's stomatal model
+          denom = e_ps * alpha_ps
+          Pcube = (e_ps * bbeta + b_ps * theta_ps - a_ps * alpha_ps + e_ps * rd * alpha_ps)
+          Pcube = Pcube/denom
+          Qcube = e_ps * ggamma + (b_ps * ggamma / cca) - a_ps * bbeta + a_ps * dd * theta_ps + &
+                  e_ps * rd * bbeta + rd * b_ps * theta_ps
+          Qcube = Qcube/denom
+          Rcube = e_ps * rd * ggamma + a_ps * dd * (ggamma / cca) + b_ps * rd * (ggamma / cca) - &
+                  a_ps * ggamma
+
+          Rcube = Rcube/denom
+
        end if
        ! Use solution from Numerical Recipes from Press
        P2 = Pcube * Pcube
@@ -1148,8 +1176,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! by 2 since transfer is going on only one side of a leaf.
        if (iswitch%ball == 0) then
           gs_leaf_mole = (k_rh*1.577_wp * aphoto / cs) + bprime_local
-       else
+       else if(iswitch%ball == 1) then
           gs_leaf_mole = a1_local*1.577_wp*aphoto/((cs-dd)*(1+vpd_leaf/D0_local)) + g0_local*1.577_wp
+       else if (iswitch%ball == 2) then
+          gs_leaf_mole = g0_local + g1_local*aphoto/cs
        end if
        ! convert Gs from vapor to CO2 diffusion coefficient based on diffusivities in Massman (1998)
        gs_co2 = gs_leaf_mole / 1.577_wp
@@ -1161,9 +1191,12 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (iswitch%ball == 0) then
           wj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
           wc = vcmax * (ci - dd) / (ci + bc)
-       else
+       else if (iswitch%ball == 1) then
           wj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
           wc = vcmax * (cc - dd) / (cc + bc)
+       else if (iswitch%ball == 2) then
+          wj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
+          wc = vcmax * (ci - dd) / (ci + bc)
        end if
        if (iswitch%tpu == 1) then
         wj2 = j_photon * (ci - dd) / (4._wp * ci + (8_wp+16_wp*alpha_g+8_wp*alpha_s)*dd)

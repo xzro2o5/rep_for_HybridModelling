@@ -354,17 +354,17 @@ CONTAINS
 
                end if
                ! H, radiation should be scaled with PAI
-      !         if (iswitch%wai_new==0) then
+               if (iswitch%wai_new==0) then
                     prof%dHdz(j)      = prof%dLAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
                     prof%dRNdz(j)     = prof%dLAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
                     prof%dLoutdz(j)   = prof%dLAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
-      !          else
-      !              prof%dHdz(j)      = prof%dPAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
-      !              prof%dRNdz(j)     = prof%dPAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
-      !              prof%dLoutdz(j)   = prof%dPAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
+                else
+                    prof%dHdz(j)      = prof%dPAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
+                    prof%dRNdz(j)     = prof%dPAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
+                    prof%dLoutdz(j)   = prof%dPAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
 
 
-      !         end if
+               end if
  !      prof%dHdz(j)      = prof%dLAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
        !print *, prof%dHdz(j)
  !      if (ISNAN(prof%dHdz(j)) ) then
@@ -408,7 +408,7 @@ CONTAINS
        prof%dStomCondz_shd(j) = prof%dLAIdz(j) * solar%prob_shd(j)*prof%shd_gs(j)
        prof%dStomCondz(j)     = prof%dStomCondz_sun(j) + prof%dStomCondz_shd(j)
        if ((prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j)) /= zero) then
-          prof%wet_coef(j) = max(min(prof%cws(j,1) * fact%latent / (time%time_step * prof%dPAIdz(j) * &
+          prof%wet_coef(j) = max(min(prof%cws(j,1) * fact%latent / (time%time_step * prof%dLAIdz(j) * &
                (prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j))) , one), zero)
         !   prof%wet_coef(j) = max(min((time%time_step * prof%dLAIdz(j) * &
         !       (prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j))/prof%cws(j,1) * fact%latent) , &
@@ -503,7 +503,7 @@ CONTAINS
  !   print *, met%air_density, fact%latent,ke,met%press_Pa
     ! Coefficients for sensible heat flux
     hcoef  = met%air_density*cp/bound_lay_res%heat
-    print *, cp
+!    print *, cp
     hcoef2 = two * hcoef
     ! now LE is not directly calculated with the quadratic solution anymore,
     ! but we first solve for leaf temperature with a quadratic equation. Then we use
@@ -543,8 +543,8 @@ CONTAINS
          epsigma12 * tkta*tkta * (tsrfkpt-tkta)*(tsrfkpt-tkta)
     ! H is sensible heat flux
     H_leafpt    = hcoef2 * (tsrfkpt-tkta)
-    print *, "H_coef,    tleaf-tair,      sensible heat"
-    print *, hcoef2,(tsrfkpt-tkta),H_leafpt
+    !print *, "H_coef,    tleaf-tair,      sensible heat"
+    !print *, hcoef2,(tsrfkpt-tkta),H_leafpt
     ! lept is latent heat flux through stomata
     ! ToDo for isotopes ! transpiration from second Taylor expansion
     !*lept = n_stomata_sides * met%air_density * 0.622 * fact%latent
@@ -1036,7 +1036,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! zeta_ps = gm*gamma_ps+gb_mole*gamma_ps-alpha_ps
        bprime_local   = bprime(JJ)
        bprime16_local = bprime(JJ)/1.577_wp
-    else if (iswitch%ball == 2) then ! for Medlyn Farquar model based on Yuan's analytical solution
+    else if (iswitch%ball == 2) then ! for Medlyn Farquar model without mesophyll conductance
         ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
         g0_local = g0_mly_in/1.6_wp
 !        print *, g0_mly_in
@@ -1047,6 +1047,20 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         bbeta          = cca * gb_mole * ( gb_mole * g1_local - two * g0_local - gb_mole)
         ggamma         = cca * cca * gb_mole * gb_mole* g0_local
         theta_ps       = gb_mole * gb_mole * g1_local - g0_local * gb_mole
+        bprime_local   = g0_local
+        bprime16_local = g0_local/1.577_wp
+    else if (iswitch%ball == 3) then !Medlyn's model with mesophyll conductance
+    ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
+        g0_local = g0_mly_in/1.6_wp
+!        print *, g0_mly_in
+        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))!*1.6_wp
+        alpha_ps       = g0_local + gm - g1_local*gb_mole - gm*gb_mole + g0_local * gm/gb_mole
+        bbeta          = cca * (gm*gb_mole*g1_local-2*g0_local*gm-g0_local*gb_mole-gb_mole*gm)
+        ggamma         = cca * cca * gb_mole * gm* g0_local
+        theta_ps       = gb_mole * gm * g1_local - g0_local * gm
+        bprime_local   = g0_local
+        bprime16_local = g0_local/1.577_wp
+
     end if
     rd_O2       = rd/RQ_rd
     prof%rd(JJ) = rd !store rd in gobal structure

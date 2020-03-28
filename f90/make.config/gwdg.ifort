@@ -9,9 +9,12 @@
 #
 
 # Paths
-INTEL    := /opt/soft/all/intel/compilers_and_libraries_2018.0.128/linux/
+INTEL    := /cm/shared/apps/intel/compilers_and_libraries/2016.4.258
 INTELLIB := $(INTEL)/compiler/lib/intel64
+# /cm/shared/apps/intel/compilers_and_libraries/2016.4.258/compiler/lib/intel64
 INTELBIN := $(INTEL)/bin/intel64
+# /cm/shared/apps/intel/compilers_and_libraries/2016.4.258/bin/intel64
+
 
 # Compiling
 F90 := $(INTELBIN)/ifort

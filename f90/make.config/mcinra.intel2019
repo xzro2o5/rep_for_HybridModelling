@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 #
-# Setup file for Intel compiler 2015 at Jerome's MacBook Pro at INRA
+# Setup file for Intel compiler 2019 at Matthias' MacBook Pro at INRA
 #
 # This file is part of the JAMS Makefile system, distributed under the MIT License.
 #
@@ -9,9 +9,9 @@
 #
 
 # Paths
-INTEL    := /opt/intel/composer_xe_2015
+INTEL    := /opt/intel/compilers_and_libraries_2019/mac
 INTELBIN := $(INTEL)/bin
-INTELDIR := $(INTEL)
+INTELDIR := $(INTEL)/compiler
 # INTELINC := $(INTELDIR)/include/intel64
 INTELLIB := $(INTELDIR)/lib
 
@@ -31,7 +31,7 @@ else
 endif
 # -xHost displays on this Mac - ifort: command line remark #10382: option '-xHOST' setting '-xCORE-AVX2'
 # disable with -diag-disable=10382  ;   another remark (e.g. #9823) can be disabled with -diag-disable=10382,9823
-F90FLAGS += -fpp -nofixed -assume byterecl -fp-model precise -m64 -ip -xHost -diag-disable=10382 -no-save-temps
+F90FLAGS += -fpp -nofixed -assume byterecl -fp-model precise -m64 -ip -xHost -diag-disable=10382
 FCFLAGS  += -assume byterecl -cpp -fp-model precise -m64 -fixed -ip -xHost -diag-disable=10382
 CFLAGS   += -m64 -std=c99
 MODFLAG  := -module # space significant
@@ -66,26 +66,26 @@ else
     MKLFLAG := -lmkl_intel_lp64 -lmkl_core -lmkl_sequential #-lpthread
 endif
 MKLDEF := -D__MKL__
-MKL95DIR  :=
-MKL95LIB  := # $(MKL95DIR)/lib
-MKL95INC  := # $(MKL95DIR)/include/intel64/lp64
-MKL95FLAG := # -lmkl_lapack95_lp64
-MKL95DEF  := # -D__MKL95__
+MKL95DIR  := /opt/lib/mkl95_lapack/ifort
+MKL95LIB  := $(MKL95DIR)/lib
+MKL95INC  := $(MKL95DIR)/include/intel64/lp64
+MKL95FLAG := -lmkl_lapack95_lp64
+MKL95DEF  := -D__MKL95__
 
 # NETCDF
 ifeq ($(netcdf),netcdf3)
-    NCDIR  := /opt/local2/netcdf-3.6.3-ifort/
+    NCDIR  :=
     NCFLAG := -lnetcdff -lnetcdf
     NCDEF  := -D__NETCDF__ -D__NETCDF3__
 else
-    NCDIR    := /opt/local2/
+    NCDIR    := /usr/local
     NCFLAG   := -lnetcdf
     NCDEF    := -D__NETCDF__
-    NCFDIR   := /opt/local2/netcdf-fortran-4.4.4-ifort/
+    NCFDIR   := /usr/local/netcdf-fortran-4.4.5-ifort
     NCFFLAG  := -lnetcdff
-    HDF5LIB  := /opt/local2/lib
+    HDF5LIB  := /usr/local/lib
     HDF5FLAG := -lhdf5_hl -lhdf5
-    SZLIB    := /opt/local2/lib
+    SZLIB    := /usr/local/lib
     SZFLAG   := -lsz
     CURLLIB  := /usr/lib
     CURLFLAG := -lcurl
@@ -93,8 +93,8 @@ else
 endif
 
 # PROJ
-PROJ4DIR  :=
-PROJ4FLAG := #-lproj
+PROJ4DIR  := /usr/local/
+PROJ4FLAG := -lproj
 FPROJDIR  :=
 FPROJLIB  :=
 FPROJFLAG := #-lfproj4 $(FPROJLIB)/proj4.o
@@ -106,11 +106,15 @@ LAPACKFLAG := -framework Accelerate
 LAPACKDEF  := -D__LAPACK__
 
 # MPI
-OPENMPIDIR := 
-OPENMPIDEF := #-D__MPI__
+OPENMPIDIR := /usr/local/openmpi-3.1.5-ifort
+OPENMPIDEF := -D__MPI__
+
+# MPICH
+MPICHDIR :=
+MPICHDEF := -D__MPI__
 
 # Documentation
-DOXYGENDIR := #/Applications/Doxygen.app/Contents/Resources
-DOTDIR     := #/usr/local/bin
-TEXDIR     := #/Library/TeX/texbin
+DOXYGENDIR := /Applications/Doxygen.app/Contents/Resources
+DOTDIR     := /usr/local/bin
+TEXDIR     := /Library/TeX/texbin
 PERLDIR    := /usr/bin

@@ -184,12 +184,12 @@ LINKER   :=
 # Options
 # Systems: computer (system) name given during installation such as mcair for Matthias' MacBook Air, for example.
 # Look in $(MAKEDPATH) or type 'make info' for available computer systems.
-system   := mcinra
+system   := gwdg
 # Compiler: e.g. gnuX where X stands for version number, e.g. intel13;
 #   look at $(MAKEDPATH)/$(system).alias for shortcuts such as gnu for gnuX or type 'make info'
-compiler := gnu
+compiler := intel
 # Releases: debug, release, true (last two are equal)
-release  := debug
+release  := release
 # netCDF versions (Network Common Data Form): netcdf3, netcdf4, [anything else]
 netcdf   :=
 # LAPACK (Linear Algebra Pack): true, [anything else]
@@ -323,7 +323,11 @@ else
 endif
 
 # allow release=true and debug=true; debug comes from command line only and supercedes release
+releases := release debug
 irelease := $(if $(debug),debug,$(release:true=release))
+ifeq (,$(filter $(irelease),$(releases)))
+    $(error Error: release '$(irelease)' not in known releases: $(releases))
+endif
 
 # this makefile
 THISMAKEFILE := $(lastword $(MAKEFILE_LIST))
@@ -526,7 +530,7 @@ endif
 include $(MAKEINC)
 
 # Always use -DCFORTRAN for mixed C and Fortran compilations
-DEFINES += -DCFORTRAN
+DEFINES += -D__CFORTRAN__
 
 # Start group for cyclic search in static linking
 iLIBS :=
@@ -680,7 +684,7 @@ endif
 #
 
 ifeq ($(irelease),debug)
-    DEFINES += -DDEBUG
+    DEFINES += -D__DEBUG__
 endif
 
 # Mac OS X is special, there is (almost) no static linking; otherwise close static group
@@ -865,8 +869,9 @@ ifneq ($(LIBNAME),)
 endif
 ifneq ($(SRCPATH),)
 	rm -rf $(addsuffix /.$(strip $(icompiler)).$(strip $(irelease)),$(SRCPATH))
+	rm -f $(addsuffix /*make_check_test_file, $(SRCPATH))
+	rm -f $(addsuffix /*make_check_test_file, .)
 endif
-	rm -f *make_check_test_file
 
 cleanclean:
 	for irr in release debug ; do \
@@ -911,6 +916,7 @@ check:
 ifeq ($(PROGNAME),)
 	$(error Error: check and test must be done with given PROGNAME.)
 endif
+	isdir=${PWD} ; \
 	for i in $(shell ls -d $(CHECKPATH)/test* $(CHECKPATH)/check* 2> /dev/null) ; do \
 	    rm -f "$(PROGNAME)" ; \
 	    j=$$(echo $${i} | grep -E '(minpack|netcdf3|qhull)$$') ; \
@@ -926,7 +932,7 @@ endif
 	            *minpack) true ;; \
 	            *netcdf3) inetcdf= ; \
 	                      incextra="-I$${i}/../../netcdf3/.$(strip $(icompiler)).$(strip $(irelease))" ; \
-	                      defextra='-DNETCDF3' ;; \
+	                      defextra='-D__NETCDF3__' ;; \
 	            *qhull)   true ;; \
 	        esac ; \
 	        $(MAKE) -f $(THISMAKEFILE) -s \
@@ -943,7 +949,7 @@ endif
 	        netcdf=$${inetcdf} static=$(static) proj=$(proj) imsl=$(imsl) mkl=$(mkl) \
 	        lapack=$(lapack) openmp=$(openmp) \
 	        EXTRA_LIBS="$${libextra}" EXTRA_DEFINES="$${defextra}" EXTRA_INCLUDES="$${incextra}" > /dev/null \
-	    && { $(PROGNAME) 2>&1 | grep -E '(o\.k\.|failed)' ;} ; status=$$? ; \
+	    && { cd $${i} ; $(PROGNAME) 2>&1 | grep -E '(o\.k\.|failed)' ; cd - > /dev/null 2>&1 ;} ; status=$$? ; \
 	    if [ $${status} != 0 ] ; then echo "$${i} failed!" ; fi ; \
 	    $(MAKE) -f $(THISMAKEFILE) -s \
 	        MAKEDPATH=$(MAKEDPATH) SRCPATH="$${i}" PROGPATH=$(PROGPATH) \

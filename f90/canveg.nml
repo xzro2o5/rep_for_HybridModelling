@@ -1,225 +1,250 @@
-!         -*- Mode: F90 -*-        !
+! -*- Mode: F90 -*- !
 &CANCTL
-    workdir     = "."                      ! working directory
-    indir       = "../input"               ! location of input file
-    metinfile   = "2006input_eddy.dat"     ! met input file
-    laiinfile   = "2006laiinput_eddy.dat"  ! lai input file
-    wisoinfile  = "2006wisoinput_eddy.dat" ! wiso input fie
-    outdir      = "./output"               ! location of output files
-    outsuffix   = ".csv"                   ! output suffix
-    dispfile    = "DIJHainich._C"          ! location and name of disperion matrix
-    netcdf_in   = 0                        ! 1: input in netcdf; 0: input in ascii format
-    netcdf_out  = 0                        ! 1: output in netcdf; 0: output in ascii format
-    netcdf_disp = 0                        ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Model Set-up
-    year0                         = 2006       ! Year
-    start_run                     = 0010000 ! start of model run, [dddhhmm] > 0010030
-    end_run                       = 2732330 ! end of model run, [dddhhmm] < 3662400
-    start_profiles                = 0020000 ! start of profile output, [dddhhmm]
-    end_profiles                  = 0050000 ! end of profile output, [dddhhmm]
-    time_step                     = 3600.   ! time step between consecutive computation times
-    ! sets soil respiration reference temperature to
-    switch_soil_resp_temp         = 0          !  (1) input soil temperature  (0) modeled soil temperature at 5 cm
-    ! set coupled stomata-photosynthesis model to
-    !   (0) Ball Berry (Baldocchi analytical solution) or
-    !   (1) Leuning and mesophyll conductance (Knohl analytical solution)
-    switch_ball                   = 1          ! 
-    ! Isoprene
-    switch_isoprene               = 1          ! (1) calc isoprene ! (0) no isoprene
-    ! 13CO2
-    switch_d13c                   = 1          ! (1) calc d13C ! (0) no d13C
-    ! Water isotopes
-    switch_wiso                   = 1          ! (1) calc water isotopes ! (0) no water isotopes
-    ! How to determine autotrophic respiration
-    switch_bethy_resp             = 0          ! (1) from BETHY (Knorr 1997) (0) total = 50% auto + 50% hetero
-    ! Debug by not allowing condensation
-    switch_no_negative_water_flux = 0          ! (1) all water fluxes >= 0 ! (0) no restriction, <0 possible
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Ecosystem Set-up --- Basic Parameter
-    ! Site location = Mesita del Buey, NM, USA
-    latitude  = 35.85       ! latitude  N
-    longitude = 106.27      ! longitude E
-    ! Eastern Standard Time
-    zone      = 7.0         ! delay from GMT
-    ht        = 2.66        ! Canopy height [m]
-    pai       = 0.1         ! Plant area index [m2 m-2]
-    lai       = 2.99        ! Maximum leaf area index [m2 m-2]
-    vc25_in   = 45          ! carboxylation rate at 25 deg C, [umol m-2 s-1]
-    jm_vc_in  = 1.6         ! ratio jmax to vcmax, jmax = electron transport rate at 25 deg C, [umol m-2 s-1]
-    rd_vc_in  = 0.011       ! ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
-    ustar_ref = 1.          ! reference ustar for Dij [umol m-2 s-1]
-    ncl       = 40          ! canopy layers
-    nsky      = 16          ! # of sky angle classes 
-    nl        = 9           ! # of leaf angle classes
-    nsoil     = 10          ! # of soil layers (0: old Canoak formulation)
-    nbeta     = 5           ! # of levels for beta distribution of e.g. lai
-    ndaysc13  = 20          ! # of days to remember for mean 13C discrimination
-    nwiso     = 4           ! # of (isotopic) waters >= 1
-    zm        = 5.          ! measurement height
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Ecosystem Set-up --- Photosynthesis Parameter
-    ! Taken from Harley and Baldocchi (1995, PCE)
-    hkin      = 220000.0  ! hkin, enthalpy term, old 200000
-    skin      = 710.0     ! skin, entropy term
-    ejm       = 37000.0   ! ejm, activation energy for electron transport, old 55000
-    evc       = 37000.0   ! evc, activation energy for carboxylation, old 55000
-    !  Enzyme constants & partial pressure of O2 and CO2
-    !  Michaelis-Menten K values. From survey of literature.
-    kc25      = 260.0     ! kc25, ,kinetic coef for CO2 at 25 C,   microbars old = 274.6
-    ko25      = 179.0     ! ko25, kinetic coef for O2 at 25C,  millibars old = 419.8
-    o2        = 210.0     ! o2, oxygen concentration  umol mol-1
-    ! tau is computed on the basis of the Specificity factor (102.33)
-    ! times Kco2/Kh2o (28.38) to convert for value in solution to that based in air/
-    ! The old value was 2321.1. New value for Quercus robor from Balaguer et al. (1996)
-    tau25     = 2904.12   ! tau25, tau coefficient
-    ! Arrhenius constants
-    ! Eact for Michaelis-Menten const. for KC, KO and dark respiration
-    ! These values are from Harley
-    ekc       = 59356.0   ! ekc, Activation energy for K of CO2 ! J mol-1, old = 80500.0
-    eko       = 35948.0   ! eko, Activation energy for K of O2, old = 14500.0
-    erd       = 66400.0   ! erd, activation energy for dark respiration, eg Q10=2
-    ektau     = -23408.0  ! ektau, old = -29000
-    toptvc    = 311.      ! toptvc, optimum temperature for maximum carboxylation
-    toptjm    = 311.      ! toptjm, optimum temperature for maximum electron transport
-    ! curvature for light response function (ranges from 0 to 1)
-    curvature = 0.9
-    ! leaf quantum yield, electrons
-    qalpha    = 0.22
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Ecosystem Set-up --- Stomata Parameter
-    g0_in      = 0.001      ! g0, intercept of Leuning stomata model for water vapor [mol(H2O) m-2 s-1]
-    a1_in      = 7.         ! a1, slope of Leuning stomata model for water vapor [-]
-    D0_in      = 20.        ! Do, empirical coefficient for humidity sensitivity of Leuning stomata model [Pa]
-    gm_vc      = 0.004      ! ratio of mesophyll conductance to Vcmax [mol m-2 s-1]
-    fthreshold = 0.         ! threshold of plant available water below which stomata response to water stress
-    fslope     = 0.         ! slope of stomata response to water stress (should be: slope = 1/threshold)
-    kball_in   = 10.0       ! Ball-Berry stomatal coefficient for stomatal conductance
-    bprime_in  = 0.001      ! intercept of Ball-Berry model, mol m-2 s-1 ! intercept for H2O 0.0175
-    rsm        = 145.0      ! Minimum stomatal resistance, s m-1.
-    brs        = 60.0       ! curvature coeffient for light response
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Ecosystem Set-up --- Leaf Parameter
-    ep                   = 0.98  ! emissivity of leaves
-    n_stomata_sides      = 1     ! number of leaf sides with stomata (1) hypostomatous, (2) amphistomatous
-    ! multiplication factor for aerodynamic sheltering (based on work by Grace and Wilson)
-    betfact              = 1.5
-    markov               = 0.8   ! leaf clumping factor
-    ! Leaf dimension. geometric mean of length and width (m)
-    lleaf                = 0.1   ! leaf length, m
-    ! leaf development
-    leaf_out             = 0     ! start of leaf out
-    leaf_full            = 0     ! day of full leaves
-    leaf_fall            = 366   ! day of leaf fall
-    leaf_fall_complete   = 366   ! day of leaf fall end
-    ! Distribution
-    ! height of mid point of layer of lai_freq
-    ht_midpt_in          = 0.5,1.,1.5,2.,2.5,
-    ! fraction of total LAI per layer
-    lai_freq_in          = 0.30,0.25,0.21,0.14,0.10,
-    ! fraction of total PAI per layer
-    pai_freq_in          = 0.15,0.20,0.21,0.24,0.20,
-    ! optical properties of leaves and soil
-    !   1. date <= leafout || date >= leaf_fall_complete
-    !   2. date > leafout and date < fulleaf
-    !   3. date >= fulleaf and date <= leaf_fall
-    !   4. date > leaf_fall and date < leaf_fall_complete
-    par_reflect_in       = 0.30,0.09,0.15,0.09,
-    par_trans_in         = 0.00,0.06,0.06,0.06,
-    par_soil_refl_dry_in = 0.10,0.10,0.31,0.10,
-    nir_reflect_in       = 0.50,0.43,0.35,0.43,
-    nir_trans_in         = 0.00,0.26,0.26,0.26,
-    nir_soil_refl_dry_in = 0.10,0.10,0.35,0.10,
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Ecosystem Set-up --- Miscellanous Parameter
-    attfac = 2.5               ! attenuation factor for wind speed inside canopy
-    eabole = 45162             ! activation energy for bole respiration for Q10 = 2.02
-    ! Constants for leaf energy balance
-    epsoil = 0.98              ! epsoil, Emissivity of soil
-    ! Interception reservoir
-    water_film_thickness = 0.1 ! leaf water film thickness [mm m-2 LAI]
-    tau_water = 0.5            ! rain interception efficiency per m-2 LAI [0-1]
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- 13CO2 ---
-    !  d13C of heterotrophic soil respiration (= longterm) [per mil]
-    delta_soil = -26.6
-    da_m_day   = -24.85 ! slope of daytime regression deltaCa*Ca=m*Ca+b
-    da_b_day   = 6254.1 ! intercept of daytime regression deltaCa*Ca=m*Ca+b
-    da_m_night = -23.65 ! slope of nighttime regression deltaCa*Ca=m*Ca+b
-    da_b_night = 5778.1 ! intercept of nighttime regression deltaCa*Ca=m*Ca+b
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Litter ---
-    z_litter = 0.037    ! depth of litter layer [m] ! 0 = no litter
-    ! litter density - Hainich: annual litter=200 gC/m2 =400 gTG/m2 = 0.04 g/cm3
-    !                           for 1 cm litter height = 40 kg/m3
-    rho_l    = 40.
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Soil ---
-    saxton          = 1     ! (0) Clapp & Hornberger, (1) Saxton et al. for soil texture
-    ! rel. root distribution calculated with Jackson et al. (Oecologia, 1996)
-    root_factor     = 0.964 ! Jackson''s gamma
-    clay_factor     = 1.    ! clay factor
-    sand_factor     = 1.    ! sand factor
-    ! soil layer depth (layer boundaries) [m]
-    z_soil_in       = 0.0,0.037,0.086,0.153,0.243,0.365,0.529,0.751,1.050,1.454,2.000,
-    ! soil bulk density profile
-    bulk_density_in = 1.0,1.0,1.0,1.0,1.1,1.1,1.2,1.3,1.4,1.4,
-    clay_in         = 15.,15.,15.,15.,15.,15.,15.,15.,15.,15.,   ! clay content in each layer
-    sand_in         = 35.,35.,35.,35.,35.,35.,35.,35.,35.,35.,   ! sand content in each layer
-    om_in           = 0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,   ! Organic matter [%]
-    gravel_in       = 0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,    ! Volumetric Gravel fraction
-    ! initial values for soil water content [fraction]
-    theta_in        = 0.12,0.12,0.12,0.12,0.12,0.12,0.13,0.13,0.13,0.14,
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Water Isotopes ---
-    ! For water isotope test purposes
-    ! (0) normal soil water isotope fractionation ! (1) test code with no fractionation during soil evaporation
-    wiso_nofracsoil   = 0   ! 
-    ! (0) normal litter water isotope fractionation ! (1) test code with no fractionation during litter evaporation
-    wiso_nofraclitter = 0   ! 
-    ! (0) normal leaf water isotope fractionation ! (1) test code with no fractionation during leaf transpiration
-    wiso_nofracleaf   = 0   ! 
-    ! (0) normal rain water isotopes ! (1) test code with rain water isotopes same as initial soil water isotopes
-    wiso_nofracin     = 0   ! 
-    ! Calc water isotopes iteratively in loop or just once after the
-    ! normal water iteration loop: (0) Once ! (1) In loop
-    wiso_implicit     = 1   ! 
-    merlivat          = 0   ! (0) Cappa et al., (1) Merlivat kinetic fractionation factors
-    theta1_in         = -2.,-2.,-2.,-2.,-2.,-2.,-2.,-2.,-2.,-2., ! delta-18O initial values
-    theta2_in         = -10.,-10.,-10.,-10.,-10.,-10.,-10.,-10.,-10.,-10.,! delta-2H initial values
-    theta3_in         = 0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,  ! delta-16O initial values
-    ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-    ! --- Special Nate McDowell Section ---
-    ! Physiological parameters for upper canopy and understory
-    ! On/Off: (0) 'normal' CanVeg, (1) special understory etc. treatment for Nate McDowell''s New Mexico site
-    extra_nate  = 1
-    ! Level at which starts upper canopy, i.e. below is understory
-    nup         = 9
-    ! Photosynthesis
-    ! Vcmax(25C) carboxylation rate at 25°C, [umol m-2 s-1]
-    vc25_up     = 35.   ! upper canopy
-    vc25_down   = 35.   ! understory
-    ! Jmax/Vcmax(25C) ratio of jmax to vcmax at 25 deg C, jmax = electron transport rate at 25 deg C, [umol m-2 s-1] 
-    jm_vc_up    = 1.6   ! upper canopy
-    jm_vc_down  = 1.6   ! understory
-    ! Rd/Vcmax ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
-    rd_vc_up    = 0.020 ! upper canopy
-    rd_vc_down  = 0.020 ! understory
-    ! Stomata - Leunig
-    ! g0, intercept of Leuning stomata model for water vapor [mol(H2O) m-2 s-1]
-    g0_up       = 0.001 ! upper canopy
-    g0_down     = 0.001 ! understory
-    ! a1, slope of Leuning stomata model for water vapor [-] 
-    a1_up       = 4.    ! upper canopy
-    a1_down     = 7.    ! understory
-    ! Do, empirical coefficient for humidity sensitivity of Leuning stomata model [Pa]
-    D0_up       = 20.   ! upper canopy
-    D0_down     = 20.   ! understory
-    ! Stomata - Ball-Berry
-    ! Ball-Berry stomatal coefficient for stomatal conductance, kball [-]
-    kball_up    = 7.    ! upper canopy
-    kball_down  = 10.   ! understory
-    ! intercept of Ball-Berry model, (mol(H2O) m-2 s-1), bprime, intercept for H2O
-    bprime_up   = 0.001 ! upper canopy
-    bprime_down = 0.001 ! understory
+workdir = "." ! working directory
+indir = "./input2012"!"./inputiso" ! location of input file
+metinfile = "gf_fp_2012.dat"!"MMeteoDataForYuanLF2016.dat" !"MM2016.dat" ! met input file
+laiinfile = "2006laiinput_eddy.dat" ! lai input file
+wisoinfile = "wisoinput2016gf.dat" ! wiso input fie
+outdir = "output9715" ! location of output files
+outsuffix = ".csv" ! output suffix “./output”
+dispfile = "DIJHainich._C" ! location and name of disperion matrix
+netcdf_in = 0 ! 1: input in netcdf; 0: input in ascii format
+netcdf_out = 0 ! 1: output in netcdf; 0: output in ascii format
+netcdf_disp = 0 ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Model Set-up
+year0 = 2012 ! Year
+start_run = 0010100!1452000!1321600!1861200!2210800 ! start of model run, [dddhhmm] > 0010100
+end_run =3662400!1452000!1321600!1452000!3662400! end of model run, [dddhhmm] <3662400
+start_profiles = 0010100!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
+end_profiles =3662400!1452000!1321600!1452000!3662400! end of profile output, [dddhhmm]
+! start_run = 1262000 ! start of model run, [dddhhmm] > 0010100
+! end_run = 1262100 ! end of model run, [dddhhmm] <3662400
+! start_profiles = 1262000 ! start of profile output, [dddhhmm]
+! end_profiles = 1262100 ! end of profile output, [dddhhmm]
+time_step = 3600. ! time step between consecutive computation times
+! sets soil respiration reference temperature to
+switch_soil_resp_temp = 1 ! (1) input soil temperature (0) modeled soil temperature at 5 cm
+! set coupled stomata-photosynthesis model to
+! (0) Ball Berry (Baldocchi analytical solution) or
+! (1) Leuning and mesophyll conductance (Knohl analytical solution)
+switch_ball = 0 !
+! Isoprene
+switch_isoprene = 0 ! (1) calc isoprene ! (0) no isoprene
+! 13CO2
+switch_d13c = 0 ! (1) calc d13C ! (0) no d13C
+! Water isotopes
+switch_wiso = 0 ! (1) calc water isotopes ! (0) no water isotopes
+! How to determine autotrophic respiration
+switch_bethy_resp = 0 ! (1) from BETHY (Knorr 1997) (0) total = 50% auto + 50% hetero
+! Debug by not allowing condensation
+switch_no_negative_water_flux = 0 ! (1) all water fluxes >= 0 ! (0) no restriction, <0 possible
+
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Ecosystem Set-up --- Basic Parameter
+! Site location = Leinefelde, Germany
+latitude = 51.33 ! latitude N
+longitude = 10.37 ! longitude E
+! range of parameter change, for sensitivity analysis
+!perc_up = 1.0 ! 1.1 means 10% up
+!perc_dn = 0.9 ! 10% down
+! Eastern Standard Time
+zone = -1.0 ! delay from GMT
+ht = 34.0 ! Canopy height [m]
+htFrac = 0.65 ! zh65 = htFrac/ht; Yuan 2018.02.21
+pai = 1.06 ! Plant area index [m2 m-2] 1.1???
+lai = 4.8 ! Maximum leaf area index [m2 m-2] 5.5???
+wai = 1.06 ! wood area index, PAI = WAI +LAI, YUAN 2018.03.01
+vc25_in = 96.3 ! carboxylation rate at 25 deg C, [umol m-2 s-1] -2.94244056713017.3
+jm_vc_in = 2 ! ratio jmax to vcmax, jmax = electron transport rate at 25 deg C, [umol m-2 s-1] 0.011
+rd_vc_in = 0.015 ! ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
+ustar_ref = 1. ! reference ustar for Dij [umol m-2 s-1]
+ncl = 40 ! canopy layers
+nsky = 16 ! # of sky angle classes
+nl = 9 ! # of leaf angle classes
+nsoil = 9 ! # of soil layers (0: old Canoak formulation)
+nbeta = 5 ! # of levels for beta distribution of e.g. lai
+nbeta_w = 9 ! # of levels for beta distribution of wai
+ndaysc13 = 22 ! # of days to remember for mean 13C discrimination
+nwiso = 4 ! # of (isotopic) waters >= 1
+zm = 45. ! measurement height
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Ecosystem Set-up --- Photosynthesis Parameter
+! Taken from Harley and Baldocchi (1995, PCE)
+hkin = 220000.0 ! hkin, enthalpy term, old 200000
+skin = 710.0 ! skin, entropy term
+ejm = 37000.0 ! ejm, activation energy for electron transport, old 55000
+evc = 37000.0 ! evc, activation energy for carboxylation, old 55000
+! Enzyme constants & partial pressure of O2 and CO2
+! Michaelis-Menten K values. From survey of literature.
+kc25 = 260.0 ! kc25, ,kinetic coef for CO2 at 25 C, microbars old = 274.6
+ko25 = 179.0 ! ko25, kinetic coef for O2 at 25C, millibars old = 419.8
+o2 = 210.0 ! o2, oxygen concentration umol mol-1
+! tau is computed on the basis of the Specificity factor (102.33)
+! times Kco2/Kh2o (28.38) to convert for value in solution to that based in air/
+! The old value was 2321.1. New value for Quercus robor from Balaguer et al. (1996)
+tau25 = 3000! 2904.12 ! tau25, tau coefficient
+! Arrhenius constants
+! Eact for Michaelis-Menten const. for KC, KO and dark respiration
+! These values are from Harley
+ekc = 59356.0 ! ekc, Activation energy for K of CO2 ! J mol-1, old = 80500.0
+eko = 35948.0 ! eko, Activation energy for K of O2, old = 14500.0
+erd = 66400.0 ! erd, activation energy for dark respiration, eg Q10=2
+ektau = -23408.0 ! ektau, old = -29000
+toptvc = 311. ! toptvc, optimum temperature for maximum carboxylation
+toptjm = 311. ! toptjm, optimum temperature for maximum electron transport
+! curvature for light response function (ranges from 0 to 1)
+curvature = 0.9
+! leaf quantum yield, electrons
+qalpha = 0.292
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Ecosystem Set-up --- Stomata Parameter
+g0_in = 0.001 ! g0, intercept of Leuning stomata model for water vapor [mol(H2O) m-2 s-1]
+a1_in = 10. ! a1, slope of Leuning stomata model for water vapor [-]
+D0_in = 8. ! Do, empirical coefficient for humidity sensitivity of Leuning stomata model [Pa]
+gm_vc = 0.008 ! ratio of mesophyll conductance to Vcmax [mol m-2 s-1] 0.004
+fthreshold = 0.65 ! threshold of plant available water below which stomata response to water stress
+fslope = 0. ! slope of stomata response to water stress (should be: slope = 1/threshold)
+kball_in = 11!8.5!8.5!6.8!7!8!9.5!11 ! Ball-Berry stomatal coefficient for stomatal conductance
+bprime_in = 0.0175!0.0175!0.022!0.01!0.0175 ! intercept of Ball-Berry model, mol m-2 s-1 ! intercept for H2O 0.0225476868954421
+rsm = 145.0 ! Minimum stomatal resistance, s m-1.
+brs = 60.0 ! curvature coeffient for light response
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Ecosystem Set-up --- Leaf Parameter
+ep = 0.98 ! emissivity of leaves
+n_stomata_sides = 1 ! number of leaf sides with stomata (1) hypostomatous, (2) amphistomatous
+! multiplication factor for aerodynamic sheltering (based on work by Grace and Wilson)
+betfact = 1.5
+markov = 0.79 ! leaf clumping factor
+! Leaf dimension. geometric mean of length and width (m)
+lleaf = 0.1 ! leaf length, m
+! leaf development
+leaf_out = 110 ! start of leaf out
+leaf_full = 130 ! day of full leaves
+leaf_fall = 282 ! day of leaf fall
+leaf_fall_complete = 320 ! day of leaf fall end
+! Distribution
+! height of mid point of layer of lai_freq
+ht_midpt_in = 7.5,17,28,32.5,37.5, ! origin:7.5,17,28,32.5,37.5,
+! height of mid point of layer of lai_freq
+! fraction of total LAI per layer
+lai_freq_in = 0,0.04,0.66,0.2,0.1, ! origin: 0,0.04,0.66,0.2,0.1,
+! fraction of total PAI per layer
+pai_freq_in = 0.4,0.11,0.49,0.2,0.1,
+! fraction of total WAI per layer
+wai_freq_in = 0.08,0.24,0.18,0.17,0.1,0.07,0.07,0.06,0.03, ! Yuan added 2018.04.23
+wai_midpt_in = 32.2, 30.4, 28.5, 26.7, 24.9, 23, 21.2, 17.5, 15.7, !34, 32.2, 30.4, 28.5, 26.7, 24.9, 23, 21.2, 17.5, ! Yuan added 2018.04.23
+! optical properties of leaves and soil
+! 1. date <= leafout || date >= leaf_fall_complete
+! 2. date > leafout and date < fulleaf
+! 3. date >= fulleaf and date <= leaf_fall
+! 4. date > leaf_fall and date < leaf_fall_complete
+par_reflect_in = 0.30,0.09,0.15,0.09,!0.30,0.09,0.057,0.09, !0.30,0.09,0.15,0.09,
+par_trans_in = 0.00,0.06,0.06,0.06,!0.00,0.06,0.048,0.06, !0.00,0.06,0.06,0.06,
+par_soil_refl_dry_in = 0.10,0.10,0.31,0.10,!0.10,0.10,0.10,0.10, !0.10,0.10,0.31,0.10,
+nir_reflect_in = 0.50,0.43,0.35,0.43,!0.50,0.43,0.43,0.43, !0.50,0.43,0.35,0.43,
+nir_trans_in = 0.00,0.26,0.26,0.26,!0.00,0.26,0.26,0.26, !0.00,0.26,0.26,0.26,
+nir_soil_refl_dry_in = 0.10,0.10,0.35,0.10,!0.10,0.10,0.10,0.10, !0.10,0.10,0.35,0.10,
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Ecosystem Set-up --- Miscellanous Parameter
+attfac = 2.5 ! attenuation factor for wind speed inside canopy
+eabole = 45162 ! activation energy for bole respiration for Q10 = 2.02
+R_base1 = 0.43 ! base rate for bole respiration, R1 R2 for growing and non-growing season, Yuan 2018.02.13
+R_base2 = 0.259
+! Constants for leaf energy balance
+epsoil = 0.98 ! epsoil, Emissivity of soil
+! Interception reservoir
+water_film_thickness = 0.1 ! leaf water film thickness [mm m-2 LAI]
+tau_water = 0.5 ! original 0.5, rain interception efficiency per m-2 LAI [0-1]
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- 13CO2 ---
+! d13C of heterotrophic soil respiration (= longterm) [per mil]
+delta_soil = -26.6
+da_m_day = -24.85 ! slope of daytime regression deltaCa*Ca=m*Ca+b
+da_b_day = 6254.1 ! intercept of daytime regression deltaCa*Ca=m*Ca+b
+da_m_night = -23.65 ! slope of nighttime regression deltaCa*Ca=m*Ca+b
+da_b_night = 5778.1 ! intercept of nighttime regression deltaCa*Ca=m*Ca+b
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Litter ---
+z_litter = 0.05 ! depth of litter layer [m] ! 0 = no litter
+! litter density - Hainich: annual litter=200 gC/m2 =400 gTG/m2 = 0.04 g/cm3
+! for 1 cm litter height = 40 kg/m3
+rho_l = 40.
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Soil ---
+saxton = 1 ! (0) Clapp & Hornberger, (1) Saxton et al. for soil texture
+! rel. root distribution calculated with Jackson et al. (Oecologia, 1996)
+root_factor = 0.964 ! Jackson''s BETA!!! 0.966 FOR TEM-DECIDUCSIOUS original 0.964
+clay_factor = 1. ! clay factor
+sand_factor = 1. ! sand factor
+! soil layer depth (layer boundaries) [m]
+z_soil_in = 0.0,0.025,0.075,0.125,0.175,0.225,0.275,0.35,0.455,0.605,
+! soil bulk density profile
+bulk_density_in = 0.985,1.112,1.428,1.244,1.435,1.282,1.433,1.771,1.544,
+clay_in = 37,37,36,36,36,43,43,43,44, ! clay content in each layer
+sand_in = 3,3,4,4,3,5,5,5,17, ! sand content in each layer
+om_in = 2.88,1.28,1,0.85,0.75,0.57,0.51,0.72,0.7, ! Organic matter [%]
+gravel_in = 0.0,0.0,0.0,0.0,0.0,0.0,0.0,33.6,33.2, ! Volumetric Gravel fraction
+! initial values for soil water content [fraction]
+theta_in = 0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Water Isotopes ---
+! For water isotope test purposes
+! (0) normal soil water isotope fractionation ! (1) test code with no fractionation during soil evaporation
+wiso_nofracsoil = 0 !
+! (0) normal litter water isotope fractionation ! (1) test code with no fractionation during litter evaporation
+wiso_nofraclitter = 0 !
+! (0) normal leaf water isotope fractionation ! (1) test code with no fractionation during leaf transpiration
+wiso_nofracleaf = 0 !
+! (0) normal rain water isotopes ! (1) test code with rain water isotopes same as initial soil water isotopes
+wiso_nofracin = 0 !
+! Calc water isotopes iteratively in loop or just once after the
+! normal water iteration loop: (0) Once ! (1) In loop
+wiso_implicit = 0 !
+merlivat = 0 ! (0) Cappa et al., (1) Merlivat kinetic fractionation factors
+theta1_in = -7.44,-7.44,-7.44,-7.44,-7.44,-7.44,-7.44,-7.44,-7.44,-7.44, ! delta-18O initial values
+theta2_in = -60.,-60.,-60.,-60.,-60.,-60.,-60.,-60.,-60.,-60.,! delta-2H initial values
+theta3_in = 0.,0.,0.,0.,0.,0.,0.,0.,0.,0., ! delta-16O initial values
+! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+! --- Special Nate McDowell Section ---
+! Physiological parameters for upper canopy and understory
+! On/Off: (0) 'normal' CanVeg, (1) special understory etc. treatment for Nate McDowell''s New Mexico site
+extra_nate = 0
+! Level at which starts upper canopy, i.e. below is understory
+nup = 9
+! Photosynthesis
+! Vcmax(25C) carboxylation rate at 25°C, [umol m-2 s-1]
+vc25_up = 35. ! upper canopy
+vc25_down = 35. ! understory
+! Jmax/Vcmax(25C) ratio of jmax to vcmax at 25 deg C, jmax = electron transport rate at 25 deg C, [umol m-2 s-1]
+jm_vc_up = 1.6 ! upper canopy
+jm_vc_down = 1.6 ! understory
+! Rd/Vcmax ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
+rd_vc_up = 0.020 ! upper canopy
+rd_vc_down = 0.020 ! understory
+! Stomata - Leunig
+! g0, intercept of Leuning stomata model for water vapor [mol(H2O) m-2 s-1]
+g0_up = 0.001 ! upper canopy
+g0_down = 0.001 ! understory
+! a1, slope of Leuning stomata model for water vapor [-]
+a1_up = 4. ! upper canopy
+a1_down = 7. ! understory
+! Do, empirical coefficient for humidity sensitivity of Leuning stomata model [Pa]
+D0_up = 20. ! upper canopy
+D0_down = 20. ! understory
+! Stomata - Ball-Berry
+! Ball-Berry stomatal coefficient for stomatal conductance, kball [-]
+kball_up = 7. ! upper canopy
+kball_down = 10. ! understory
+! intercept of Ball-Berry model, (mol(H2O) m-2 s-1), bprime, intercept for H2O
+bprime_up = 0.001 ! upper canopy
+bprime_down = 0.001 ! understory
+!***************************************************
+! ROC for oxygen module
+!***************************************************
+switch_oxygen = 1 ! if activate ROC calculation
+switch_wai_new = 1 ! 1: to use Yuan's wai distr
+ROC_leaf_in = 1
+ROC_bole_in = 1.37
+ROC_soil_in = 1.1
 /

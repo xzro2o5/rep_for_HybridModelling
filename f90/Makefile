@@ -167,7 +167,7 @@ SHELL = /bin/bash
 
 # . is current directory, .. is parent directory
 SRCPATH    := src                # where are the source files; whitespace separated list
-PROGPATH   := .                  # where shall be the executable
+PROGPATH   := canveg                  # where shall be the executable
 CONFIGPATH := make.config        # where are the $(system).$(compiler) files
 MAKEDPATH  := $(CONFIGPATH)      # where is the make.d.py script
 CHECKPATH  := test               # path for $(CHECKPATH)/test* and $(CHECKPATH)/check* directories if target is check
@@ -184,12 +184,13 @@ LINKER   :=
 # Options
 # Systems: computer (system) name given during installation such as mcair for Matthias' MacBook Air, for example.
 # Look in $(MAKEDPATH) or type 'make info' for available computer systems.
-system   := mcinra
+system   := gwdg
 # Compiler: e.g. gnuX where X stands for version number, e.g. intel13;
 #   look at $(MAKEDPATH)/$(system).alias for shortcuts such as gnu for gnuX or type 'make info'
+# gnu for gfortran and ifort for intel fortran
 compiler := gnu
 # Releases: debug, release, true (last two are equal)
-release  := debug
+release  := release
 # netCDF versions (Network Common Data Form): netcdf3, netcdf4, [anything else]
 netcdf   :=
 # LAPACK (Linear Algebra Pack): true, [anything else]
@@ -205,7 +206,7 @@ openmp   :=
 # MPI parallelization - experimental: openmpi mpich [anything else]
 mpi      :=
 # Linking: static, shared, dynamic (last two are equal)
-static   := shared
+static   := static
 
 # The Makefile sets the following variables depending on the above options:
 # FC, FCFLAGS, F90, F90FLAGS, CC, CFLAGS, CPP, DEFINES, INCLUDES, LD, LDFLAGS, LIBS
@@ -261,7 +262,7 @@ EXTRA_FCFLAGS  :=
 EXTRA_F90FLAGS :=
 EXTRA_DEFINES  :=
 EXTRA_INCLUDES :=
-EXTRA_LDFLAGS  :=
+EXTRA_LDFLAGS  :=-static-libgfortran
 EXTRA_LIBS     :=
 EXTRA_CFLAGS   :=
 EXTRA_CXXFLAGS :=

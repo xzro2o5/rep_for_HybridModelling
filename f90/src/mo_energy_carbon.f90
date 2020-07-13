@@ -846,6 +846,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     prof%jmax(JJ)  = jmax !store jmax in gobal structure
     prof%vcmax(JJ) = vcmax !store vcmax in gobal structure
     ci_guess    = cca * 0.7_wp ! initial guess of internal CO2 to estimate Wc and Wj
+!    if (iswitch%ball == 1 .OR. iswitch%ball == 3) then
+!        ci_guess  = ci_guess*0.7_wp ! partial pressure of CO2 inside the chloroplast;
+!    end if
  !   if (JJ == 34)then
  !       print *, wj
  !   end if
@@ -1038,9 +1041,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        bprime16_local = bprime(JJ)/1.577_wp
     else if (iswitch%ball == 2) then ! for Medlyn Farquar model without mesophyll conductance
         ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
-        g0_local = g0_mly_in/1.6_wp
+        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))1.6_wp
+        g1_local = g1_local/1.6_wp
+        g0_local = g0_mly_in!/1.6_wp
 !        print *, g0_mly_in
-        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))!*1.6_wp
    !     alpha_ps1      = g0_local + gb_mole - g1_local * gb_mole
    !     alpha_ps2      = g0_local + gb_mole - g1_local * g0_local
         alpha_ps       = g0_local + gb_mole - g1_local * gb_mole
@@ -1048,18 +1052,19 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         ggamma         = cca * cca * gb_mole * gb_mole* g0_local
         theta_ps       = gb_mole * gb_mole * g1_local - g0_local * gb_mole
         bprime_local   = g0_local
-        bprime16_local = g0_local/1.577_wp
+        bprime16_local = g0_local/1.6_wp
     else if (iswitch%ball == 3) then !Medlyn's model with mesophyll conductance
     ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
-        g0_local = g0_mly_in/1.6_wp
+        g0_local = g0_mly_in!/1.6_wp
 !        print *, g0_mly_in
-        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))!*1.6_wp
-        alpha_ps       = g0_local + gm - g1_local*gb_mole - gm*gb_mole + g0_local * gm/gb_mole
+        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))*1.6_wp
+        g1_local = g1_local/1.6_wp
+        alpha_ps       = g0_local + gm - g1_local*gb_mole - g1_local*gm + g0_local * gm/gb_mole
         bbeta          = cca * (gm*gb_mole*g1_local-2*g0_local*gm-g0_local*gb_mole-gb_mole*gm)
         ggamma         = cca * cca * gb_mole * gm* g0_local
         theta_ps       = gb_mole * gm * g1_local - g0_local * gm
         bprime_local   = g0_local
-        bprime16_local = g0_local/1.577_wp
+        bprime16_local = g0_local/1.6_wp
 
     end if
     rd_O2       = rd/RQ_rd
@@ -1104,7 +1109,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           ! Qcube = Qcube/denom
           ! Rcube = delta_ps*beta_ps*cca*gb_mole
           ! Rcube = Rcube/denom
-       else if (iswitch%ball == 2) then ! Medlyn's stomatal model
+       else if (iswitch%ball == 2) then ! Medlyn's stomatal model without Mesophyll conductance
           denom = e_ps * alpha_ps
           Pcube = (e_ps * bbeta + b_ps * theta_ps - a_ps * alpha_ps + e_ps * rd * alpha_ps)
           Pcube = Pcube/denom
@@ -1113,9 +1118,17 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           Qcube = Qcube/denom
           Rcube = e_ps * rd * ggamma + a_ps * dd * (ggamma / cca) + b_ps * rd * (ggamma / cca) - &
                   a_ps * ggamma
-
           Rcube = Rcube/denom
-
+       else if (iswitch%ball == 3) then ! Medlyn's stomatal model with Mesophyll conductance
+          denom = e_ps * alpha_ps
+          Pcube = (e_ps * bbeta + b_ps * theta_ps - a_ps * alpha_ps + e_ps * rd * alpha_ps)
+          Pcube = Pcube/denom
+          Qcube = e_ps * ggamma + (b_ps * ggamma / cca) - a_ps * bbeta + a_ps * dd * theta_ps + &
+                  e_ps * rd * bbeta + rd * b_ps * theta_ps
+          Qcube = Qcube/denom
+          Rcube = e_ps * rd * ggamma + a_ps * dd * (ggamma / cca) + b_ps * rd * (ggamma / cca) - &
+                  a_ps * ggamma
+          Rcube = Rcube/denom
        end if
        ! Use solution from Numerical Recipes from Press
        P2 = Pcube * Pcube
@@ -1193,7 +1206,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        else if(iswitch%ball == 1) then
           gs_leaf_mole = a1_local*1.577_wp*aphoto/((cs-dd)*(1+vpd_leaf/D0_local)) + g0_local*1.577_wp
        else if (iswitch%ball == 2) then
-          gs_leaf_mole = g0_local + g1_local*aphoto/cs
+          gs_leaf_mole = g1_local*1.6_wp*aphoto/cs + g0_local
+       else if (iswitch%ball == 3) then
+          gs_leaf_mole = g1_local*1.6_wp*aphoto/cs + g0_local
        end if
        ! convert Gs from vapor to CO2 diffusion coefficient based on diffusivities in Massman (1998)
        gs_co2 = gs_leaf_mole / 1.577_wp
@@ -1211,10 +1226,19 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        else if (iswitch%ball == 2) then
           wj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
           wc = vcmax * (ci - dd) / (ci + bc)
+       else if (iswitch%ball == 3) then
+          wj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
+          wc = vcmax * (cc - dd) / (cc + bc)
        end if
+
        if (iswitch%tpu == 1) then
         wj2 = j_photon * (ci - dd) / (4._wp * ci + (8_wp+16_wp*alpha_g+8_wp*alpha_s)*dd)
         wp_tpu = 3*tp * (ci - dd) / (ci-(1_wp+3_wp*alpha_g+4_wp*alpha_s)*dd)
+        if (iswitch%ball == 1 .OR. iswitch%ball == 3) then
+            wc = vcmax * (cc - dd) / (cc + bc)
+            wj2 = j_photon * (cc - dd) / (4._wp * cc + (8_wp+16_wp*alpha_g+8_wp*alpha_s)*dd)
+            wp_tpu = 3*tp * (cc - dd) / (cc-(1_wp+3_wp*alpha_g+4_wp*alpha_s)*dd)
+        end if
        end if
        ! stomatal conductance is mol m-2 s-1
        ! convert back to resistance (s/m) for energy balance routine

@@ -1380,6 +1380,12 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! soil.respiration_mole = 0.71*exp(0.09*soil.SR_ref_temp)    !factor changed, orignal 0.11
        ! from Hainich soil respiration measurements
        soil%respiration_mole = 0.69_wp * exp(0.07_wp*soil%SR_ref_temp)!0.11,0.09,0.06
+       if (iswitch%oxygen == 1 .and. soil%SR_ref_temp>=0) then
+        ! add temperature function of soil ROC of Quercus calliprinos
+        ! by Angert et al JGR Biogeosciences 2020
+        soil%ROC_soil_air = 0.15_wp*log(soil%SR_ref_temp)+0.34_wp
+        soil%ROC_soil_air = 1/soil%ROC_soil_air
+       end if
     end if
 
     if (iswitch%bethy_resp == 1) then

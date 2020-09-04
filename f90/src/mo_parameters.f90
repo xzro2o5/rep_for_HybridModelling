@@ -25,7 +25,7 @@ MODULE parameters
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
-       ROC_leaf_in, ROC_bole_in, ROC_soil_in, g0_mly_in, g1_mly_in ! Yuan added ROC 2017.11.21 R_base1, R_base2, 2018.02.13
+       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alpha_g_max, alpha_s_max, g0_mly_in, g1_mly_in, scenario_co2 ! Yuan added ROC 2017.11.21 R_base1, R_base2, 2018.02.13
 
   ! Derived parameters
   INTEGER(i4) :: izref     ! array value of reference height = measurement height*ncl/ht
@@ -324,10 +324,18 @@ MODULE parameters
   REAL(wp)           :: ROC_leaf_in ! O2: CO2 ratio for leaf net photosynthesis
   REAL(wp)           :: ROC_bole_in ! O2: CO2 ratio for bole respirations
   REAL(wp)           :: ROC_soil_in ! O2: CO2 ratio for soil respirations
-
+  ! **********************
+  ! ROC for oxygen module
+  ! **********************
+  REAL(wp)           :: tp_vc
+  REAL(wp)           :: n_max
+  REAL(wp)           :: alpha_g_max
+  REAL(wp)           :: alpha_s_max
   ! Medlyn's stomatal model
   REAL(wp)           :: g0_mly_in
   REAL(wp)           :: g1_mly_in
+  ! scenario for elevated CO2
+  REAL(wp)           :: scenario_co2
   ! ------------------------------------------------------------------
 
 CONTAINS
@@ -613,11 +621,16 @@ CONTAINS
     ! intercept of Ball-Berry model, (mol(H2O) m-2 s-1), bprime, intercept for H2O
     bprime_up   = 0.001_wp ! upper canopy
     bprime_down = 0.001_wp ! understory
+    tp_vc       = 0.167    ! ratio of TPU to Vcmax
+    n_max       = 1.21     ! maximum nigrogen supply in umol m-2 s-1
+    alpha_g_max = 0.09     ! fraction of carbon leaving photorespiration in the form of glycine
+    alpha_s_max = 0.38     ! fraction of carbon leaving photorespiration in the form of serine
     ROC_leaf_in = 1._wp    ! O2: CO2 ratio for leaf net photosynthesis
     ROC_bole_in = 1.02_wp  ! O2: CO2 ratio for bole respirations
     ROC_soil_in = 1.1_wp   ! O2: CO2 ratio for soil respirations
     g0_mly_in   = -0.044_wp ! slope of Medlyn's stomatal model
     g1_mly_in   = 6.99_wp   !intercept of MEdlyn's model
+    scenario_co2= 0        ! increase CO2 by ** ppm
 
   END SUBROUTINE ini_namelist
 
@@ -656,8 +669,9 @@ CONTAINS
          gravel_in, theta_in, wiso_nofracsoil, wiso_nofraclitter, wiso_nofracleaf, wiso_nofracin, wiso_implicit, merlivat, &
          theta1_in, theta2_in, theta3_in, extra_nate, nup, vc25_up, vc25_down, jm_vc_up, jm_vc_down, rd_vc_up, rd_vc_down, &
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
-         switch_oxygen, switch_wai_new, switch_tpu, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
-         g0_mly_in, g1_mly_in ! Medlyn's model
+         switch_oxygen, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
+         switch_tpu, tp_vc, n_max, alpha_g_max, alpha_s_max, &
+         g0_mly_in, g1_mly_in, scenario_co2 ! Medlyn's model
 
     call ini_namelist()
 !    print *, outdir
@@ -671,6 +685,7 @@ CONTAINS
     call close_nml()
 !print *, g1_mly_in
 !print *, switch_ball
+!print *, scenario_co2
     ! if outdir =="", use system time as folder name
     if (outdir =="") then
         call time_and_date_dir(outdir)

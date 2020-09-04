@@ -354,17 +354,17 @@ CONTAINS
 
                end if
                ! H, radiation should be scaled with PAI
-      !         if (iswitch%wai_new==0) then
+               if (iswitch%wai_new==0) then
                     prof%dHdz(j)      = prof%dLAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
                     prof%dRNdz(j)     = prof%dLAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
                     prof%dLoutdz(j)   = prof%dLAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
-      !          else
-      !              prof%dHdz(j)      = prof%dPAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
-      !              prof%dRNdz(j)     = prof%dPAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
-      !              prof%dLoutdz(j)   = prof%dPAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
+                else
+                    prof%dHdz(j)      = prof%dPAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
+                    prof%dRNdz(j)     = prof%dPAIdz(j) * (solar%prob_beam(j) * Rn_sun + solar%prob_shd(j) * Rn_shade)
+                    prof%dLoutdz(j)   = prof%dPAIdz(j) * (solar%prob_beam(j) * loutsun + solar%prob_shd(j) * loutsh)
 
 
-      !         end if
+               end if
  !      prof%dHdz(j)      = prof%dLAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
        !print *, prof%dHdz(j)
  !      if (ISNAN(prof%dHdz(j)) ) then
@@ -408,7 +408,7 @@ CONTAINS
        prof%dStomCondz_shd(j) = prof%dLAIdz(j) * solar%prob_shd(j)*prof%shd_gs(j)
        prof%dStomCondz(j)     = prof%dStomCondz_sun(j) + prof%dStomCondz_shd(j)
        if ((prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j)) /= zero) then
-          prof%wet_coef(j) = max(min(prof%cws(j,1) * fact%latent / (time%time_step * prof%dPAIdz(j) * &
+          prof%wet_coef(j) = max(min(prof%cws(j,1) * fact%latent / (time%time_step * prof%dLAIdz(j) * &
                (prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j))) , one), zero)
         !   prof%wet_coef(j) = max(min((time%time_step * prof%dLAIdz(j) * &
         !       (prof%sun_LEwet(j,1)*solar%prob_beam(j) + prof%shd_LEwet(j,1)*solar%prob_shd(j))/prof%cws(j,1) * fact%latent) , &
@@ -503,7 +503,7 @@ CONTAINS
  !   print *, met%air_density, fact%latent,ke,met%press_Pa
     ! Coefficients for sensible heat flux
     hcoef  = met%air_density*cp/bound_lay_res%heat
-    print *, cp
+!    print *, cp
     hcoef2 = two * hcoef
     ! now LE is not directly calculated with the quadratic solution anymore,
     ! but we first solve for leaf temperature with a quadratic equation. Then we use
@@ -543,8 +543,8 @@ CONTAINS
          epsigma12 * tkta*tkta * (tsrfkpt-tkta)*(tsrfkpt-tkta)
     ! H is sensible heat flux
     H_leafpt    = hcoef2 * (tsrfkpt-tkta)
-    print *, "H_coef,    tleaf-tair,      sensible heat"
-    print *, hcoef2,(tsrfkpt-tkta),H_leafpt
+    !print *, "H_coef,    tleaf-tair,      sensible heat"
+    !print *, hcoef2,(tsrfkpt-tkta),H_leafpt
     ! lept is latent heat flux through stomata
     ! ToDo for isotopes ! transpiration from second Taylor expansion
     !*lept = n_stomata_sides * met%air_density * 0.622 * fact%latent
@@ -667,7 +667,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     USE parameters,   ONLY: kc25, ko25, tau25, o2, extra_nate, hkin, skin, &
          ekc, eko, ektau, jmopt, vcopt, htFrac, zh65, lai, evc, &
          toptvc, rd_vc, ejm, toptjm, kball, g0, a1, erd, &
-         D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in
+         D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in, &
+         tp_vc, alpha_g_max, alpha_s_max, n_max
     USE types,        ONLY: time, prof, met, bound_lay_res, srf_res, soil, &
          iswitch, output, input
     USE utils,        ONLY: temp_func, tboltz, es
@@ -714,7 +715,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: root1, root2
     REAL(wp) :: root3, arg_U, ang_L
     REAL(wp) :: aphoto, Ophoto, gpp, gpp_o2, j_sucrose, wj, wj2 ! Ophoto:net phptosynthetic O2
-    REAL(wp) :: phi, vo, tp, wp_tpu, alpha_g, alpha_s, g_tmp, s_tmp, alpha_g_max, alpha_s_max, n_max, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
+    REAL(wp) :: phi, vo, alpha_g, alpha_s, g_tmp, s_tmp, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
+    REAL(wp) :: tp, wp_tpu
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
     REAL(wp) :: ps_1,delta_1, Aquad1, Bquad1, Cquad1
     REAL(wp) :: theta_ps, wc, b_ps, a_ps, e_ps, psguess
@@ -846,19 +848,26 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     prof%jmax(JJ)  = jmax !store jmax in gobal structure
     prof%vcmax(JJ) = vcmax !store vcmax in gobal structure
     ci_guess    = cca * 0.7_wp ! initial guess of internal CO2 to estimate Wc and Wj
+!    if (iswitch%ball == 1 .OR. iswitch%ball == 3) then
+!        ci_guess  = ci_guess*0.7_wp ! partial pressure of CO2 inside the chloroplast;
+!    end if
  !   if (JJ == 34)then
  !       print *, wj
  !   end if
     !tp~~beta_tpu are related to tpu limits Yuan 2019.12.20
     if (iswitch%tpu == 1) then
        !tp           = 6_wp
-        tp = vcmax/12
+        tp = vcmax * tp_vc
         prof%tp(JJ)    = tp ! TP is 1/12 of vcmax
-        alpha_g_max  = 0.09
-        alpha_s_max  = 0.38
-        n_max        = 1.21
+   !     alpha_g_max  = 0.09
+   !     alpha_s_max  = 0.38
+   !     n_max        = 1.21
         beta_tpu     = 3*alpha_g_max/(3*alpha_g_max+2*alpha_s_max)
         gammac       = 500.0_wp * input%o2air * (1-alpha_g_max) / tau
+        if (alpha_g_max==0 .and. alpha_s_max==0) then
+          beta_tpu = 0
+        end if
+   !     print*, beta_tpu
     end if
     gammac = gammac/1000_wp ! Because input o2 is around 210000 in ppm instead of 210. Yuan 2018.01.31
     if (iswitch%tpu == 1) phi = 2*gammac/ci_guess! ratio of oxygenation to carboxylation
@@ -1036,17 +1045,33 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! zeta_ps = gm*gamma_ps+gb_mole*gamma_ps-alpha_ps
        bprime_local   = bprime(JJ)
        bprime16_local = bprime(JJ)/1.577_wp
-    else if (iswitch%ball == 2) then ! for Medlyn Farquar model based on Yuan's analytical solution
+    else if (iswitch%ball == 2) then ! for Medlyn Farquar model without mesophyll conductance
         ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
-        g0_local = g0_mly_in/1.6_wp
+        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))*1.6_wp
+        g1_local = g1_local/1.6_wp
+        g0_local = g0_mly_in*1.6_wp
 !        print *, g0_mly_in
-        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))!*1.6_wp
    !     alpha_ps1      = g0_local + gb_mole - g1_local * gb_mole
    !     alpha_ps2      = g0_local + gb_mole - g1_local * g0_local
         alpha_ps       = g0_local + gb_mole - g1_local * gb_mole
         bbeta          = cca * gb_mole * ( gb_mole * g1_local - two * g0_local - gb_mole)
         ggamma         = cca * cca * gb_mole * gb_mole* g0_local
         theta_ps       = gb_mole * gb_mole * g1_local - g0_local * gb_mole
+        bprime_local   = g0_local
+        bprime16_local = g0_local/1.6_wp
+    else if (iswitch%ball == 3) then !Medlyn's model with mesophyll conductance
+    ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
+        g0_local = g0_mly_in*1.6!/1.6_wp
+!        print *, g0_mly_in
+        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))*1.6_wp
+        g1_local = g1_local/1.6_wp
+        alpha_ps       = g0_local + gm - g1_local*gb_mole - g1_local*gm + g0_local * gm/gb_mole
+        bbeta          = cca * (gm*gb_mole*g1_local-2*g0_local*gm-g0_local*gb_mole-gb_mole*gm)
+        ggamma         = cca * cca * gb_mole * gm* g0_local
+        theta_ps       = gb_mole * gm * g1_local - g0_local * gm
+        bprime_local   = g0_local
+        bprime16_local = g0_local/1.6_wp
+
     end if
     rd_O2       = rd/RQ_rd
     prof%rd(JJ) = rd !store rd in gobal structure
@@ -1090,7 +1115,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           ! Qcube = Qcube/denom
           ! Rcube = delta_ps*beta_ps*cca*gb_mole
           ! Rcube = Rcube/denom
-       else if (iswitch%ball == 2) then ! Medlyn's stomatal model
+       else if (iswitch%ball == 2) then ! Medlyn's stomatal model without Mesophyll conductance
           denom = e_ps * alpha_ps
           Pcube = (e_ps * bbeta + b_ps * theta_ps - a_ps * alpha_ps + e_ps * rd * alpha_ps)
           Pcube = Pcube/denom
@@ -1099,9 +1124,17 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           Qcube = Qcube/denom
           Rcube = e_ps * rd * ggamma + a_ps * dd * (ggamma / cca) + b_ps * rd * (ggamma / cca) - &
                   a_ps * ggamma
-
           Rcube = Rcube/denom
-
+       else if (iswitch%ball == 3) then ! Medlyn's stomatal model with Mesophyll conductance
+          denom = e_ps * alpha_ps
+          Pcube = (e_ps * bbeta + b_ps * theta_ps - a_ps * alpha_ps + e_ps * rd * alpha_ps)
+          Pcube = Pcube/denom
+          Qcube = e_ps * ggamma + (b_ps * ggamma / cca) - a_ps * bbeta + a_ps * dd * theta_ps + &
+                  e_ps * rd * bbeta + rd * b_ps * theta_ps
+          Qcube = Qcube/denom
+          Rcube = e_ps * rd * ggamma + a_ps * dd * (ggamma / cca) + b_ps * rd * (ggamma / cca) - &
+                  a_ps * ggamma
+          Rcube = Rcube/denom
        end if
        ! Use solution from Numerical Recipes from Press
        P2 = Pcube * Pcube
@@ -1179,10 +1212,12 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        else if(iswitch%ball == 1) then
           gs_leaf_mole = a1_local*1.577_wp*aphoto/((cs-dd)*(1+vpd_leaf/D0_local)) + g0_local*1.577_wp
        else if (iswitch%ball == 2) then
-          gs_leaf_mole = g0_local + g1_local*aphoto/cs
+          gs_leaf_mole = g1_local*1.6_wp*aphoto/cs + g0_local
+       else if (iswitch%ball == 3) then
+          gs_leaf_mole = g1_local*1.6_wp*aphoto/cs + g0_local
        end if
        ! convert Gs from vapor to CO2 diffusion coefficient based on diffusivities in Massman (1998)
-       gs_co2 = gs_leaf_mole / 1.577_wp
+       gs_co2 = gs_leaf_mole /1.577_wp
        if (aphoto < zero) then
           call message('PHOTOSYNTHESIS: ','aphoto<0 should not be here: ', num2str(JJ), num2str(time%daytime))
        end if
@@ -1197,10 +1232,19 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        else if (iswitch%ball == 2) then
           wj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
           wc = vcmax * (ci - dd) / (ci + bc)
+       else if (iswitch%ball == 3) then
+          wj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
+          wc = vcmax * (cc - dd) / (cc + bc)
        end if
+
        if (iswitch%tpu == 1) then
         wj2 = j_photon * (ci - dd) / (4._wp * ci + (8_wp+16_wp*alpha_g+8_wp*alpha_s)*dd)
         wp_tpu = 3*tp * (ci - dd) / (ci-(1_wp+3_wp*alpha_g+4_wp*alpha_s)*dd)
+        if (iswitch%ball == 1 .OR. iswitch%ball == 3) then
+            wc = vcmax * (cc - dd) / (cc + bc)
+            wj2 = j_photon * (cc - dd) / (4._wp * cc + (8_wp+16_wp*alpha_g+8_wp*alpha_s)*dd)
+            wp_tpu = 3*tp * (cc - dd) / (cc-(1_wp+3_wp*alpha_g+4_wp*alpha_s)*dd)
+        end if
        end if
        ! stomatal conductance is mol m-2 s-1
        ! convert back to resistance (s/m) for energy balance routine
@@ -1218,7 +1262,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     if (quad == 1) then
        ! if aphoto < 0 set stomatal conductance to cuticle value
        gs_leaf_mole = bprime_local
-       gs_co2       = gs_leaf_mole / 1.577_wp
+       gs_co2       = gs_leaf_mole /1.577_wp
        ! stomatal conductance is mol m-2 s-1
        ! convert back to resistance (s/m) for energy balance routine
        gs_m_s = gs_leaf_mole * tlk * (met%pstat273)
@@ -1262,7 +1306,14 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ci = cs - aphoto / gs_co2
        cc = ci - aphoto / gm
     end if
-
+    if (ci < 0) then
+        print *, cs
+        print *, aphoto
+        print *, gs_co2
+    end if
+    if (cc < 0) then
+        print *, gm
+    end if
     if (gpp < zero) then
        call message('PHOTOSYNTHESIS: ','gpp<0 should not be here: ', num2str(JJ), num2str(time%daytime))
     end if
@@ -1342,6 +1393,12 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! soil.respiration_mole = 0.71*exp(0.09*soil.SR_ref_temp)    !factor changed, orignal 0.11
        ! from Hainich soil respiration measurements
        soil%respiration_mole = 0.69_wp * exp(0.07_wp*soil%SR_ref_temp)!0.11,0.09,0.06
+       if (iswitch%oxygen == 1 .and. soil%SR_ref_temp>=0) then
+        ! add temperature function of soil ROC of Quercus calliprinos
+        ! by Angert et al JGR Biogeosciences 2020
+        soil%ROC_soil_air = 0.15_wp*log(soil%SR_ref_temp)+0.34_wp
+        soil%ROC_soil_air = 1/soil%ROC_soil_air
+       end if
     end if
 
     if (iswitch%bethy_resp == 1) then

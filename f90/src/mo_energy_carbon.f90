@@ -1041,7 +1041,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        bprime16_local = bprime(JJ)/1.577_wp
     else if (iswitch%ball == 2) then ! for Medlyn Farquar model without mesophyll conductance
         ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
-        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))1.6_wp
+        g1_local = (1+g1_mly_in/sqrt(vpd_leaf))*1.6_wp
         g1_local = g1_local/1.6_wp
         g0_local = g0_mly_in!/1.6_wp
 !        print *, g0_mly_in

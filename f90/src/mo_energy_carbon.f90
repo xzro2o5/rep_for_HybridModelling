@@ -1049,11 +1049,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
         g1_local = (1+g1_mly_in/sqrt(vpd_leaf))*1.6_wp
         g1_local = g1_local/1.6_wp
-<<<<<<< HEAD
-        g0_local = g0_mly_in!/1.6_wp
-=======
         g0_local = g0_mly_in*1.6_wp
->>>>>>> oxygen_TPU
 !        print *, g0_mly_in
    !     alpha_ps1      = g0_local + gb_mole - g1_local * gb_mole
    !     alpha_ps2      = g0_local + gb_mole - g1_local * g0_local
@@ -1065,11 +1061,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         bprime16_local = g0_local/1.6_wp
     else if (iswitch%ball == 3) then !Medlyn's model with mesophyll conductance
     ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
-<<<<<<< HEAD
-        g0_local = g0_mly_in!/1.6_wp
-=======
         g0_local = g0_mly_in*1.6!/1.6_wp
->>>>>>> oxygen_TPU
 !        print *, g0_mly_in
         g1_local = (1+g1_mly_in/sqrt(vpd_leaf))*1.6_wp
         g1_local = g1_local/1.6_wp

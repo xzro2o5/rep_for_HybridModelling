@@ -17,7 +17,8 @@ INTELBIN := $(INTEL)/bin/intel64
 
 
 # Compiling
-F90 := $(INTELBIN)/ifort
+F90 := INTEL_LICENSE_FILE=/cm/shared/licenses/intel/ $(INTELBIN)/ifort
+# $(INTELBIN)/ifort
 FC  := $(F90)
 CC  := $(INTELBIN)/icc
 CPP := /usr/bin/cpp

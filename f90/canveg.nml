@@ -1,11 +1,19 @@
 ! -*- Mode: F90 -*- !
 &CANCTL
 workdir = "." ! working directory
+<<<<<<< HEAD
 indir = "./input2016"!"./inputiso" ! location of input file
 metinfile = "gf_fp_2016.dat"!"MMeteoDataForYuanLF2016.dat" !"MM2016.dat" ! met input file
 laiinfile = "2006laiinput_eddy.dat" ! lai input file
 wisoinfile = "wisoinput2016gf.dat" ! wiso input fie
 outdir = "output2016" ! location of output files
+=======
+indir = "./input2012"!"./inputiso" ! location of input file
+metinfile = "gf_fp_2012.dat"!"MMeteoDataForYuanLF2016.dat" !"MM2016.dat" ! met input file
+laiinfile = "2006laiinput_eddy.dat" ! lai input file
+wisoinfile = "wisoinput2012gf.dat" ! wiso input fie
+outdir = "output2012" ! location of output files
+>>>>>>> oxygen_TPU
 outsuffix = ".csv" ! output suffix “./output”
 dispfile = "DIJHainich._C" ! location and name of disperion matrix
 netcdf_in = 0 ! 1: input in netcdf; 0: input in ascii format
@@ -13,7 +21,11 @@ netcdf_out = 0 ! 1: output in netcdf; 0: output in ascii format
 netcdf_disp = 0 ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 ! --- Model Set-up
+<<<<<<< HEAD
 year0 = 2016 ! Year
+=======
+year0 = 2012 ! Year
+>>>>>>> oxygen_TPU
 start_run = 0010100!1861200!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
 end_run =3662400!1861200!1861200!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
 start_profiles = 0010100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
@@ -245,12 +257,34 @@ bprime_down = 0.001 ! understory
 !***************************************************
 switch_oxygen = 1 ! if activate ROC calculation
 switch_wai_new = 1 ! 1: to use Yuan's wai distr
+<<<<<<< HEAD
 switch_tpu = 0 ! 1: include TPU limit in photosynthesis
+=======
+>>>>>>> oxygen_TPU
 ROC_leaf_in = 1
 ROC_bole_in = 1.04
 ROC_soil_in = 1.1
 !***************************************************
+<<<<<<< HEAD
 ! parameters for Medlyn's stomatal conductance
 g0_mly_in = 0.019!0.019!0.044!0.069!0.055!
 g1_mly_in = 6.5!6.06!6.99!7.91!4.82!
+=======
+! parameters for TPU limit
+!***************************************************
+switch_tpu = 0 ! 1: include TPU limit in photosynthesis
+tp_vc = 0.122 ! 0.122, 0.122, 0.122 are used for sensitivity analysis in CLM.tp as a fraction of Vcmax, derived from Licor in Leinefelde
+n_max = 0
+alpha_g_max = 0!0.5!0.09 ! assumed 0.02 in A_Ci curve fitting
+alpha_s_max = 0!0.4!0!0.38 ! Busch's paper
+!***************************************************
+! parameters for Medlyn's stomatal conductance
+!***************************************************
+g0_mly_in = 0.019!0.019!0.044!0.069!0.055!
+g1_mly_in = 6.5!6.06!6.99!7.91!4.82!
+!***************************************************
+! future scenario for elevated CO2
+!***************************************************
+scenario_co2 = 0 ! increase CO2 by 100 ppm
+>>>>>>> oxygen_TPU
 /

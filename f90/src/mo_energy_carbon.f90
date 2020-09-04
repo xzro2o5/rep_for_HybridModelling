@@ -667,7 +667,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     USE parameters,   ONLY: kc25, ko25, tau25, o2, extra_nate, hkin, skin, &
          ekc, eko, ektau, jmopt, vcopt, htFrac, zh65, lai, evc, &
          toptvc, rd_vc, ejm, toptjm, kball, g0, a1, erd, &
-         D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in
+         D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in, &
+         tp_vc, alpha_g_max, alpha_s_max, n_max
     USE types,        ONLY: time, prof, met, bound_lay_res, srf_res, soil, &
          iswitch, output, input
     USE utils,        ONLY: temp_func, tboltz, es
@@ -714,7 +715,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: root1, root2
     REAL(wp) :: root3, arg_U, ang_L
     REAL(wp) :: aphoto, Ophoto, gpp, gpp_o2, j_sucrose, wj, wj2 ! Ophoto:net phptosynthetic O2
-    REAL(wp) :: phi, vo, tp, wp_tpu, alpha_g, alpha_s, g_tmp, s_tmp, alpha_g_max, alpha_s_max, n_max, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
+    REAL(wp) :: phi, vo, alpha_g, alpha_s, g_tmp, s_tmp, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
+    REAL(wp) :: tp, wp_tpu
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
     REAL(wp) :: ps_1,delta_1, Aquad1, Bquad1, Cquad1
     REAL(wp) :: theta_ps, wc, b_ps, a_ps, e_ps, psguess
@@ -855,13 +857,17 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     !tp~~beta_tpu are related to tpu limits Yuan 2019.12.20
     if (iswitch%tpu == 1) then
        !tp           = 6_wp
-        tp = vcmax/12
+        tp = vcmax * tp_vc
         prof%tp(JJ)    = tp ! TP is 1/12 of vcmax
-        alpha_g_max  = 0.09
-        alpha_s_max  = 0.38
-        n_max        = 1.21
+   !     alpha_g_max  = 0.09
+   !     alpha_s_max  = 0.38
+   !     n_max        = 1.21
         beta_tpu     = 3*alpha_g_max/(3*alpha_g_max+2*alpha_s_max)
         gammac       = 500.0_wp * input%o2air * (1-alpha_g_max) / tau
+        if (alpha_g_max==0 .and. alpha_s_max==0) then
+          beta_tpu = 0
+        end if
+   !     print*, beta_tpu
     end if
     gammac = gammac/1000_wp ! Because input o2 is around 210000 in ppm instead of 210. Yuan 2018.01.31
     if (iswitch%tpu == 1) phi = 2*gammac/ci_guess! ratio of oxygenation to carboxylation
@@ -1043,7 +1049,11 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
         g1_local = (1+g1_mly_in/sqrt(vpd_leaf))*1.6_wp
         g1_local = g1_local/1.6_wp
+<<<<<<< HEAD
         g0_local = g0_mly_in!/1.6_wp
+=======
+        g0_local = g0_mly_in*1.6_wp
+>>>>>>> oxygen_TPU
 !        print *, g0_mly_in
    !     alpha_ps1      = g0_local + gb_mole - g1_local * gb_mole
    !     alpha_ps2      = g0_local + gb_mole - g1_local * g0_local
@@ -1055,7 +1065,11 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         bprime16_local = g0_local/1.6_wp
     else if (iswitch%ball == 3) then !Medlyn's model with mesophyll conductance
     ! gs = g0+1.6*(1+g1/sqrt(D))*A/Cs
+<<<<<<< HEAD
         g0_local = g0_mly_in!/1.6_wp
+=======
+        g0_local = g0_mly_in*1.6!/1.6_wp
+>>>>>>> oxygen_TPU
 !        print *, g0_mly_in
         g1_local = (1+g1_mly_in/sqrt(vpd_leaf))*1.6_wp
         g1_local = g1_local/1.6_wp
@@ -1211,7 +1225,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           gs_leaf_mole = g1_local*1.6_wp*aphoto/cs + g0_local
        end if
        ! convert Gs from vapor to CO2 diffusion coefficient based on diffusivities in Massman (1998)
-       gs_co2 = gs_leaf_mole / 1.577_wp
+       gs_co2 = gs_leaf_mole /1.577_wp
        if (aphoto < zero) then
           call message('PHOTOSYNTHESIS: ','aphoto<0 should not be here: ', num2str(JJ), num2str(time%daytime))
        end if
@@ -1256,7 +1270,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     if (quad == 1) then
        ! if aphoto < 0 set stomatal conductance to cuticle value
        gs_leaf_mole = bprime_local
-       gs_co2       = gs_leaf_mole / 1.577_wp
+       gs_co2       = gs_leaf_mole /1.577_wp
        ! stomatal conductance is mol m-2 s-1
        ! convert back to resistance (s/m) for energy balance routine
        gs_m_s = gs_leaf_mole * tlk * (met%pstat273)
@@ -1300,7 +1314,14 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ci = cs - aphoto / gs_co2
        cc = ci - aphoto / gm
     end if
-
+    if (ci < 0) then
+        print *, cs
+        print *, aphoto
+        print *, gs_co2
+    end if
+    if (cc < 0) then
+        print *, gm
+    end if
     if (gpp < zero) then
        call message('PHOTOSYNTHESIS: ','gpp<0 should not be here: ', num2str(JJ), num2str(time%daytime))
     end if

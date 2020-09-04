@@ -4,7 +4,7 @@ workdir = "." ! working directory
 indir = "./input2012"!"./inputiso" ! location of input file
 metinfile = "gf_fp_2012.dat"!"MMeteoDataForYuanLF2016.dat" !"MM2016.dat" ! met input file
 laiinfile = "2006laiinput_eddy.dat" ! lai input file
-wisoinfile = "wisoinput2016gf.dat" ! wiso input fie
+wisoinfile = "wisoinput2012gf.dat" ! wiso input fie
 outdir = "output2012" ! location of output files
 outsuffix = ".csv" ! output suffix “./output”
 dispfile = "DIJHainich._C" ! location and name of disperion matrix
@@ -28,6 +28,7 @@ switch_soil_resp_temp = 1 ! (1) input soil temperature (0) modeled soil temperat
 ! set coupled stomata-photosynthesis model to
 ! (0) Ball Berry (Baldocchi analytical solution) or
 ! (1) Leuning and mesophyll conductance (Knohl analytical solution)
+! (2) Medlyn's conductance
 switch_ball = 0 !
 ! Isoprene
 switch_isoprene = 0 ! (1) calc isoprene ! (0) no isoprene
@@ -50,7 +51,7 @@ longitude = 10.37 ! longitude E
 !perc_dn = 0.9 ! 10% down
 ! Eastern Standard Time
 zone = -1.0 ! delay from GMT
-ht = 34.0 ! Canopy height [m]
+ht = 37.0 ! Canopy height [m]
 htFrac = 0.65 ! zh65 = htFrac/ht; Yuan 2018.02.21
 pai = 1.06 ! Plant area index [m2 m-2] 1.1???
 lai = 4.8 ! Maximum leaf area index [m2 m-2] 5.5???
@@ -105,8 +106,8 @@ D0_in = 8. ! Do, empirical coefficient for humidity sensitivity of Leuning stoma
 gm_vc = 0.008 ! ratio of mesophyll conductance to Vcmax [mol m-2 s-1] 0.004
 fthreshold = 0.65 ! threshold of plant available water below which stomata response to water stress
 fslope = 0. ! slope of stomata response to water stress (should be: slope = 1/threshold)
-kball_in = 9!8.5!8.5!6.8!7!8!9.5!11 ! Ball-Berry stomatal coefficient for stomatal conductance
-bprime_in = 0.0175!0.0175!0.022!0.01!0.0175 ! intercept of Ball-Berry model, mol m-2 s-1 ! intercept for H2O 0.0225476868954421
+kball_in = 7!9!8.5!8.5!6.8!7!8!9.5!11 ! Ball-Berry stomatal coefficient for stomatal conductance
+bprime_in = 0.0175!0.0175!0.0175!0.022!0.01!0.0175 ! intercept of Ball-Berry model, mol m-2 s-1 ! intercept for H2O 0.0225476868954421
 rsm = 145.0 ! Minimum stomatal resistance, s m-1.
 brs = 60.0 ! curvature coeffient for light response
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -244,8 +245,24 @@ bprime_down = 0.001 ! understory
 !***************************************************
 switch_oxygen = 1 ! if activate ROC calculation
 switch_wai_new = 1 ! 1: to use Yuan's wai distr
-switch_tpu = 0 ! 1: include TPU limit in photosynthesis
 ROC_leaf_in = 1
 ROC_bole_in = 1.04
 ROC_soil_in = 1.1
+!***************************************************
+! parameters for TPU limit
+!***************************************************
+switch_tpu = 0 ! 1: include TPU limit in photosynthesis
+tp_vc = 0.122 ! 0.122, 0.122, 0.122 are used for sensitivity analysis in CLM.tp as a fraction of Vcmax, derived from Licor in Leinefelde
+n_max = 0
+alpha_g_max = 0!0.5!0.09 ! assumed 0.02 in A_Ci curve fitting
+alpha_s_max = 0!0.4!0!0.38 ! Busch's paper
+!***************************************************
+! parameters for Medlyn's stomatal conductance
+!***************************************************
+g0_mly_in = 0.019!0.019!0.044!0.069!0.055!
+g1_mly_in = 6.5!6.06!6.99!7.91!4.82!
+!***************************************************
+! future scenario for elevated CO2
+!***************************************************
+scenario_co2 = 0 ! increase CO2 by 100 ppm
 /

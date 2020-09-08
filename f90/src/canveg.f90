@@ -185,7 +185,7 @@ PROGRAM canveg
   if (nsoil==0) soil%camillo = 1
 
   ! Misc
-  i_max = 501            ! maximum number of iterations for energy balance
+  i_max = 51            ! maximum number of iterations for energy balance
   time%year = time%year0 ! Save first year
   if (.not. allocated(sun_A))  allocate(sun_A(ncl))
   if (.not. allocated(shd_A))  allocate(shd_A(ncl))

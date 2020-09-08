@@ -1353,7 +1353,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! Computes soil respiration
     USE constants,  ONLY: zero, half, one, e3, mass_co2
     USE types,      ONLY: soil, iswitch, input, bole, prof
-    USE parameters, ONLY: extra_nate
+    USE parameters, ONLY: extra_nate, rsoil1, rsoil2
     USE setup,      ONLY: ncl
 
     IMPLICIT NONE
@@ -1392,7 +1392,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! canisotope v3.1
        ! soil.respiration_mole = 0.71*exp(0.09*soil.SR_ref_temp)    !factor changed, orignal 0.11
        ! from Hainich soil respiration measurements
-       soil%respiration_mole = 0.69_wp * exp(0.07_wp*soil%SR_ref_temp)!0.11,0.09,0.06
+       ! print *, rsoil1,rsoil2
+       soil%respiration_mole = rsoil1 * exp(rsoil2*soil%SR_ref_temp)!0.11,0.09,0.06
        if (iswitch%oxygen == 1 .and. soil%SR_ref_temp>=0) then
         ! add temperature function of soil ROC of Quercus calliprinos
         ! by Angert et al JGR Biogeosciences 2020

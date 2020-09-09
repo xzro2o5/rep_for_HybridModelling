@@ -6,7 +6,7 @@ metinfile = "gf_fp_2016.dat"!"MMeteoDataForYuanLF2016.dat" !"MM2016.dat" ! met i
 laiinfile = "2006laiinput_eddy.dat" ! lai input file
 wisoinfile = "wisoinput2012gf.dat" ! wiso input fie
 outdir = "output_ball2016_101" ! location of output files
-outsuffix = ".csv" ! output suffix “./output”
+outsuffix = ".csv" ! output suffix ï¿½./outputï¿½
 dispfile = "DIJHainich._C" ! location and name of disperion matrix
 netcdf_in = 0 ! 1: input in netcdf; 0: input in ascii format
 netcdf_out = 0 ! 1: output in netcdf; 0: output in ascii format
@@ -214,7 +214,7 @@ extra_nate = 0
 ! Level at which starts upper canopy, i.e. below is understory
 nup = 9
 ! Photosynthesis
-! Vcmax(25C) carboxylation rate at 25°C, [umol m-2 s-1]
+! Vcmax(25C) carboxylation rate at 25ï¿½C, [umol m-2 s-1]
 vc25_up = 35. ! upper canopy
 vc25_down = 35. ! understory
 ! Jmax/Vcmax(25C) ratio of jmax to vcmax at 25 deg C, jmax = electron transport rate at 25 deg C, [umol m-2 s-1]

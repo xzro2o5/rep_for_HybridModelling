@@ -265,6 +265,7 @@ g1_mly_in = 6.5!6.06!6.99!7.91!4.82!
 ! future scenario for elevated CO2
 !***************************************************
 scenario_co2 = 0 ! increase CO2 by 100 ppm
+scenario_temp = 0.5
 !***************************************************
 ! flexible soil and bole respiration coefficients
 !***************************************************

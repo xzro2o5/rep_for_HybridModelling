@@ -25,8 +25,8 @@ MODULE parameters
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
-       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alpha_g_max, alpha_s_max, g0_mly_in, g1_mly_in, scenario_co2, &
-       rsoil1, rsoil2 ! Yuan added ROC 2017.11.21 R_base1, R_base2, 2018.02.13
+       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alpha_g_max, alpha_s_max, g0_mly_in, g1_mly_in, &
+       scenario_co2, scenario_temp, rsoil1, rsoil2 ! Yuan added ROC 2017.11.21 R_base1, R_base2, 2018.02.13
 
   ! Derived parameters
   INTEGER(i4) :: izref     ! array value of reference height = measurement height*ncl/ht
@@ -337,6 +337,7 @@ MODULE parameters
   REAL(wp)           :: g1_mly_in
   ! scenario for elevated CO2
   REAL(wp)           :: scenario_co2
+  REAL(wp)           :: scenario_temp
   REAL(wp)           :: rsoil1
   REAL(wp)           :: rsoil2
   ! ------------------------------------------------------------------
@@ -634,6 +635,7 @@ CONTAINS
     g0_mly_in   = -0.044_wp ! slope of Medlyn's stomatal model
     g1_mly_in   = 6.99_wp   !intercept of MEdlyn's model
     scenario_co2= 0        ! increase CO2 by ** ppm
+    scenario_temp= 0       ! increase temperature by ** degree
     rsoil1= 0.69_wp
     rsoil2= 0.07_wp
 
@@ -676,7 +678,7 @@ CONTAINS
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
          switch_oxygen, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
          switch_tpu, tp_vc, n_max, alpha_g_max, alpha_s_max, &
-         g0_mly_in, g1_mly_in, scenario_co2, rsoil1, rsoil2 ! Medlyn's model
+         g0_mly_in, g1_mly_in, scenario_co2, scenario_temp, rsoil1, rsoil2 ! Medlyn's model
 
     call ini_namelist()
 !    print *, outdir
@@ -690,7 +692,7 @@ CONTAINS
     call close_nml()
 !print *, g1_mly_in
 !print *, switch_ball
-!print *, scenario_co2
+!print *, scenario_temp
     ! if outdir =="", use system time as folder name
     if (outdir =="") then
         call time_and_date_dir(outdir)

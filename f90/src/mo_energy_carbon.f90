@@ -715,7 +715,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: root1, root2
     REAL(wp) :: root3, arg_U, ang_L
     REAL(wp) :: aphoto, Ophoto, gpp, gpp_o2, j_sucrose, wj, wj2 ! Ophoto:net phptosynthetic O2
-    REAL(wp) :: phi, vo, alpha_g, alpha_s, g_tmp, s_tmp, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
+    REAL(wp) :: phi, vo, alpha_g, alpha_g_guess, alpha_s, g_tmp, s_tmp, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
     REAL(wp) :: tp, wp_tpu
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
     REAL(wp) :: ps_1,delta_1, Aquad1, Bquad1, Cquad1
@@ -848,9 +848,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     prof%jmax(JJ)  = jmax !store jmax in gobal structure
     prof%vcmax(JJ) = vcmax !store vcmax in gobal structure
     ci_guess    = cca * 0.7_wp ! initial guess of internal CO2 to estimate Wc and Wj
-!    if (iswitch%ball == 1 .OR. iswitch%ball == 3) then
-!        ci_guess  = ci_guess*0.7_wp ! partial pressure of CO2 inside the chloroplast;
-!    end if
+    if (iswitch%tpu == 1 ) alpha_g_guess  = alpha_g_max*0.3_wp ! initial guess of glycine reduction
  !   if (JJ == 34)then
  !       print *, wj
  !   end if
@@ -953,8 +951,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     wc = vcmax * (ci_guess - dd) / (ci_guess + bc)
     ! Vc under TPU limits:
     if (iswitch%tpu == 1) then
-      wj2 = j_photon * (ci_guess - dd) / (4._wp * ci_guess + (8_wp+16_wp*alpha_g_max+8_wp*alpha_s_max)*dd)
-      wp_tpu = 3*tp * (ci_guess - dd) / (ci_guess-(1_wp+3_wp*alpha_g_max+4_wp*alpha_s_max)*dd)
+      wj2 = j_photon *(1-alpha_g_max)* (ci_guess - dd) / &
+      (4._wp * ci_guess*(1-alpha_g_max) + (8_wp+16_wp*alpha_g_max+8_wp*alpha_s_max)*dd)
+      wp_tpu = 3*tp*(1-alpha_g_max) * (ci_guess - dd) / &
+      (ci_guess*(1-alpha_g_max)-(1_wp+3_wp*alpha_g_max+4_wp*alpha_s_max)*dd)
     end if
     ! frost and end of leaf photosynthesis and respiration
     if (time%days > time%leaffallcomplete) then ! old: 300
@@ -994,9 +994,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
             alpha_g = alpha_g_max
             alpha_s = alpha_s_max
            end if
-           b_ps = (8_wp+16_wp*alpha_g+8_wp*alpha_s)*dd
-           a_ps = j_photon
-           e_ps = 4._wp
+           b_ps = (8_wp+16_wp*alpha_g_max+8_wp*alpha_s_max)*dd
+           a_ps = j_photon*(1-alpha_g_max)
+           e_ps = 4._wp*(1-alpha_g_max)
 
         else if (wc < min(wj2,wp_tpu)) then
            tpu_coeff = 1
@@ -1014,9 +1014,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
            alpha_g = min(alpha_g_max,g_tmp)
            s_tmp = 1.5*n_max*(1-beta_tpu)*(2/phi-1)/(6*tp+3*n_max*(2-beta_tpu))
            alpha_s = min(alpha_s_max, s_tmp)
-           b_ps = -(1_wp+3_wp*alpha_g+4_wp*alpha_s)*dd
-           a_ps = 3*tp
-           e_ps = one
+           b_ps = -(1_wp+3_wp*alpha_g_max+4_wp*alpha_s_max)*dd
+           a_ps = 3*tp*(1-alpha_g_max)
+           e_ps = (1-alpha_g_max)
         end if
 
     end if

@@ -600,6 +600,7 @@ CONTAINS
     in08=in08+scenario_co2
     !print *, scenario_temp
     in15=in15+o2_ref ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
+    in15=in15+o2_ref-1.15_wp*scenario_co2 ! in RCP scenario, o2 decrease with scenario_co2
     if (ierr > 0) call error_reading(isroutine, ninmet)
     if (ierr < 0) call error_reading(isroutine, ninmet, 'reached EOF.')
     input%dayy         = dayy

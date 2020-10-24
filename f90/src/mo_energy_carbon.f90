@@ -839,7 +839,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! collatz 1991 gives rd=0.015*vcmax
     ! Farqhuar 1980 gives rd=0.011*vcmax
     ! reduce respiration by 50% in light according to Amthor (might be less, see Pinelli and Loreto, 2003)
-    if (Iphoton > 1.0_wp) rdz = rdz * half !changed to 40% reduction ! >10 or >1?
+    if (Iphoton > 10.0_wp) rdz = rdz * half !changed to 40% reduction ! >10 or >1?
     ! apply temperature correction for rd at 25 deg C to leaf level temperature
     rd          = temp_func(rdz, erd, tprime25, tk_25, tlk)
     ! Apply temperature correction to JMAX and vcmax

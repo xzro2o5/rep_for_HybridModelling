@@ -92,8 +92,8 @@ ekc = 59356.0 ! ekc, Activation energy for K of CO2 ! J mol-1, old = 80500.0
 eko = 35948.0 ! eko, Activation energy for K of O2, old = 14500.0
 erd = 66400.0 ! erd, activation energy for dark respiration, eg Q10=2
 ektau = -23408.0 ! ektau, old = -29000
-toptvc = 311. ! toptvc, optimum temperature for maximum carboxylation
-toptjm = 311. ! toptjm, optimum temperature for maximum electron transport
+toptvc = 300. ! toptvc, optimum temperature for maximum carboxylation
+toptjm = 300. ! toptjm, optimum temperature for maximum electron transport
 ! curvature for light response function (ranges from 0 to 1)
 curvature = 0.9
 ! leaf quantum yield, electrons

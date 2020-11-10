@@ -185,7 +185,7 @@ PROGRAM canveg
   if (nsoil==0) soil%camillo = 1
 
   ! Misc
-  i_max = 51            ! maximum number of iterations for energy balance
+  i_max = 501            ! maximum number of iterations for energy balance
   time%year = time%year0 ! Save first year
   if (.not. allocated(sun_A))  allocate(sun_A(ncl))
   if (.not. allocated(shd_A))  allocate(shd_A(ncl))
@@ -194,10 +194,10 @@ PROGRAM canveg
   if (.not. allocated(rcws))   allocate(rcws(nwiso))
 
   ! create a new directory for output Yuan 2018.01.22
-  call create_dir()
+  ! call create_dir()
 !  PRINT *, outdir
 ! copy source code
-  call copy_code()
+  ! call copy_code()
   !
   ! Open files
   call open_files()

@@ -409,9 +409,9 @@ CONTAINS
         ! Profile tpu limits
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(tpufile), trim(outsuffix)
     open(unit=nouttpu, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*18, iostat=ierr) ! original 40*25
+         form="formatted", recl=40*22, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 18, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 22, '(",",a))'
     write(nouttpu,form1) "daytime ", "i ", &
                        "air_co2 ", &
                        "sun_ci ", "shd_ci ", &
@@ -420,6 +420,8 @@ CONTAINS
                        "sun_wc ", "shd_wc ", &
                        "sun_wj ", "shd_wj ", &
                        "sun_wp ", "shd_wp ", &
+                       "sun_alphag ", "shd_alphag ", &
+                       "sun_alphas ", "shd_alphas ", &
                        "sun_tpu_coeff ", "shd_tpu_coeff"
 
 
@@ -598,9 +600,7 @@ CONTAINS
          in05, in06, in07, in08, in09, in10, in11, flag, in13, in14, in15
     in01=in01+scenario_temp
     in08=in08+scenario_co2
-    !print *, scenario_temp
-    in15=in15+o2_ref ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
-    in15=in15+o2_ref-1.15_wp*scenario_co2 ! in RCP scenario, o2 decrease with scenario_co2
+    in15=in15+o2_ref-1.15_wp*scenario_co2 ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
     if (ierr > 0) call error_reading(isroutine, ninmet)
     if (ierr < 0) call error_reading(isroutine, ninmet, 'reached EOF.')
     input%dayy         = dayy
@@ -975,7 +975,7 @@ end if
     if (ierr > 0) call error_writing(isroutine, noutflux, ' - 2')
 
      ! Profile tpu
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 18, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 22, '(",",es22.14))'
     do j=1, ncl
        write(nouttpu,form1,iostat=ierr) &
             time%daytime,j,&
@@ -986,7 +986,8 @@ end if
             prof%sun_wc(j), prof%shd_wc(j), &
             prof%sun_wj(j), prof%shd_wj(j), &
             prof%sun_wp(j), prof%shd_wp(j), &
-            !prof%sun_wp(j), prof%shd_wp(j)
+            prof%sun_alphag(j), prof%shd_alphag(j), &
+            prof%sun_alphas(j), prof%shd_alphas(j), &
             prof%sun_tpu_coeff(j), prof%shd_tpu_coeff(j)
             !prof%sun_wp(j), prof%shd_wp(j), &
 

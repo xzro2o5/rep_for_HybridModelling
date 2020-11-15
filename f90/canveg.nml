@@ -1,23 +1,23 @@
 ! -*- Mode: F90 -*- !
 &CANCTL
 workdir = "." ! working directory
-indir = "./input2016"!"./inputiso" ! location of input file
-metinfile = "gf_fp_2016.dat"!"MMeteoDataForYuanLF2016.dat" !"MM2016.dat" ! met input file
+indir = "./input2015"!"./inputiso" ! location of input file
+metinfile = "gf_fp_2015.dat"!"MMeteoDataForYuanLF2016.dat" !"MM2016.dat" ! met input file
 laiinfile = "2006laiinput_eddy.dat" ! lai input file
-wisoinfile = "wisoinput2012gf.dat" ! wiso input fie
-outdir = "output_ball2016_101" ! location of output files
-outsuffix = ".csv" ! output suffix �./output�
+wisoinfile = "wisoinput2015gf.dat" ! wiso input fie
+outdir = "output_ball2015_0" ! location of output files
+outsuffix = ".csv" ! output suffix “./output”
 dispfile = "DIJHainich._C" ! location and name of disperion matrix
 netcdf_in = 0 ! 1: input in netcdf; 0: input in ascii format
 netcdf_out = 0 ! 1: output in netcdf; 0: output in ascii format
 netcdf_disp = 0 ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 ! --- Model Set-up
-year0 = 2016 ! Year
-start_run = 0010100!1861200!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
-end_run =3662400!1861200!1861200!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
+year0 = 2015 ! Year
+start_run = 0010100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
+end_run = 3652400!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
 start_profiles = 0010100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
-end_profiles =3662400!1861200!1861200!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
+end_profiles =3652400!3652400!1861200!1861200!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
 ! start_run = 1262000 ! start of model run, [dddhhmm] > 0010100
 ! end_run = 1262100 ! end of model run, [dddhhmm] <3662400
 ! start_profiles = 1262000 ! start of profile output, [dddhhmm]
@@ -56,7 +56,7 @@ htFrac = 0.65 ! zh65 = htFrac/ht; Yuan 2018.02.21
 pai = 1.06 ! Plant area index [m2 m-2] 1.1???
 lai = 4.8 ! Maximum leaf area index [m2 m-2] 5.5???
 wai = 1.06 ! wood area index, PAI = WAI +LAI, YUAN 2018.03.01
-vc25_in = 96.3 ! carboxylation rate at 25 deg C, [umol m-2 s-1] -2.94244056713017.3
+vc25_in = 90!118.3!96.3 ! carboxylation rate at 25 deg C, [umol m-2 s-1] -2.94244056713017.3
 jm_vc_in = 2 ! ratio jmax to vcmax, jmax = electron transport rate at 25 deg C, [umol m-2 s-1] 0.011
 rd_vc_in = 0.015 ! ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
 ustar_ref = 1. ! reference ustar for Dij [umol m-2 s-1]
@@ -105,9 +105,9 @@ a1_in = 10. ! a1, slope of Leuning stomata model for water vapor [-]
 D0_in = 8. ! Do, empirical coefficient for humidity sensitivity of Leuning stomata model [Pa]
 gm_vc = 0.008 ! ratio of mesophyll conductance to Vcmax [mol m-2 s-1] 0.004
 fthreshold = 0.65 ! threshold of plant available water below which stomata response to water stress
-fslope = 0. ! slope of stomata response to water stress (should be: slope = 1/threshold)
-kball_in = 7!9!8.5!8.5!6.8!7!8!9.5!11 ! Ball-Berry stomatal coefficient for stomatal conductance
-bprime_in = 0.0175!0.0175!0.0175!0.022!0.01!0.0175 ! intercept of Ball-Berry model, mol m-2 s-1 ! intercept for H2O 0.0225476868954421
+fslope = 0.35!0. ! slope of stomata response to water stress (should be: slope = 1/threshold)
+kball_in = 10!7!9!8.5!8.5!6.8!7!8!9.5!11 ! Ball-Berry stomatal coefficient for stomatal conductance
+bprime_in = 0.005!0.0175!0.0175!0.0175!0.022!0.01!0.0175 ! intercept of Ball-Berry model, mol m-2 s-1 ! intercept for H2O 0.0225476868954421
 rsm = 145.0 ! Minimum stomatal resistance, s m-1.
 brs = 60.0 ! curvature coeffient for light response
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -214,7 +214,7 @@ extra_nate = 0
 ! Level at which starts upper canopy, i.e. below is understory
 nup = 9
 ! Photosynthesis
-! Vcmax(25C) carboxylation rate at 25�C, [umol m-2 s-1]
+! Vcmax(25C) carboxylation rate at 25°C, [umol m-2 s-1]
 vc25_up = 35. ! upper canopy
 vc25_down = 35. ! understory
 ! Jmax/Vcmax(25C) ratio of jmax to vcmax at 25 deg C, jmax = electron transport rate at 25 deg C, [umol m-2 s-1]
@@ -251,11 +251,12 @@ ROC_soil_in = 1.1
 !***************************************************
 ! parameters for TPU limit
 !***************************************************
-switch_tpu = 0 ! 1: include TPU limit in photosynthesis
+switch_tpu = 0 ! 0: no TPU limit; 1: include TPU limit in photosynthesis, using Busch's parameter; 2: CLM, only tp-vc and alpha works.
 tp_vc = 0.122 ! 0.122, 0.122, 0.122 are used for sensitivity analysis in CLM.tp as a fraction of Vcmax, derived from Licor in Leinefelde
-n_max = 0
-alpha_g_max = 0!0.5!0.09 ! assumed 0.02 in A_Ci curve fitting
-alpha_s_max = 0!0.4!0!0.38 ! Busch's paper
+n_max = 1.21
+alphag_max = 0.09!0.09!0.09 ! assumed 0.02 in A_Ci curve fitting
+alphas_max = 0.38!0.4!0!0.3888 ! Busch's paper
+alpha = 0.02 ! old alpha in CLM mode
 !***************************************************
 ! parameters for Medlyn's stomatal conductance
 !***************************************************
@@ -264,11 +265,11 @@ g1_mly_in = 6.5!6.06!6.99!7.91!4.82!
 !***************************************************
 ! future scenario for elevated CO2
 !***************************************************
-scenario_co2 = 0 ! increase CO2 by 100 ppm
-scenario_temp = 0.5
+scenario_co2 = 0 ! increase CO2 by 0 ppm
+scenario_temp = 0
 !***************************************************
 ! flexible soil and bole respiration coefficients
 !***************************************************
-rsoil1 = 0.3!0.69 ! fraction
-rsoil2 = 0.5!0.07 !power
+rsoil1 = 0.69 ! fraction
+rsoil2 = 0.07 !power
 /

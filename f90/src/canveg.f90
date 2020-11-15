@@ -185,7 +185,7 @@ PROGRAM canveg
   if (nsoil==0) soil%camillo = 1
 
   ! Misc
-  i_max = 501            ! maximum number of iterations for energy balance
+  i_max = 51            ! maximum number of iterations for energy balance
   time%year = time%year0 ! Save first year
   if (.not. allocated(sun_A))  allocate(sun_A(ncl))
   if (.not. allocated(shd_A))  allocate(shd_A(ncl))
@@ -194,10 +194,10 @@ PROGRAM canveg
   if (.not. allocated(rcws))   allocate(rcws(nwiso))
 
   ! create a new directory for output Yuan 2018.01.22
-  ! call create_dir()
+  call create_dir()
 !  PRINT *, outdir
 ! copy source code
-  ! call copy_code()
+  call copy_code()
   !
   ! Open files
   call open_files()
@@ -848,8 +848,7 @@ PROGRAM canveg
         fact%co2 = (mass_air/mass_CO2)*met%air_density_mole
 !        call conc(prof%source_co2, prof%co2_air, input%co2air, soil%respiration_mole, fact%co2)
      call conc_seperate(prof%source_CO2, prof%co2_air, input%co2air, soil%respiration_mole, prof%CO2_soil, prof%CO2_disp, fact%co2)
-!print *,  prof%source_co2
-!print *,  input%co2air
+!print *,  prof%co2_air
 !print *,  soil%respiration_mole
 !print *,  fact%co2
         if (iswitch%oxygen==1) then
@@ -974,7 +973,6 @@ PROGRAM canveg
  !            print *, prof%rhov_air
  !            print *, fact%a_filt
              end if
-
         prof%co2_air_filter(1:ntl)    = fact%a_filt * prof%co2_air(1:ntl) &
              + (one-fact%a_filt) * prof%co2_air_filter(1:ntl)
         prof%O2_air_filter(1:ntl)    = fact%a_filt * prof%O2_air(1:ntl) &

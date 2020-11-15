@@ -25,7 +25,7 @@ MODULE parameters
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
-       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alpha_g_max, alpha_s_max, g0_mly_in, g1_mly_in, &
+       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
        scenario_co2, scenario_temp, rsoil1, rsoil2 ! Yuan added ROC 2017.11.21 R_base1, R_base2, 2018.02.13
 
   ! Derived parameters
@@ -330,8 +330,9 @@ MODULE parameters
   ! **********************
   REAL(wp)           :: tp_vc
   REAL(wp)           :: n_max
-  REAL(wp)           :: alpha_g_max
-  REAL(wp)           :: alpha_s_max
+  REAL(wp)           :: alphag_max
+  REAL(wp)           :: alphas_max
+  REAL(wp)           :: alpha
   ! Medlyn's stomatal model
   REAL(wp)           :: g0_mly_in
   REAL(wp)           :: g1_mly_in
@@ -627,8 +628,9 @@ CONTAINS
     bprime_down = 0.001_wp ! understory
     tp_vc       = 0.167    ! ratio of TPU to Vcmax
     n_max       = 1.21     ! maximum nigrogen supply in umol m-2 s-1
-    alpha_g_max = 0.09     ! fraction of carbon leaving photorespiration in the form of glycine
-    alpha_s_max = 0.38     ! fraction of carbon leaving photorespiration in the form of serine
+    alphag_max = 0.09     ! fraction of carbon leaving photorespiration in the form of glycine
+    alphas_max = 0.38     ! fraction of carbon leaving photorespiration in the form of serine
+    alpha       = zero     ! fraction of total carbon leaving photorespiration, used in CLM
     ROC_leaf_in = 1._wp    ! O2: CO2 ratio for leaf net photosynthesis
     ROC_bole_in = 1.02_wp  ! O2: CO2 ratio for bole respirations
     ROC_soil_in = 1.1_wp   ! O2: CO2 ratio for soil respirations
@@ -677,7 +679,7 @@ CONTAINS
          theta1_in, theta2_in, theta3_in, extra_nate, nup, vc25_up, vc25_down, jm_vc_up, jm_vc_down, rd_vc_up, rd_vc_down, &
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
          switch_oxygen, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
-         switch_tpu, tp_vc, n_max, alpha_g_max, alpha_s_max, &
+         switch_tpu, tp_vc, n_max, alphag_max, alphas_max, alpha, &
          g0_mly_in, g1_mly_in, scenario_co2, scenario_temp, rsoil1, rsoil2 ! Medlyn's model
 
     call ini_namelist()

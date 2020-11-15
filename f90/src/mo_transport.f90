@@ -262,13 +262,15 @@ CONTAINS
     ! add soil flux to the lowest boundary condition
     ! convert to the units we need
     soilbnd(1:ntl) = soilflux * disperzl1(1:ntl) / factor
+    !print *, soilflux,disperzl1(1),factor
     cc(1:ntl)      = sumcc(1:ntl) / factor + soilbnd(1:ntl)
     ! Compute scalar profile below reference
     !cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
     cncc(1:ntl) = cc(1:ntl) + (cref)
     sourcebnd(1:ntl) = sumcc(1:ntl)/factor
-!    print *, izref
-!    print *, cncc(ntl), cc(ntl), cref, cc(izref)
+    !print *, cncc(1)
+    !print *, sumcc(1),factor,soilbnd(1)
+    !print *, cc(izref)
 
   END SUBROUTINE conc_seperate
   ! ------------------------------------------------------------------

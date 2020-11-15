@@ -568,6 +568,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_wj ! electron transport rate of Ps for sun leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_wc ! carboxylatio velocity for sun leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_wp !
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_alphag ! N assimilation in photorespiration to glycine
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_alphas ! N assimilation in photorespiration to serine
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_tpu_coeff ! tpu occurs = 1 else = 0
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_resp ! respiration ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_isopreneflux ! isoprene flux per layer for sunleaves ! [ncl]
@@ -607,6 +609,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_wc ! carboxylation rate for shade leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_wj ! electron transport rate for shade leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_wp
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_alphag
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_alphas
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_tpu_coeff ! tpu occurs = 1 else = 0
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_resp ! respiration ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_isopreneflux ! isoprene flux per layer for shade leaves ! [ncl]
@@ -1048,6 +1052,8 @@ CONTAINS
     if (.not. allocated(prof%sun_wj)) allocate(prof%sun_wj(ncl))
     if (.not. allocated(prof%sun_wc)) allocate(prof%sun_wc(ncl))
     if (.not. allocated(prof%sun_wp)) allocate(prof%sun_wp(ncl))
+    if (.not. allocated(prof%sun_alphag)) allocate(prof%sun_alphag(ncl))
+    if (.not. allocated(prof%sun_alphas)) allocate(prof%sun_alphas(ncl))
     if (.not. allocated(prof%sun_tpu_coeff)) allocate(prof%sun_tpu_coeff(ncl))
     if (.not. allocated(prof%sun_resp)) allocate(prof%sun_resp(ncl))
     if (.not. allocated(prof%sun_isopreneflux)) allocate(prof%sun_isopreneflux(ncl))
@@ -1086,6 +1092,8 @@ CONTAINS
     if (.not. allocated(prof%shd_wc)) allocate(prof%shd_wc(ncl))
     if (.not. allocated(prof%shd_wj)) allocate(prof%shd_wj(ncl))
     if (.not. allocated(prof%shd_wp)) allocate(prof%shd_wp(ncl))
+    if (.not. allocated(prof%shd_alphag)) allocate(prof%shd_alphag(ncl))
+    if (.not. allocated(prof%shd_alphas)) allocate(prof%shd_alphas(ncl))
     if (.not. allocated(prof%shd_tpu_coeff)) allocate(prof%shd_tpu_coeff(ncl))
     if (.not. allocated(prof%shd_resp)) allocate(prof%shd_resp(ncl))
     if (.not. allocated(prof%shd_isopreneflux)) allocate(prof%shd_isopreneflux(ncl))
@@ -1769,6 +1777,8 @@ CONTAINS
     prof%sun_wj = zero
     prof%sun_wc = zero
     prof%sun_wp = zero
+    prof%sun_alphag = zero
+    prof%sun_alphas = zero
     prof%sun_tpu_coeff = zero
     prof%sun_resp = zero
     prof%sun_isopreneflux = zero
@@ -1807,6 +1817,8 @@ CONTAINS
     prof%shd_wc = zero
     prof%shd_wj = zero
     prof%shd_wp = zero
+    prof%shd_alphag = zero
+    prof%shd_alphas = zero
     prof%shd_tpu_coeff = zero
     prof%shd_resp = zero
     prof%shd_isopreneflux = zero

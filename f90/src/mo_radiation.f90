@@ -738,7 +738,7 @@ CONTAINS
     REAL(wp) :: p0, p1, p2, p3
     INTEGER(i4) :: j, j_branch ! j_stem = layer on which stem ends and branch extension starts
 
-  h_stem = 17 ! stem height = 17m
+  !h_stem = 17 ! stem height = 17m
   stem_wai = 0.2 ! 0.2 and 0.8 ratio, from Yuan's measurement. 2018.04.23
   branch_wai = 0.8
   p0 = 102
@@ -747,7 +747,7 @@ CONTAINS
   p3 = -0.0023
 
   !QD <- 0.55 ! quadratic mean diameter
-  j_branch = nint(h_stem/delz,i4)-1 ! branch starts at layer 17
+  !j_branch = nint(h_stem/delz,i4)-1 ! branch starts at layer 17
   ! calculate stem volume fraction on each layer
   vol_perc = zero
    ! lower layers, stems
@@ -756,14 +756,14 @@ CONTAINS
     htmp = j*delz
     ! diameter function with height
     d_frac =p0+p1*(htmp)+p2*(htmp**2)+p3*(htmp**3)
-    vol_perc(j) = d_frac**3
+    vol_perc(j) = d_frac**2
   end do
   ! volume frac per layer stem
   vol_perc =  vol_perc/sum(vol_perc)
 !  print *, sum(vol_perc)
  ! print *, j_branch
   ! wai distr of the stem based on vol%
-  j_branch = 20 ! j_branch = 18 from Yuan's measurements 2018.04.23
+  j_branch = 18 ! j_branch = 18 from Yuan's measurements 2018.04.23
   wai_z(1:j_branch) = stem_wai*wai*vol_perc(1:j_branch)/sum(vol_perc(1:j_branch))
   ! wai of branch is scaled with lai
   wai_z((j_branch+1):ncl)= branch_wai*wai*B_func((j_branch+1):ncl)/sum(B_func((j_branch+1):ncl))

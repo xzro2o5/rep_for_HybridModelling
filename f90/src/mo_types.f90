@@ -194,6 +194,9 @@ MODULE types
   TYPE meteorology
      REAL(wp) :: ustar ! friction velocity, m s-1
      REAL(wp) :: ustar_filter ! updated friction velocity with new H, m s-1
+     REAL(wp) :: K ! momentum diffusivity
+     REAL(wp) :: K_filter ! momentum diffusivity
+     REAL(wp) :: phim ! stability correction of ustar
      REAL(wp) :: rhova_g ! absolute humidity, g m-3
      REAL(wp) :: rhova_kg ! absolute humidity, kg m-3
      REAL(wp) :: H ! sensible heat flux, W M-2
@@ -1428,6 +1431,9 @@ CONTAINS
 
     met%ustar = zero
     met%ustar_filter = zero
+    met%K = zero
+    met%K_filter = zero
+    met%phim = zero
     met%rhova_g = zero
     met%rhova_kg = zero
     ! met%H = zero

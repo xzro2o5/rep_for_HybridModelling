@@ -200,8 +200,8 @@ CONTAINS
     soilbnd(1:ntl) = soilflux * disperzl1(1:ntl) / factor
     cc(1:ntl)      = sumcc(1:ntl) / factor + soilbnd(1:ntl)
     ! Compute scalar profile below reference
- !   cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
-    cncc(1:ntl) = cc(1:ntl) + (cref)
+    cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
+ !   cncc(1:ntl) = cc(1:ntl) + (cref)
 !    print *, izref
 !    print *, cncc(ntl), cc(ntl), cref, cc(izref)
 
@@ -265,8 +265,8 @@ CONTAINS
     !print *, soilflux,disperzl1(1),factor
     cc(1:ntl)      = sumcc(1:ntl) / factor + soilbnd(1:ntl)
     ! Compute scalar profile below reference
-    !cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
-    cncc(1:ntl) = cc(1:ntl) + (cref)
+    cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
+    !cncc(1:ntl) = cc(1:ntl) + (cref)
     sourcebnd(1:ntl) = sumcc(1:ntl)/factor
     !print *, cncc(1)
     !print *, sumcc(1),factor,soilbnd(1)
@@ -285,7 +285,7 @@ CONTAINS
 
     IMPLICIT NONE
 
-    REAL(wp) :: xzl, logprod, phim
+    REAL(wp) :: xzl, logprod, phim,K
 
     met%zl = -(vonKarman*Gravity*met%H_filter*(zm-zd)) / &
          (met%air_density*1005._wp*met%T_Kelvin*met%ustar_filter*met%ustar_filter*met%ustar_filter) ! z/L
@@ -305,6 +305,9 @@ CONTAINS
     else
        phim = -5._wp*met%zl
     end if
+    !K = met%ustar*vonKarman*(zm-zd)/phims
+    !met%K = K
+    !print *, K
     if ((log((zm-zd)/z0)-phim) > zero) then
        met%ustar = vonKarman*input%wnd/(log((zm-zd)/z0)-phim)
     else
@@ -312,6 +315,10 @@ CONTAINS
     end if
     if (met%ustar > two)     met%ustar = vonKarman*input%wnd/log((zm-zd)/z0)
     if (met%ustar < 0.02_wp) met%ustar = 0.02_wp
+    K = met%ustar*vonKarman*(zm-zd)/phim
+    met%K = K
+    met%phim = phim
+    !print *, K
 
   END SUBROUTINE friction_velocity
 

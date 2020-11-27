@@ -320,14 +320,14 @@ CONTAINS
     ! Hourly/Season
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(hourlyfile), trim(outsuffix)
     open(unit=noutseas, file=stmp,action="write", status="replace", &
-         form="formatted", recl=28*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
+         form="formatted", recl=29*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 19-1+9, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 19-1+11, '(",",a))'
 !    print *, form1
     write(noutseas,form1) "daytime ", "netrn ", "sumrn ", "sumh ", "sumle ", &
     "canps ", "gpp ", "canresp ", "soilresp ", "boleresp ", &
     "sumOXY ", "netOXY ", "netROC ", "ROC_leaf ", "ROC_bole ", "ROC_soil ", &
-    "ustar ", "canresp_o ", &
+    "ustar ", "Kdiff ","phim ","canresp_o ", &
     "inputPAR ","PAR_dir ","PAR_dn ", "PAR_up ", &
     "NIR_dir ","NIR_dn ","NIR_up ","IR_dn ","IR_up"
     !write(noutseas,form1) &
@@ -835,13 +835,13 @@ CONTAINS
     ierr = 0
     ! Hourly/Season
 !write(form1,'(A,I3,A)') '(i07,",",i03,', 19-1+4, '(",",es22.14))'
-    write(form1,'(A,I3,A)') '(i07,', 19-1+9, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,', 19-1+11, '(",",es22.14))'
     !print *, form1
     write(noutseas,form1,iostat=ierr) &
          time%daytime, output%netrad, output%sumrn, output%sumh, output%sumle, &
          output%can_ps_mol, output%can_gpp, output%canresp, soil%respiration_mole, bole%respiration_mole, &
-         output%houro, output%hourneto, output%hourROC, ROC_leaf_in, ROC_bole_in, ROC_soil_in, met%ustar_filter, &
-         output%hour_canrespo,&
+         output%houro, output%hourneto, output%hourROC, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
+         met%ustar_filter, met%K, met%phim, output%hour_canrespo, &
          input%parin,solar%beam_flux_par(ncl+1)/ 4.6_wp,solar%par_down(ncl+1)/ 4.6_wp,solar%par_up(ncl+1)/ 4.6_wp,&
          solar%beam_flux_nir(ncl+1),solar%nir_dn(ncl+1),solar%nir_up(ncl+1),&
          solar%ir_dn(ncl+1),solar%ir_up(ncl+1)

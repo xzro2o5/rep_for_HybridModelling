@@ -959,6 +959,7 @@ PROGRAM canveg
         ! met variables
         met%H_filter     = fact%a_filt * met%H + (one-fact%a_filt) * met%H_filter
         met%ustar_filter = fact%a_filt * met%ustar + (one-fact%a_filt) * met%ustar_filter
+        met%K_filter = fact%a_filt * met%K + (one-fact%a_filt) * met%K_filter
         ! write(*,'(a,3f20.14)') 'CV50.24 ', met%H_filter, met%ustar_filter
         ! air variables
 !        print *, "3\n"

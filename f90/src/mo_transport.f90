@@ -265,8 +265,8 @@ CONTAINS
     !print *, soilflux,disperzl1(1),factor
     cc(1:ntl)      = sumcc(1:ntl) / factor + soilbnd(1:ntl)
     ! Compute scalar profile below reference
-    cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
-    !cncc(1:ntl) = cc(1:ntl) + (cref)
+    !cncc(1:ntl) = cc(1:ntl) + (cref - cc(izref))
+    cncc(1:ntl) = cc(1:ntl) + (cref)
     sourcebnd(1:ntl) = sumcc(1:ntl)/factor
     !print *, cncc(1)
     !print *, sumcc(1),factor,soilbnd(1)

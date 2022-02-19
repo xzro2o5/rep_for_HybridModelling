@@ -18,9 +18,9 @@ MODULE types
             meteorology, surface_resistances, factors, bole_respiration_structure, &
             canopy_architecture, non_dimensional_variables, boundary_layer_resistances, &
             solar_radiation_variables, soil_variables, profile, switch_variables, &
-            isotope_variables, water_isotope_variables, debug_variables ! Yuan added 2018.05.09, store variables to be debug
+            isotope_variables, water_isotope_variables, debug_variables, nitrogen_variables ! Yuan added 2018.05.09, store variables to be debug
   PUBLIC :: debug, output, flux, input, time, met, srf_res, fact, bole, canopy, &                ! Type variables
-            non_dim, bound_lay_res, solar, soil, prof, iswitch, ciso, wiso
+            non_dim, bound_lay_res, solar, soil, prof, iswitch, ciso, wiso, nitrogen
   PUBLIC :: alloc_type_vars, zero_new_timestep, zero_initial                              ! Subroutines
 
   ! -----------------------------------------------------------------------------------------------
@@ -692,6 +692,20 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_shd    ! respiratory quotient of shaded leaves
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_sun    ! respiratory quotient of sunlit leaves
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_shd    ! respiratory quotient of shaded leaves
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_NO3   ! assimilated nitrate, nitrite and ammonia
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_NO3
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_NO2
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_NO2
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_NH4
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_NH4
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Ja_sun    ! electron for CO2
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Jn_sun    ! electron for N
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Ja_shd    ! electron for CO2
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Jn_shd    ! electron for N
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: jphoton_sun    ! electron for CO2
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: jphoton_shd    ! electron for N
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_quad
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_quad
   END TYPE profile
 
 
@@ -706,6 +720,8 @@ MODULE types
      INTEGER(i4) :: oxygen ! 1: calc oxygen flux
      INTEGER(i4) :: wai_new ! to switch between default wai distribution and Yuan's field measurement. 2018.07.16
      INTEGER(i4) :: tpu    ! add tpu limits
+     INTEGER(i4) :: n_limit ! consider Nitrogen limit
+     INTEGER(i4) :: n_random ! random mixed N source
   END TYPE switch_variables
 
 
@@ -732,7 +748,23 @@ MODULE types
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: dtheta ! initial soil delta-values ! [nsoil,nwiso]
   END TYPE water_isotope_variables
 
+  ! structure for nitrogen variables
+  TYPE nitrogen_variables
+     REAL(wp) :: J_extra ! extra electrons requirements for N assimilation, umol m-2 s-1
+     REAL(wp) :: nc_bulk ! bulk N:C ratio
+     REAL(wp) :: n_supply ! field N supply, ambient for fertilization, umol m-2 s-1
+     REAL(wp) :: n_mult ! set nassimilation as a multiple of glycine and serine
+     REAL(wp) :: nitrate_per !fraction of nitrate in N supply
+     REAL(wp) :: nitrite_per !fraction of nitrite in N supply
+     REAL(wp) :: ammonia_per !fraction of ammonia in N supply
+     REAL(wp) :: nitrate_mol !mole of nitrate in N supply
+     REAL(wp) :: nitrite_mol !mole of nitrite in N supply
+     REAL(wp) :: ammonia_mol !mole of ammonia in N supply
 
+     !REAL(wp) :: ammonia !fraction of ammonia in N supply
+
+
+  END TYPE nitrogen_variables
   ! -----------------------------------------------------------------------------------------------
   ! Assign type variables
   TYPE(debug_variables)            :: debug
@@ -750,9 +782,10 @@ MODULE types
   TYPE(solar_radiation_variables)  :: solar
   TYPE(soil_variables)             :: soil
   TYPE(profile)                    :: prof
-  TYPE(switch_variables)            :: iswitch
-  TYPE(isotope_variables)           :: ciso
-  TYPE(water_isotope_variables)     :: wiso
+  TYPE(switch_variables)           :: iswitch
+  TYPE(isotope_variables)          :: ciso
+  TYPE(water_isotope_variables)    :: wiso
+  TYPE(nitrogen_variables)         :: nitrogen
 
   ! -----------------------------------------------------------------------------------------------
 
@@ -1162,6 +1195,21 @@ CONTAINS
     if (.not. allocated(prof%dRESPdz_O2_sun)) allocate(prof%dRESPdz_O2_sun(ncl))
     if (.not. allocated(prof%dRESPdz_O2_shd)) allocate(prof%dRESPdz_O2_shd(ncl))
     if (.not. allocated(prof%dRESPdz_O2)) allocate(prof%dRESPdz_O2(ncl))
+    if (.not. allocated(prof%sun_NO3)) allocate(prof%sun_NO3(ncl))
+    if (.not. allocated(prof%shd_NO3)) allocate(prof%shd_NO3(ncl))
+    if (.not. allocated(prof%sun_NO2)) allocate(prof%sun_NO2(ncl))
+    if (.not. allocated(prof%shd_NO2)) allocate(prof%shd_NO2(ncl))
+    if (.not. allocated(prof%sun_NH4)) allocate(prof%sun_NH4(ncl))
+    if (.not. allocated(prof%shd_NH4)) allocate(prof%shd_NH4(ncl))
+    if (.not. allocated(prof%Ja_sun)) allocate(prof%Ja_sun(ncl))
+    if (.not. allocated(prof%Jn_sun)) allocate(prof%Jn_sun(ncl))
+    if (.not. allocated(prof%Ja_shd)) allocate(prof%Ja_shd(ncl))
+    if (.not. allocated(prof%Jn_shd)) allocate(prof%Jn_shd(ncl))
+    if (.not. allocated(prof%jphoton_sun)) allocate(prof%jphoton_sun(ncl))
+    if (.not. allocated(prof%jphoton_shd)) allocate(prof%jphoton_shd(ncl))
+    if (.not. allocated(prof%sun_quad)) allocate(prof%sun_quad(ncl))
+    if (.not. allocated(prof%shd_quad)) allocate(prof%shd_quad(ncl))
+
 
 
     if (.not. allocated(prof%gpp_O2)) allocate(prof%gpp_O2(ncl))
@@ -1245,6 +1293,7 @@ CONTAINS
     CALL zero_initial_wiso()
     CALL zero_initial_iswitch()
     CALL zero_initial_non_dim()
+    CALL zero_initial_nitrogen()
 
   END SUBROUTINE zero_initial
 
@@ -2184,4 +2233,25 @@ CONTAINS
 
   END SUBROUTINE zero_initial_non_dim
 
+  SUBROUTINE zero_initial_nitrogen()
+
+    USE constants, ONLY: zero
+
+    IMPLICIT NONE
+
+    nitrogen%J_extra   = zero
+    nitrogen%nc_bulk   = zero
+    nitrogen%n_supply  = zero
+    nitrogen%n_mult    = zero
+    nitrogen%nitrate_per   = zero
+    nitrogen%nitrite_per   = zero
+    nitrogen%ammonia_per   = zero
+    nitrogen%nitrate_mol   = zero
+    nitrogen%nitrite_mol   = zero
+    nitrogen%ammonia_mol   = zero
+
+  END SUBROUTINE zero_initial_nitrogen
+
 END MODULE types
+
+

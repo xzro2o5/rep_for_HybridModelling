@@ -1,8 +1,8 @@
-MODULE OXYGEN
+MODULE oxygen
 
-  ! This module contains the oxygen flux routines of Canveg
+  ! This module contains the oxygen release and uptake of Canveg
 
-  ! Written Jan 2018, Yuan Yan
+  ! Written June 2021, Yuan Yan
     USE kinds, ONLY: wp, i4
     USE constants,     ONLY: zero, one, undef, mass_air, mass_O2
     USE setup,         ONLY: ncl, ntl
@@ -13,8 +13,72 @@ MODULE OXYGEN
 
   PRIVATE
 
+  PUBLIC  :: gross_emission
+  PUBLIC  :: uptake
   PUBLIC  :: OXYFLUX
+
   CONTAINS
+
+!  FUNCTION gross_emission (J_CO2,J_extra,I_photon,ETRmax)
+!
+!    ! This subroutine computes primary O2 release via water split reaction,
+!    ! where 4 mole electrons are provided while 1 mole O2 released.
+!
+!  IMPLICIT NONE
+!        REAL(wp), INTENT(IN) :: J_CO2, J_extra, I_photon, ETRmax
+!        REAL(wp) :: gross_o2, o2_test
+!        REAL(wp) :: ETR1, ETR2 ! electron transport rate
+!
+!        ETR1 = I_photon*0.35*0.95
+!        ETR2 = ETRmax*tanh(0.35*I_photon/ETRmax)
+!        o2_test = ETR2/4
+!        gross_o2 = (J_CO2+J_extra)/4
+!
+!  END FUNCTION gross_emission
+
+  SUBROUTINE gross_emission (carboxlation,vo_vc,o2_emit,Ja,Jn)
+
+
+    ! This subroutine computes primary O2 release via water split reaction,
+    ! where 4 mole electrons are provided while 1 mole O2 released.
+    ! The total O2 evolution (in support of PCR and PCO cycle activity) at PS II derived from the
+    ! splitting of H2O is therefore:
+    ! gross emission = JA/4 = Vc + Vo = (1+phi)*vc
+    ! where, vc (carboxlation)= min{wc,wj,wp}
+
+    USE types, ONLY: nitrogen
+    IMPLICIT NONE
+        REAL(wp), INTENT(IN) :: carboxlation,vo_vc
+        REAL(wp), INTENT(OUT) :: o2_emit, Ja, Jn
+
+        Jn = nitrogen%J_extra
+        Ja = 4*(1+vo_vc)*carboxlation
+        o2_emit = (Ja+Jn)/4
+!        print *, Jn/Ja
+
+  END SUBROUTINE gross_emission
+
+  FUNCTION uptake (oxygenation,dark_resp)
+
+    ! Rubisco oxygenase activity is a major component of the leaf’s oxygen uptake processes. One
+    !mol of O2 is consumed per mol of RuBP oxygenated and a further half mol of O2 is consumed
+    !in the PCO cycle by glycolate oxidase in the peroxisomes (Badger 1985). Thus the
+    !rubisco-linked O2 uptake processes are given by 1.5Vo = 1.5*phi*vc, where vc = min{wc,wj,wp}
+
+    ! Uo = 1.5Vo + Rd + MAP
+
+    IMPLICIT NONE
+
+    REAL(wp), INTENT(IN) :: oxygenation
+    REAL(wp), INTENT(IN) :: dark_resp
+    REAL(wp)             :: MAP, Ro
+    REAL(wp)             :: uptake
+
+    Ro = dark_resp
+    MAP = 0
+    uptake = 1.5*oxygenation+Ro+MAP
+
+  END FUNCTION uptake
 
   SUBROUTINE OXYFLUX
     ! This subroutine, LEAF_O2, computes O2 flux contributed by the leaf.
@@ -103,4 +167,5 @@ MODULE OXYGEN
     ! this is the o2/(co2) ratio of air in the canopy
     ! prof%R13_12_air(1:ntl) = prof%c13cnc(1:ntl)/prof%co2_air_filter(1:ntl)
   END SUBROUTINE OXYFLUX
-END MODULE OXYGEN
+
+END MODULE oxygen

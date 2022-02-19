@@ -26,7 +26,10 @@ MODULE parameters
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
        ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
-       scenario_co2, scenario_temp, rsoil1, rsoil2 ! Yuan added ROC 2017.11.21 R_base1, R_base2, 2018.02.13
+       scenario_co2, scenario_temp, rsoil1, rsoil2, &
+       nc_bulk, n_supply, n_mult, nitrate, nitrite, ammonia
+
+
 
   ! Derived parameters
   INTEGER(i4) :: izref     ! array value of reference height = measurement height*ncl/ht
@@ -98,7 +101,8 @@ MODULE parameters
   INTEGER(i4)        :: switch_oxygen       ! (1) calc O2 FLUX ! (0) no O2 FLUX; YUAN 2018.01.16
   INTEGER(i4)        :: switch_wai_new
   INTEGER(i4)        :: switch_tpu
-
+  INTEGER(i4)        :: switch_n_limit
+  INTEGER(i4)        :: switch_n_random
   ! How to determine autotrophic respiration
   !   (0) total = 50% auto + 50% hetero
   !   (1) from BETHY (Knorr 1997)
@@ -341,6 +345,12 @@ MODULE parameters
   REAL(wp)           :: scenario_temp
   REAL(wp)           :: rsoil1
   REAL(wp)           :: rsoil2
+  REAL(wp)           :: nc_bulk
+  REAL(wp)           :: n_supply
+  REAL(wp)           :: n_mult
+  REAL(wp)           :: nitrate
+  REAL(wp)           :: nitrite
+  REAL(wp)           :: ammonia
   ! ------------------------------------------------------------------
 
 CONTAINS
@@ -389,6 +399,7 @@ CONTAINS
     switch_oxygen = 0           ! (1) calc O2 flux ! (0) no O2 flux Yuan 2018.01.16
     switch_wai_new = 0          ! (1) Yuan's wai distr; (0) default wai distr 2018.07.16
     switch_tpu   = 0            ! (1) tpu limits 2019.12.20
+    switch_n_limit = 0
 
     ! How to determine autotrophic respiration
     !   (0) total = 50% auto + 50% hetero
@@ -627,7 +638,7 @@ CONTAINS
     bprime_up   = 0.001_wp ! upper canopy
     bprime_down = 0.001_wp ! understory
     tp_vc       = 0.167    ! ratio of TPU to Vcmax
-    n_max       = 1.21     ! maximum nigrogen supply in umol m-2 s-1
+    n_max       = 1.21     ! maximum nitrogen supply in umol m-2 s-1
     alphag_max = 0.09     ! fraction of carbon leaving photorespiration in the form of glycine
     alphas_max = 0.38     ! fraction of carbon leaving photorespiration in the form of serine
     alpha       = zero     ! fraction of total carbon leaving photorespiration, used in CLM
@@ -640,6 +651,12 @@ CONTAINS
     scenario_temp= 0       ! increase temperature by ** degree
     rsoil1= 0.69_wp
     rsoil2= 0.07_wp
+    nc_bulk   = 0.05_wp ! bulk N:C ratio
+    n_supply  = 0.05_wp ! field N supply, ambient for fertilization, umol m-2 s-1
+    n_mult    = 2.3_wp  ! N ass as a multiple of glycine and serine
+    nitrate   = 0.9_wp  ! fraction of nitrate in N supply
+    nitrite   = 0.05_wp !fraction of nitrite in N supply
+    ammonia   = 0.05_wp !fraction of ammonia in N supply
 
   END SUBROUTINE ini_namelist
 
@@ -649,7 +666,8 @@ CONTAINS
 
     USE nml,          ONLY: open_nml, position_nml, close_nml, nnml, POSITIONED
     USE types,        ONLY: time, iswitch, srf_res, soil, ciso, wiso, &
-                            alloc_type_vars, zero_new_timestep, zero_initial
+                            alloc_type_vars, zero_new_timestep, zero_initial, &
+                            nitrogen
     USE utils,        ONLY: inv_boltz
 #ifdef DEBUG
     USE messages,     ONLY: message
@@ -680,7 +698,8 @@ CONTAINS
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
          switch_oxygen, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
          switch_tpu, tp_vc, n_max, alphag_max, alphas_max, alpha, &
-         g0_mly_in, g1_mly_in, scenario_co2, scenario_temp, rsoil1, rsoil2 ! Medlyn's model
+         g0_mly_in, g1_mly_in, scenario_co2, scenario_temp, rsoil1, rsoil2, &
+         nc_bulk, n_supply, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
 
     call ini_namelist()
 !    print *, outdir
@@ -692,7 +711,7 @@ CONTAINS
        read(nnml, canctl)
     end select
     call close_nml()
-!print *, g1_mly_in
+!print *, start_run
 !print *, switch_ball
 !print *, scenario_temp
     ! if outdir =="", use system time as folder name
@@ -747,6 +766,14 @@ CONTAINS
     wiso%nofracin     = wiso_nofracin
     wiso%implicit     = wiso_implicit
     wiso%merlivat     = merlivat
+    nitrogen%nc_bulk  = nc_bulk
+    nitrogen%n_supply  = n_supply
+    nitrogen%n_mult  = n_mult
+    nitrogen%nitrate_per  = nitrate
+    nitrogen%nitrite_per  = nitrite
+    nitrogen%ammonia_per  = ammonia
+    iswitch%n_limit   = switch_n_limit
+    iswitch%n_random   = switch_n_random
 
     ! Allocate and set arrays
     if (.not. allocated(vc25)) allocate(vc25(ncl))

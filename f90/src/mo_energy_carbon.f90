@@ -103,7 +103,7 @@ CONTAINS
 
     ! Layer 1 is the soil, Layer 40 is top of the canopy
     USE constants,  ONLY: zero, one, TN0, Rw, rugc, mass_CO2
-    USE types,      ONLY: prof, solar, fact, bound_lay_res, met, time, debug, iswitch
+    USE types,      ONLY: prof, solar, fact, bound_lay_res, met, time, debug, nitrogen, iswitch
     USE parameters, ONLY: pai
     USE setup,      ONLY: ncl
     USE utils,      ONLY: es, lambda
@@ -122,8 +122,10 @@ CONTAINS
     REAL(wp) :: wj_leaf, wc_leaf, wp_leaf, surface_rh, surface_vpd
     REAL(wp) :: rs_sun, rs_shade, A_mg, GPP, resp, internal_CO2, surface_CO2, chloroplast_CO2
     REAL(wp) :: GOP, O_sun, O_shade, A_O2, resp_O2, resp_ROC ! leaf level oxygen flux in photosynthesis and dark respirations
+    REAL(wp) :: A_NO3, A_NO2, A_NH4!, shd_NO3, shd_NO2, shd_NH4 ! assimilated N from different sources
     REAL(wp) :: csca, cica, ccca
     REAL(wp) :: fact_rs_sun, fact_rs_shd
+    REAL(wp) :: JA ! electron transport rate for CO2 assimilation
 
     wj_leaf = zero
     wc_leaf = zero
@@ -205,12 +207,27 @@ CONTAINS
  !print *, "sunlit leaves:"
  !print *, j
  !print *, prof%co2_air_filter
+ !print *, solar%quantum_sun
+! if (j==40) then
+!     print *, "sunlit:"
+! end if
+!          if (j==40) then
+!            print *, "start sunlit:", prof%Ja_sun(j)
+!          end if
              call photosynthesis(solar%quantum_sun(j), rs_sun, prof%ht(j), &
                   prof%co2_air_filter(j), T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP,&
                   resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, chloroplast_CO2, cica, ccca, &
                   surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
-                  prof%sun_alphag(j),prof%sun_alphas(j),prof%sun_tpu_coeff(j),j)
+                  prof%sun_alphag(j),prof%sun_alphas(j),prof%sun_tpu_coeff(j), prof%jphoton_sun(j) , &
+                  prof%Ja_sun(j), prof%Jn_sun(j),  &
+                  A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+
+
           end if
+!          if (j==40) then
+!            print *, "quad sun:", prof%sun_quad(j)
+!            print *, "end sunlit:", prof%Ja_sun(j)
+!          end if
           ! Assign values of function to the LE and H source/sink strengths
           T_srf_C = T_srf_K - TN0 ! surface temperature, Centigrade
           H_sun   = H_leaf ! sensible heat flux
@@ -255,7 +272,12 @@ CONTAINS
           prof%sun_ccca(j)      = ccca
           prof%sun_rh(j)        = surface_rh ! relative humidity at leaf surface (0 to 1)
           prof%sun_vpd(j)       = surface_vpd ! vapor pressure deficit at leaf surface (hPa)
+          prof%sun_NO3(j)       = A_NO3
+          prof%sun_NO2(j)       = A_NO2
+          prof%sun_NH4(j)       = A_NH4
        end if
+       !print *, j, prof%sun_GOP(j)/prof%sun_GPP(j)
+       !print *, j, prof%Jn_sun(j)/prof%Ja_sun(j)
        ! Energy balance on shaded leaves
        T_srf_K = Tair_K_filtered
        ! initial value of stomatal resistance based on light
@@ -280,10 +302,30 @@ CONTAINS
         if (prof%dLAIdz(j) > zero) then
 !            print *, "shaded leaves:"
 !            print *, j
+!print *, solar%quantum_shd
+
+! if (j==40) then
+!     print *, "shaded:"
+! end if
+!          if (j==40) then
+!            print *, "start shaded:", prof%Ja_sun(j)
+!          end if
           call photosynthesis(solar%quantum_shd(j), rs_shade,prof%ht(j), prof%co2_air_filter(j), &
                T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP, resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, &
                chloroplast_CO2, cica, ccca, surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
-               prof%shd_alphag(j),prof%shd_alphas(j),prof%shd_tpu_coeff(j),j)
+               prof%shd_alphag(j),prof%shd_alphas(j),prof%shd_tpu_coeff(j),prof%jphoton_shd(j),prof%Ja_shd(j),prof%Jn_shd(j), &
+               A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+
+!          if (j==40) then
+!            print *, "quad shd:", prof%shd_quad(j)
+!          end if
+!          if (j==40) then
+!            print *, "quad shaded:", prof%sun_quad(j)
+!            print *, "end shaded:", prof%Ja_sun(j)
+!          end if
+!          call N_assimilation(GPP,JA)
+!          GOP2 = gross_o2(JA,nitrogen%J_extra,solar%quantum_shd(j))
+
       ! call energy_balance(solar%rnet_shd(j), T_srf_K, Tair_K_filtered, prof%rhov_air_filter(j,1), &
       !      bound_lay_res%vapor, rs_shade, LE_leaf, LE_wet, H_leaf, lout_leaf, &
       !      prof%wet_coef_filter(j))
@@ -327,6 +369,11 @@ CONTAINS
        prof%shd_csca(j)   = surface_CO2/prof%co2_air_filter(j)
        prof%shd_cica(j)   = cica
        prof%shd_ccca(j)   = ccca
+       prof%shd_NO3(j)    = A_NO3
+       prof%shd_NO2(j)    = A_NO2
+       prof%shd_NH4(j)    = A_NH4
+       !print *, j, prof%shd_GOP(j)/prof%shd_GPP(j)
+       !print *, j, prof%Jn_shd(j)/prof%Ja_shd(j)
        ! compute layer energy fluxes, weighted by leaf area and sun and shaded fractions
        ! prof%dLEdz_sun(j) = prof%dPAIdz(j) * solar%prob_beam(j) * &
        !     (prof%sun_LEstoma(j,1)+prof%sun_LEwet(j,1))
@@ -540,6 +587,7 @@ CONTAINS
     if (tsrfkpt < 230._wp .or. tsrfkpt > 335._wp) then
        tsrfkpt = tkta ! [K]
     end if
+    ! print *, tsrfkpt , tkta
     ! long wave emission of energy
     !*lout_leafpt = epsigma2 * pow(*tsrfkpt, 4)
     lout_leafpt = llout + epsigma8 * tkta*tkta*tkta * (tsrfkpt-tkta) + &
@@ -575,7 +623,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
   ! ------------------------------------------------------------------
   SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, O_pt, &
        GPPpt, GOPpt, resppt, resOppt, ROC_rd, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
-       wjpnt, wcpnt, wppnt, alphagpnt, alphaspnt, tpupnt,JJ)
+       wjpnt, wcpnt, wppnt, alphagpnt, alphaspnt, tpupnt, j_photonpnt, Jcpnt, Jnitpnt, NO3pnt, NO2pnt, NH4pnt, quadpnt, JJ)
     ! This program solves a cubic equation to calculate
     ! leaf photosynthesis. This cubic expression is derived from solving
     ! five simultaneous equations for A, PG, cs, CI and GS.
@@ -673,10 +721,12 @@ debug%R4=es(tsrfkpt)*100._wp-ea
          D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in, &
          tp_vc, alphag_max, alphas_max, alpha, n_max
     USE types,        ONLY: time, prof, met, bound_lay_res, srf_res, soil, &
-         iswitch, output, input
+         iswitch, output, input, nitrogen
     USE utils,        ONLY: temp_func, tboltz, es
     USE messages,     ONLY: message
     USE string_utils, ONLY: num2str
+    USE nitrogen_assimilation, ONLY: N_assimilation
+    USE oxygen,     ONLY: gross_emission, uptake
 
     IMPLICIT NONE
 
@@ -706,6 +756,13 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp),    INTENT(OUT) :: alphagpnt
     REAL(wp),    INTENT(OUT) :: alphaspnt
     REAL(wp),    INTENT(OUT) :: tpupnt
+    REAL(wp),    INTENT(OUT) :: j_photonpnt ! electron transport for CO2 assimilation, need this output for N assimilation and O2 release later
+    REAL(wp),    INTENT(OUT) :: Jcpnt
+    REAL(wp),    INTENT(OUT) :: Jnitpnt
+    REAL(wp),    INTENT(OUT) :: NO3pnt
+    REAL(wp),    INTENT(OUT) :: NO2pnt
+    REAL(wp),    INTENT(OUT) :: NH4pnt
+    REAL(wp),    INTENT(OUT) :: quadpnt
     INTEGER(i4), INTENT(IN) :: JJ
 
     REAL(wp) :: tprime25, bc, ttemp, gammac, gammac_c, gammac_j, gammac_p
@@ -719,12 +776,13 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: P2, P3, Q, R
     REAL(wp) :: root1, root2
     REAL(wp) :: root3, arg_U, ang_L
-    REAL(wp) :: aphoto, Ophoto, gpp, gpp_o2, j_sucrose, wj ! Ophoto:net phptosynthetic O2
+    REAL(wp) :: aphoto, Ophoto, Eo, Uo, GOP, NOP, gpp, gpp_o2, gpp_o2_test, j_sucrose, wj ! Ophoto:net phptosynthetic O2
+    REAL(wp) :: ass_NO3, ass_NO2, ass_NH4
     REAL(wp) :: phi, vo, alphag, alphas, alphag_c, alphas_c, alphag_j, alphas_j, alphag_p, alphas_p, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
     REAL(wp) :: tp, wp_tpu
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
     REAL(wp) :: ps_1,delta_1, Aquad1, Bquad1, Cquad1
-    REAL(wp) :: theta_ps, wc, b_ps, a_ps, e_ps, psguess
+    REAL(wp) :: theta_ps, wc, b_ps, a_ps, e_ps, psguess, Ac, Aj, Ap, Jc,Jnit
     REAL(wp) :: sqrprod, product ! delday
     REAL(wp) :: rt
     REAL(wp) :: gm
@@ -771,8 +829,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ci           = one
     cc           = one
     tpu_coeff    = zero
-   ! alpha_ps1    = zero
-   ! alpha_ps2    = zero
+    alphag    = zero
+    alphas    = zero
     g1_local     = zero
 
     rt       = rugc * tlk ! product of universal gas constant and abs temperature
@@ -784,7 +842,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ko  = temp_func(ko25, eko, tprime25, tk_25, tlk) ! mbar
     tau = temp_func(tau25, ektau, tprime25, tk_25, tlk) ! dimensonless
     ! leaf dark RQ as a function of leaf temperature
-    RQ_rd = -0.0147*(tlk-TN0)+1.24 !RQ=CO2/O2
+    !RQ_rd = -0.0147*(tlk-TN0)+1.24 !RQ=CO2/O2
+    RQ_rd =1
     bc  = kct * (one + o2 / ko) ! mubar*(1+mbar/mbar) = mubar
     ! gammac is the CO2 compensation point due to photorespiration, umol mol-1
     ! Recalculate gammac with the new temperature dependent KO and KC
@@ -937,13 +996,20 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     else
        j_photon = zero
     end if
+    if (JJ==40) then
+!     print *, jmaxz, jmax, (tlk-TN0), j_photon
+    end if
+
     if (iswitch%tpu == 0) then ! without TPU
         gammac = 500.0_wp * input%o2air / tau ! use dynamic atom o2 instead of fixed 210000. Yuan 2018.01.31
         gammac = gammac/1000_wp ! Because input o2 is around 210000 in ppm instead of 210. Yuan 2018.01.31
         dd = gammac
         b8_dd = 8._wp * dd
-        wj = j_photon * (ci_guess - dd) / (4._wp * ci_guess + b8_dd)
-        wc = vcmax * (ci_guess - dd) / (ci_guess + bc)
+        wj = j_photon * ci_guess / (4._wp * ci_guess + b8_dd)
+        wc = vcmax * ci_guess  / (ci_guess + bc)
+        Aj = j_photon * (ci_guess - dd) / (4._wp * ci_guess + b8_dd)
+        Ac = vcmax * (ci_guess - dd) / (ci_guess + bc)
+
         if (wj < wc) then
          ! for Harley and Farquhar type model for Wj
            tpu_coeff = 2
@@ -978,7 +1044,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         gammac_c = 0.5 * input%o2air*(1._wp-alphag_c) / tau
         dd = gammac_c
         b8_dd = 8._wp * dd
-        wc = vcmax * (ci_guess - dd) / (ci_guess + bc)
+        wc = vcmax * ci_guess / (ci_guess + bc)
+        Ac = vcmax * (ci_guess - dd) / (ci_guess + bc)
+
         ! alphag alphas and gammac ralated to RUBP:
         if (j_photon>n_max*(2._wp*beta_tpu+6._wp)) then
             alphag = 4._wp*n_max*beta_tpu*(1._wp/phi+1._wp)/ &
@@ -994,7 +1062,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         gammac_j = 0.5 * input%o2air*(1._wp-alphag_j) / tau
         dd = gammac_j
         b8_dd = 8._wp * dd
-        wj = j_photon * (ci_guess - dd) / &
+        wj = j_photon * ci_guess  / &
+        (4._wp*(1-alphag_j) * ci_guess + (1._wp+2._wp*alphag_j+alphas_j)*b8_dd)
+
+        Aj = j_photon * (ci_guess - dd) / &
         (4._wp*(1-alphag_j) * ci_guess + (1._wp+2._wp*alphag_j+alphas_j)*b8_dd)
         ! alphag alphas and gammac ralated to TPU:
 
@@ -1007,7 +1078,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         gammac_p = 0.5 * input%o2air*(1._wp-alphag_p) / tau
         dd = gammac_p
         b8_dd = 8._wp * dd
-        wp_tpu = 3._wp*tp * (ci_guess - dd) / &
+        wp_tpu = 3._wp*tp * ci_guess  / &
+        (ci_guess*(1-alphag_p)-(1_wp+3._wp*alphag_p+4._wp*alphas_p)*dd)
+        Ap = 3._wp*tp * (ci_guess - dd) / &
         (ci_guess*(1-alphag_p)-(1_wp+3._wp*alphag_p+4._wp*alphas_p)*dd)
         if (wj < min(wc,wp_tpu)) then
          ! for Harley and Farquhar type model for Wj
@@ -1046,10 +1119,17 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         gammac = gammac/1000_wp ! Because input o2 is around 210000 in ppm instead of 210. Yuan 2018.01.31
         dd = gammac
         b8_dd = 8._wp * dd
-        wj = j_photon * (ci_guess - dd) / (4._wp * ci_guess + b8_dd)
-        wc = vcmax * (ci_guess - dd) / (ci_guess + bc)
-        wp_tpu = 3._wp*tp * (ci_guess - dd) / &
+        wj = j_photon * ci_guess  / (4._wp * ci_guess + b8_dd)
+        wc = vcmax * ci_guess  / (ci_guess + bc)
+        wp_tpu = 3._wp*tp * ci_guess  / &
         (ci_guess-(1._wp+3._wp*alpha)*dd)
+
+        Aj = j_photon * (ci_guess - dd) / (4._wp * ci_guess + b8_dd)
+        Ac = vcmax * (ci_guess - dd) / (ci_guess + bc)
+        Ap = 3._wp*tp * (ci_guess - dd) / &
+        (ci_guess-(1._wp+3._wp*alpha)*dd)
+
+
         if (wc < min(wj,wp_tpu)) then
            tpu_coeff = 1
            psguess = wc
@@ -1076,6 +1156,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        j_photon = zero
        wc = zero
        wp_tpu = zero
+       Aj = zero
+       j_photon = zero
+       Ac = zero
+       Ap = zero
        rd = zero
     end if
     ! cubic coefficients that are only dependent on CO2 levels
@@ -1137,10 +1221,18 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! if wj or wc are less than rd then A would probably be less than zero. This would yield a
     ! negative stomatal conductance. In this case, assume gs equals the cuticular value. This
     ! assumptions yields a quadratic rather than cubic solution for A
-    if (wj <= rd) quad = 1
-    if (wc <= rd) quad = 1
-    if ((iswitch%tpu == 1 .or. iswitch%tpu == 2).and. wp_tpu <= rd) quad = 1
-
+    if (Aj <= rd) quad = 1
+    if (JJ==40 .and. quad == 1)then
+       print *, "Aj <= rd", aphoto
+    end if
+    if (Ac <= rd) quad = 1
+    if (JJ==40 .and. quad == 1)then
+       print *, "Ac <= rd", aphoto
+    end if
+    if ((iswitch%tpu == 1 .or. iswitch%tpu == 2).and. Ap <= rd) quad = 1
+    if (JJ==40 .and. quad == 1)then
+       print *, "Ap <= rd", aphoto
+    end if
     if (quad == 0) then
        ! cubic solution: A^3 + p A^2 + q A + r = 0
        ! for the Ball Berry Farquhar model based on Baldocchis analytical solution
@@ -1256,11 +1348,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        cs = cca - aphoto / gb_mole
        if (cs > 3._wp*cca) cs = input%co2air
        gpp = aphoto + rd
-       gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
-       if (iswitch%tpu == 1) then
-        gpp_o2 = gpp_o2 + 2*alphag + alphas
-       end if
-       Ophoto = gpp_o2 - rd_O2
+
        ! Stomatal conductance for water vapor
        ! forest are hypostomatous.
        ! Hence we don''t divide the total resistance
@@ -1282,40 +1370,66 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ci = cs - aphoto / gs_co2
        cc = ci - aphoto / gm
        if (iswitch%ball == 0) then
-          wj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
-          wc = vcmax * (ci - dd) / (ci + bc)
+          wj = j_photon * ci  / (4._wp * ci + b8_dd)
+          wc = vcmax * ci / (ci + bc)
+          Aj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
+          Ac = vcmax * (ci - dd) / (ci + bc)
        else if (iswitch%ball == 1) then
-          wj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
-          wc = vcmax * (cc - dd) / (cc + bc)
+          wj = j_photon * cc  / (4._wp * cc + b8_dd)
+          wc = vcmax * cc / (cc + bc)
+          Aj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
+          Ac = vcmax * (cc - dd) / (cc + bc)
        else if (iswitch%ball == 2) then
-          wj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
-          wc = vcmax * (ci - dd) / (ci + bc)
+          wj = j_photon * ci / (4._wp * ci + b8_dd)
+          wc = vcmax * ci / (ci + bc)
+          Aj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
+          Ac = vcmax * (ci - dd) / (ci + bc)
        else if (iswitch%ball == 3) then
-          wj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
-          wc = vcmax * (cc - dd) / (cc + bc)
+          wj = j_photon * cc / (4._wp * cc + b8_dd)
+          wc = vcmax * cc / (cc + bc)
+          Aj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
+          Ac = vcmax * (cc - dd) / (cc + bc)
        end if
+       psguess = min(wc,wj)
 
        if (iswitch%tpu == 1) then
-        wc = vcmax * (ci - dd) / (ci + bc)
-        wj = j_photon * (ci - dd) / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
-        wp_tpu = 3._wp*tp * (ci - dd) / (ci-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+        wc = vcmax * ci  / (ci + bc)
+        wj = j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
+        wp_tpu = 3._wp*tp * ci / (ci-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+        Ac = vcmax * (ci - dd) / (ci + bc)
+        Aj = j_photon * (ci - dd) / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
+        Ap = 3._wp*tp * (ci - dd) / (ci-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+        psguess = min(wc,wj,wp_tpu)
         if (iswitch%ball == 1 .OR. iswitch%ball == 3) then
-            wc = vcmax * (cc - dd) / (cc + bc)
-            wj = j_photon * (cc - dd) / (4._wp * cc + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
-            wp_tpu = 3._wp*tp * (cc - dd) / (cc-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+            wc = vcmax * cc / (cc + bc)
+            wj = j_photon * cc / (4._wp * cc + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
+            wp_tpu = 3._wp*tp * cc / (cc-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+            Ac = vcmax * (cc - dd) / (cc + bc)
+            Aj = j_photon * (cc - dd) / (4._wp * cc + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
+            Ap = 3._wp*tp * (cc - dd) / (cc-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+            psguess = min(wc,wj,wp_tpu)
         end if
        end if
 
        if (iswitch%tpu == 2) then
-        wc = vcmax * (ci - dd) / (ci + bc)
-        wj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
-        wp_tpu = 3._wp*tp * (ci - dd) / (ci-0.5*(1._wp+3._wp*alpha)*dd)
+        wc = vcmax * ci / (ci + bc)
+        wj = j_photon * ci / (4._wp * ci + b8_dd)
+        wp_tpu = 3._wp*tp * ci / (ci-0.5*(1._wp+3._wp*alpha)*dd)
+        Ac = vcmax * (ci - dd) / (ci + bc)
+        Aj = j_photon * (ci - dd) / (4._wp * ci + b8_dd)
+        Ap = 3._wp*tp * (ci - dd) / (ci-0.5*(1._wp+3._wp*alpha)*dd)
+        psguess = min(wc,wj,wp_tpu)
         if (iswitch%ball == 1 .OR. iswitch%ball == 3) then
-        wc = vcmax * (cc - dd) / (cc + bc)
-        wj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
-        wp_tpu = 3._wp*tp * (cc - dd) / (cc-(1._wp+3._wp*alpha)*dd)
+        wc = vcmax * cc / (cc + bc)
+        wj = j_photon * cc / (4._wp * cc + b8_dd)
+        wp_tpu = 3._wp*tp * cc / (cc-(1._wp+3._wp*alpha)*dd)
+        Ac = vcmax * (cc - dd) / (cc + bc)
+        Aj = j_photon * (cc - dd) / (4._wp * cc + b8_dd)
+        Ap = 3._wp*tp * (cc - dd) / (cc-(1._wp+3._wp*alpha)*dd)
+        psguess = min(wc,wj,wp_tpu)
         end if
        end if
+
        ! stomatal conductance is mol m-2 s-1
        ! convert back to resistance (s/m) for energy balance routine
        gs_m_s = gs_leaf_mole * tlk * met%pstat273
@@ -1328,6 +1442,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! if A < 0 then gs should go to cuticular value and recalculate A
        ! using quadratic solution
        if (aphoto <= zero) quad = 1
+       if (JJ==40 .and. quad == 1)then
+       print *, "aphoto <= zero", aphoto
+       end if
     end if ! quad == 0
     if (quad == 1) then
        ! if aphoto < 0 set stomatal conductance to cuticle value
@@ -1367,15 +1484,54 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           aphoto = gpp-rd
        end if
 
-       gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
-       if (iswitch%tpu == 1) then
-           gpp_o2 = gpp_o2 + 2*alphag + alphas
-       end if
-       Ophoto = gpp_o2 - rd_O2
        cs = cca - aphoto / gb_mole
        ci = cs - aphoto / gs_co2
        cc = ci - aphoto / gm
+       alphag    = zero
+       alphas    = zero
+       psguess = zero
     end if
+
+      ! N assimilation and water as electron provider:
+
+
+    call N_assimilation(gpp,j_photon,alphag,alphas,ass_NO3, ass_NO2, ass_NH4,JJ)
+
+    phi = input%o2air/(ci*tau)
+    vo = psguess*phi
+ !   Eo = gross_emission(psguess,phi)
+    call gross_emission(psguess,phi,Eo,Jc,Jnit)
+if (JJ==40 .and. quad == 1)then
+    print *, "ci=", ci
+    print *, "ca=", cca
+ !      print *, "test Jc and Ja"
+ !      print *, psguess,j_photon, Jc
+ !      print *, (j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)), (j_photon * ci  / (4._wp * ci + b8_dd))
+end if
+
+    Uo = uptake (vo,rd)
+    NOP = Eo - Uo
+!    print *, Eo, Uo
+    GOP = NOP + rd_O2
+!print *, NOP,rd_O2, GOP, gpp
+    gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
+    if (iswitch%tpu == 1) then
+       gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
+       GOP = GOP + (9*alphag/4 + 4*alphas/3)*phi/4
+    end if
+
+    if (quad == 0) then
+     prof%ROC_leaf_air(JJ) = GOP/gpp
+    else
+     prof%ROC_leaf_air(JJ) = 0
+    end if
+!if (aphoto<0) then
+!print *, JJ, NOP, aphoto
+!end if
+!print *, JJ, Iphoton, GOP/gpp
+
+
+    Ophoto = gpp_o2 - rd_O2
     !if (ci < 0) then
     !    print *, cs
     !    print *, aphoto
@@ -1392,7 +1548,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     A_mgpt      = aphoto * mass_CO2 * e3
     O_pt        = Ophoto ! units of umol m-2 s-1
     GPPpt       = gpp
-    GOPpt       = gpp_o2
+    GOPpt       = GOP!gpp_o2
     resppt      = rd ! leaf dark respiration!
     resOppt     = rd_O2
     ROC_rd      = 1/RQ_rd
@@ -1407,11 +1563,23 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     alphagpnt   = alphag
     alphaspnt   = alphas
     tpupnt      = tpu_coeff
+    j_photonpnt = j_photon
     rh_leafpnt  = rh_leaf
     vpd_leafpnt = vpd_leaf
- !   if (JJ == 34)then
- !       print *, wj, wj2
- !   end if
+    Jcpnt       = Jc ! real e requirements for gross CO2 assimilation
+    Jnitpnt     = Jnit
+    NO3pnt      = ass_NO3
+    NO2pnt      = ass_NO2
+    NH4pnt      = ass_NH4
+    quadpnt     = real(quad,wp)
+!    if (JJ == 40)then
+!        if (quad==1) then
+!        print *, "dark inside function:", Jcpnt, Jc
+!        elseif (quad==0) then
+!        print *, "light inside function:", Jcpnt, Jc
+!        end if
+!
+!    end if
 
   END SUBROUTINE photosynthesis
 
@@ -1523,6 +1691,5 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     srf_vpd   = one - vpd_srf / es_leaf ! 0 to 1
 
   END FUNCTION srf_vpd
-
 
 END MODULE energy_carbon

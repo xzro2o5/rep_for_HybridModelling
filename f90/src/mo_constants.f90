@@ -12,7 +12,7 @@ MODULE constants
 
   CHARACTER(len=*), PARAMETER :: version       = '4.0'        ! model version number
   CHARACTER(len=*), PARAMETER :: main_file     = 'canveg.f90' ! main file name
-  CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg.nml'!'canveg-calibration.nml'! 1321600 1452000!'canveg-2016.nml'!'canveg.nml'!'canveg-Copy.nml' ! namelist file name
+  CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg-Nass.nml'!'canveg-calibration.nml'! 1321600 1452000!'canveg-2016.nml'!'canveg.nml'!'canveg-Copy.nml' ! namelist file name
   !CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg.nml' ! namelist file name
 
   ! maximum model parameters

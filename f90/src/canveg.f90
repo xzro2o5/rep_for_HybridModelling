@@ -36,7 +36,7 @@ PROGRAM canveg
   USE radiation,     ONLY: set_leaf_phenology, lai_time, &     ! Phenology & Radiation
        irflux, angle, nir, par, rnet, &
        diffuse_direct_radiation, gfunc
-  USE transport,     ONLY: conc, conc_seperate, friction_velocity             ! Dispersion
+  USE transport,     ONLY: conc, conc_seperate, friction_velocity, uz             ! Dispersion
   USE isotopes,      ONLY: leaf_wiso, soil_flux_wiso, &        ! Isotopes
        le_wiso, canopy_flux_wiso, carbon_isotopes
   USE  OXYGEN,       ONLY: OXYFLUX                             ! oxygen module Yuan 2018.01.19
@@ -313,6 +313,7 @@ PROGRAM canveg
   time%jdold = int(start_run / 10000_i8, i4)
   ! set input%dayy because of several years at once
   input%dayy = time%days ! for more then 1 year
+  ! print *, time%days
   ! write(*,'(a,3i10)') 'CV22 ', time%days, time%jdold, input%dayy
   ! initialise arbitrary value
   solar%ratradnoon = 0.5_wp
@@ -761,6 +762,12 @@ PROGRAM canveg
 #else
         prof%vpd_air(1:ntl) = es(prof%tair(1:ntl)+TN0) - tmpntl(1:ntl)
 #endif
+!print *, input%ea
+!print *, prof%rhov_air
+!print *, prof%vpd_air
+!        do j=1, ntl
+!           prof%u(j) = uz(j*ht)
+!        end do
         ! write(*,'(a,3f20.14)') 'CV49.09 ', prof%vpd_air(1), prof%vpd_air(ntl-1)
         ! Implicit water isotopes diagnostics
         if (iswitch%wiso==1 .and. wiso%implicit==1) then

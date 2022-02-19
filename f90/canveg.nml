@@ -1,11 +1,11 @@
 ! -*- Mode: F90 -*- !
 &CANCTL
 workdir = "." ! working directory
-indir = "./input2015"!"./inputiso" ! location of input file
-metinfile = "gf_fp_2015.dat"!"MMeteoDataForYuanLF2016.dat" !"MM2016.dat" ! met input file
+indir = "./input2012"!"./inputiso" ! location of input file
+metinfile = "gf_fp_2012.dat"!"MMeteoDataForYuanLF2016.dat" !"light.dat" ! met input file
 laiinfile = "2006laiinput_eddy.dat" ! lai input file
-wisoinfile = "wisoinput2015gf.dat" ! wiso input fie
-outdir = "output_ball2015_0" ! location of output files
+wisoinfile = "wisoinput2012gf.dat" ! wiso input fie
+outdir = "output2012_" ! location of output files 'light'
 outsuffix = ".csv" ! output suffix “./output”
 dispfile = "DIJHainich._C" ! location and name of disperion matrix
 netcdf_in = 0 ! 1: input in netcdf; 0: input in ascii format
@@ -13,11 +13,11 @@ netcdf_out = 0 ! 1: output in netcdf; 0: output in ascii format
 netcdf_disp = 0 ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 ! --- Model Set-up
-year0 = 2015 ! Year
-start_run = 0010100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
-end_run = 3652400!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
-start_profiles = 0010100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
-end_profiles =3652400!3652400!1861200!1861200!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
+year0 = 2012 ! Year
+start_run = 1360900!1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
+end_run = 1360900!1301100!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
+start_profiles = 1360900!1301100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
+end_profiles =1360900!1301100!3662400!1861200!1861200!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
 ! start_run = 1262000 ! start of model run, [dddhhmm] > 0010100
 ! end_run = 1262100 ! end of model run, [dddhhmm] <3662400
 ! start_profiles = 1262000 ! start of profile output, [dddhhmm]
@@ -56,7 +56,7 @@ htFrac = 0.65 ! zh65 = htFrac/ht; Yuan 2018.02.21
 pai = 1.06 ! Plant area index [m2 m-2] 1.1???
 lai = 4.8 ! Maximum leaf area index [m2 m-2] 5.5???
 wai = 1.06 ! wood area index, PAI = WAI +LAI, YUAN 2018.03.01
-vc25_in = 90!118.3!96.3 ! carboxylation rate at 25 deg C, [umol m-2 s-1] -2.94244056713017.3
+vc25_in = 66.5!118.3!96.3 ! carboxylation rate at 25 deg C, [umol m-2 s-1] -2.94244056713017.3
 jm_vc_in = 2 ! ratio jmax to vcmax, jmax = electron transport rate at 25 deg C, [umol m-2 s-1] 0.011
 rd_vc_in = 0.015 ! ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
 ustar_ref = 1. ! reference ustar for Dij [umol m-2 s-1]
@@ -84,7 +84,7 @@ o2 = 210.0 ! o2, oxygen concentration umol mol-1
 ! tau is computed on the basis of the Specificity factor (102.33)
 ! times Kco2/Kh2o (28.38) to convert for value in solution to that based in air/
 ! The old value was 2321.1. New value for Quercus robor from Balaguer et al. (1996)
-tau25 = 2904.12 ! tau25, tau coefficient
+tau25 = 3000! 2904.12 ! tau25, tau coefficient
 ! Arrhenius constants
 ! Eact for Michaelis-Menten const. for KC, KO and dark respiration
 ! These values are from Harley
@@ -251,11 +251,11 @@ ROC_soil_in = 1.1
 !***************************************************
 ! parameters for TPU limit
 !***************************************************
-switch_tpu = 0 ! 0: no TPU limit; 1: include TPU limit in photosynthesis, using Busch's parameter; 2: CLM, only tp-vc and alpha works.
-tp_vc = 0.122 ! 0.122, 0.122, 0.122 are used for sensitivity analysis in CLM.tp as a fraction of Vcmax, derived from Licor in Leinefelde
-n_max = 1.21
-alphag_max = 0.09!0.09!0.09 ! assumed 0.02 in A_Ci curve fitting
-alphas_max = 0.38!0.4!0!0.3888 ! Busch's paper
+switch_tpu = 1 ! 0: no TPU limit; 1: include TPU limit in photosynthesis, using Busch's parameter; 2: CLM, only tp-vc and alpha works.
+tp_vc = 0.14 ! 0.122, 0.122, 0.122 are used for sensitivity analysis in CLM.tp as a fraction of Vcmax, derived from Licor in Leinefelde
+n_max = 0.75
+alphag_max = 0.01!0.09!0.09!0.09 ! assumed 0.02 in A_Ci curve fitting
+alphas_max = 0.025!0.38!0.4!0!0.3888 ! Busch's paper
 alpha = 0.02 ! old alpha in CLM mode
 !***************************************************
 ! parameters for Medlyn's stomatal conductance
@@ -272,4 +272,17 @@ scenario_temp = 0
 !***************************************************
 rsoil1 = 0.69 ! fraction
 rsoil2 = 0.07 !power
+!***************************************************
+! parameters for nitrogen
+!***************************************************
+nc_bulk = 0.05 ! bulk N:C ratio, 0.01-0.05-0.13
+n_supply = 0.15 ! 0.05-0.15 field N supply, ambient for fertilization, umol m-2 s-1
+n_mult = 1.7 ! N ass as a multiple of glycine and serine
+nitrate = 0 ! fraction of nitrate in N supply
+nitrite = 0 !fraction of nitrite in N supply
+ammonia = 1 !fraction of ammonia in N supply
+switch_n_limit = 1 ! control N ass amount: 0 without N limit; 1 with N limit; 2 N ass as a multiple of glycine and serine
+switch_n_random = 0 ! control N ass fraction: 0 with fixed N source;0 with random mixed N source
+
+
 /

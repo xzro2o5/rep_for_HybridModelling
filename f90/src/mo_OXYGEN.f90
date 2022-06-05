@@ -36,7 +36,7 @@ MODULE oxygen
 !
 !  END FUNCTION gross_emission
 
-  SUBROUTINE gross_emission (carboxlation,vo_vc,o2_emit,Ja,Jn)
+  SUBROUTINE gross_emission(carboxlation,vo_vc,o2_emit,Ja,Jn)
 
 
     ! This subroutine computes primary O2 release via water split reaction,

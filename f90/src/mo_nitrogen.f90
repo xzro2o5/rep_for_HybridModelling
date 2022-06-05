@@ -55,39 +55,39 @@ MODULE nitrogen_assimilation
         ! use the vertical N:C profile (Bachofen et al. 2020)
 
         ! spring
-        if (time%days >= time%leafout .and. time%days < time%leaffull) then
-            if (layer<=10) then
-                N_C = 0.065
-            else if (layer >10 .and. layer <= 20) then
-                N_C = 0.066
-            else if (layer >20 .and. layer <= 30) then
-                N_C = 0.071
-            else if (layer >30 .and. layer <= 40) then
-                N_C = 0.07
-            end if
-
-        end if
-
-!print *, time%days
-        ! summer
-        if (time%days >= time%leaffull .and. time%days <= time%leaffall) then
-            if (layer<=10) then
-                N_C = 0.0547
-            else if (layer >10 .and. layer <= 20) then
-                N_C = 0.0531
-            else if (layer >20 .and. layer <= 30) then
-                N_C = 0.0502
-            else if (layer >30 .and. layer <= 40) then
-                N_C = 0.0498
-            end if
-
-        end if
+!        if (time%days >= time%leafout .and. time%days < time%leaffull) then
+!            if (layer<=10) then
+!                N_C = 0.065
+!            else if (layer >10 .and. layer <= 20) then
+!                N_C = 0.066
+!            else if (layer >20 .and. layer <= 30) then
+!                N_C = 0.071
+!            else if (layer >30 .and. layer <= 40) then
+!                N_C = 0.07
+!            end if
+!
+!        end if
+!
+!!print *, time%days
+!        ! summer
+!        if (time%days >= time%leaffull .and. time%days <= time%leaffall) then
+!            if (layer<=10) then
+!                N_C = 0.0547
+!            else if (layer >10 .and. layer <= 20) then
+!                N_C = 0.0531
+!            else if (layer >20 .and. layer <= 30) then
+!                N_C = 0.0502
+!            else if (layer >30 .and. layer <= 40) then
+!                N_C = 0.0498
+!            end if
+!
+!        end if
         n_ass = N_C*gpp
 
 
     else if (iswitch%n_limit==1) then
 
-        n_ass = n_supply/ncl ! per layer
+        n_ass = n_supply ! or n_supply/ncl, per layer
 
     else if (iswitch%n_limit==2) then
 

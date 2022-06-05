@@ -582,7 +582,7 @@ CONTAINS
          TN0, rugc, vonKarman, mass_air, o2_ref
     USE types,         ONLY: met, input, solar, time, srf_res, wiso, iswitch
     USE setup,         ONLY: ncl, nwiso
-    USE parameters,    ONLY: extra_nate, bprime, zm, zd, z0, end_run, lai, scenario_co2, scenario_temp
+    USE parameters,    ONLY: extra_nate, bprime, zm, zd, z0, end_run, lai, scenario_c, scenario_temp
     USE utils,         ONLY: es
     USE isotope_utils, ONLY: invdelta1000_h2o
 
@@ -603,8 +603,8 @@ CONTAINS
     read(ninmet,*,iostat=ierr) dayy, hhrr, in01, in02, in03, in04, &
          in05, in06, in07, in08, in09, in10, in11, flag, in13, in14, in15
     in01=in01+scenario_temp
-    in08=in08+scenario_co2
-    in15=in15+o2_ref-1.15_wp*scenario_co2 ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
+    in08=in08+scenario_c
+    in15=in15+o2_ref-1.15_wp*scenario_c ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
     if (ierr > 0) call error_reading(isroutine, ninmet)
     if (ierr < 0) call error_reading(isroutine, ninmet, 'reached EOF.')
     input%dayy         = dayy

@@ -87,7 +87,7 @@ MODULE nitrogen_assimilation
 
     else if (iswitch%n_limit==1) then
 
-        n_ass = n_supply ! or n_supply/ncl, per layer
+        n_ass = min(n_supply,nc_bulk*gpp) ! or n_supply/ncl, per layer
 
     else if (iswitch%n_limit==2) then
 

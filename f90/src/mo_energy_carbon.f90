@@ -1222,17 +1222,17 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! negative stomatal conductance. In this case, assume gs equals the cuticular value. This
     ! assumptions yields a quadratic rather than cubic solution for A
     if (Aj <= rd) quad = 1
-    if (JJ==40 .and. quad == 1)then
-       print *, "Aj <= rd", aphoto
-    end if
-    if (Ac <= rd) quad = 1
-    if (JJ==40 .and. quad == 1)then
-       print *, "Ac <= rd", aphoto
-    end if
-    if ((iswitch%tpu == 1 .or. iswitch%tpu == 2).and. Ap <= rd) quad = 1
-    if (JJ==40 .and. quad == 1)then
-       print *, "Ap <= rd", aphoto
-    end if
+!    if (JJ==40 .and. quad == 1)then
+!       print *, "Aj <= rd", aphoto
+!    end if
+!    if (Ac <= rd) quad = 1
+!    if (JJ==40 .and. quad == 1)then
+!       print *, "Ac <= rd", aphoto
+!    end if
+!    if ((iswitch%tpu == 1 .or. iswitch%tpu == 2).and. Ap <= rd) quad = 1
+!    if (JJ==40 .and. quad == 1)then
+!       print *, "Ap <= rd", aphoto
+!    end if
     if (quad == 0) then
        ! cubic solution: A^3 + p A^2 + q A + r = 0
        ! for the Ball Berry Farquhar model based on Baldocchis analytical solution
@@ -1442,9 +1442,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! if A < 0 then gs should go to cuticular value and recalculate A
        ! using quadratic solution
        if (aphoto <= zero) quad = 1
-       if (JJ==40 .and. quad == 1)then
-       print *, "aphoto <= zero", aphoto
-       end if
+!       if (JJ==40 .and. quad == 1)then
+!       print *, "aphoto <= zero", aphoto
+!       end if
     end if ! quad == 0
     if (quad == 1) then
        ! if aphoto < 0 set stomatal conductance to cuticle value
@@ -1501,13 +1501,13 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     vo = psguess*phi
  !   Eo = gross_emission(psguess,phi)
     call gross_emission(psguess,phi,Eo,Jc,Jnit)
-if (JJ==40 .and. quad == 1)then
-    print *, "ci=", ci
-    print *, "ca=", cca
- !      print *, "test Jc and Ja"
- !      print *, psguess,j_photon, Jc
- !      print *, (j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)), (j_photon * ci  / (4._wp * ci + b8_dd))
-end if
+!if (JJ==40 .and. quad == 1)then
+!    print *, "ci=", ci
+!    print *, "ca=", cca
+! !      print *, "test Jc and Ja"
+! !      print *, psguess,j_photon, Jc
+! !      print *, (j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)), (j_photon * ci  / (4._wp * ci + b8_dd))
+!end if
 
     Uo = uptake (vo,rd)
     NOP = Eo - Uo

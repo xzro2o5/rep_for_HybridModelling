@@ -1,11 +1,11 @@
 ! -*- Mode: F90 -*- !
 &CANCTL
 workdir = "." ! working directory
-indir = "./input2012"!"./inputiso" ! location of input file
-metinfile = "gf_fp_2012.dat"!"MMeteoDataForYuanLF2016.dat" !"light.dat" ! met input file
+indir = "./input2016"!"./inputiso" ! location of input file
+metinfile = "gf_fp_2016.dat"!"MMeteoDataForYuanLF2016.dat" !"light.dat" ! met input file
 laiinfile = "2006laiinput_eddy.dat" ! lai input file
-wisoinfile = "wisoinput2012gf.dat" ! wiso input fie
-outdir = "output2012_" ! location of output files 'light'
+wisoinfile = "wisoinput2016gf.dat" ! wiso input fie
+outdir = "output2016_" ! location of output files 'light'
 outsuffix = ".csv" ! output suffix “./output”
 dispfile = "DIJHainich._C" ! location and name of disperion matrix
 netcdf_in = 0 ! 1: input in netcdf; 0: input in ascii format
@@ -13,11 +13,11 @@ netcdf_out = 0 ! 1: output in netcdf; 0: output in ascii format
 netcdf_disp = 0 ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 ! --- Model Set-up
-year0 = 2012 ! Year
-start_run = 1360900!1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
-end_run = 1360900!1301100!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
-start_profiles = 1360900!1301100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
-end_profiles =1360900!1301100!3662400!1861200!1861200!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
+year0 = 2016 ! Year
+start_run = 1860700!1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
+end_run = 1860700!1301100!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
+start_profiles = 1860700!1301100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
+end_profiles =1860700!1301100!3662400!3662400!3662400!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
 ! start_run = 1262000 ! start of model run, [dddhhmm] > 0010100
 ! end_run = 1262100 ! end of model run, [dddhhmm] <3662400
 ! start_profiles = 1262000 ! start of profile output, [dddhhmm]
@@ -244,6 +244,7 @@ bprime_down = 0.001 ! understory
 ! ROC for oxygen module
 !***************************************************
 switch_oxygen = 1 ! if activate ROC calculation
+switch_ER = 1 !0: use fixed ER parameters; 1: use chamber measurements
 switch_wai_new = 1 ! 1: to use Yuan's wai distr
 ROC_leaf_in = 1
 ROC_bole_in = 1.04
@@ -265,7 +266,7 @@ g1_mly_in = 6.5!6.06!6.99!7.91!4.82!
 !***************************************************
 ! future scenario for elevated CO2
 !***************************************************
-scenario_co2 = 0 ! increase CO2 by 0 ppm
+scenario_c = 0 ! increase CO5 by xx ppm
 scenario_temp = 0
 !***************************************************
 ! flexible soil and bole respiration coefficients
@@ -275,13 +276,13 @@ rsoil2 = 0.07 !power
 !***************************************************
 ! parameters for nitrogen
 !***************************************************
-nc_bulk = 0.05 ! bulk N:C ratio, 0.01-0.05-0.13
-n_supply = 0.15 ! 0.05-0.15 field N supply, ambient for fertilization, umol m-2 s-1
+nc_bulk = 0.1 ! bulk N:C ratio, 0.01-.3
+n_supply = 2 ! 2.25-2 field N supply, ambient for fertilization, umol m-2 s-2
 n_mult = 1.7 ! N ass as a multiple of glycine and serine
-nitrate = 0 ! fraction of nitrate in N supply
+nitrate = 1 ! fraction of nitrate in N supply
 nitrite = 0 !fraction of nitrite in N supply
-ammonia = 1 !fraction of ammonia in N supply
-switch_n_limit = 1 ! control N ass amount: 0 without N limit; 1 with N limit; 2 N ass as a multiple of glycine and serine
+ammonia = 0 !fraction of ammonia in N supply
+switch_n_limit = 0 ! control N ass amount: 0 without N limit; 1 with N limit; 2 N ass as a multiple of glycine and serine
 switch_n_random = 0 ! control N ass fraction: 0 with fixed N source;0 with random mixed N source
 
 

@@ -8,12 +8,12 @@ MODULE nitrogen_assimilation
 
   PRIVATE
 
-  PUBLIC :: N_assimilation
+  PUBLIC :: N_fraction, N_assimilation
 
 
   CONTAINS
 
-  SUBROUTINE N_assimilation(gpp,J_co2,gly,serine,source_NO3,source_NO2,source_NH4,layer)
+  SUBROUTINE N_assimilation(carboxylation,J_co2,gly,serine,source_NO3,source_NO2,source_NH4,layer)
     ! to calculate N assimilation accompany with carbon assimilation
     ! electron requirements
     ! assuming N reducted to glutamate, CO2 reducted to carbohydrate,
@@ -28,7 +28,7 @@ MODULE nitrogen_assimilation
 
     IMPLICIT NONE
 
-    REAL(wp), INTENT(IN) :: gpp
+    REAL(wp), INTENT(IN) :: carboxylation
     REAL(wp), INTENT(IN) :: J_co2
     REAL(wp), INTENT(IN) :: gly
     REAL(wp), INTENT(IN) :: serine
@@ -82,12 +82,12 @@ MODULE nitrogen_assimilation
 !            end if
 !
 !        end if
-        n_ass = N_C*gpp
+        n_ass = N_C*carboxylation
 
 
     else if (iswitch%n_limit==1) then
 
-        n_ass = min(n_supply,nc_bulk*gpp) ! or n_supply/ncl, per layer
+        n_ass = min(n_supply,nc_bulk*carboxylation) ! or n_supply/ncl, per layer
 
     else if (iswitch%n_limit==2) then
 
@@ -122,7 +122,7 @@ MODULE nitrogen_assimilation
     J_extra = J_nitrate + J_nitrite + J_ammonia
 
     ! save N source in structures:
-    nitrogen%J_extra = J_extra
+    ! nitrogen%J_extra = J_extra
     nitrogen%nitrate_mol = source_NO3
     nitrogen%nitrite_mol = source_NO2
     nitrogen%ammonia_mol = source_NH4
@@ -150,7 +150,48 @@ SUBROUTINE random_stduniform(u)
    real(wp) :: r
    call random_number(r)
    u = 1 - r
-end SUBROUTINE random_stduniform
+END SUBROUTINE random_stduniform
+
+SUBROUTINE random_stdnormal(x)
+    use constants, ONLY: pi
+   implicit none
+   real(wp),intent(out) :: x
+   real(wp) :: u1,u2
+   call random_stduniform(u1)
+   call random_stduniform(u2)
+   x = sqrt(-2*log(u1))*cos(2*pi*u2)
+END SUBROUTINE random_stdnormal
+
+SUBROUTINE N_fraction (x1,x2,x3)
+
+    ! calculate fractions of N sources
+    USE parameters, ONLY: nitrate, nitrite, ammonia
+    USE types,      ONLY: iswitch
+    implicit none
+
+    real(wp),intent(out) :: x1,x2,x3
+    real(wp) :: n1, n2, n3
+
+    SELECT CASE (iswitch%n_random)
+   CASE (0)
+      x1 = nitrate
+      x2 = nitrite
+      x3 = ammonia
+   CASE (1)
+      call random_stdnormal (n1)
+      call random_stdnormal (n2)
+      call random_stdnormal (n3)
+      n1 = abs(n1)
+      n2 = abs(n2)
+      n3 = abs(n3)
+      x1 = n1/(n1+n2+n3)
+      x2 = n2/(n1+n2+n3)
+      x3 = n3/(n1+n2+n3)
+
+END SELECT
+
+
+END SUBROUTINE N_fraction
 
 
 END MODULE nitrogen_assimilation

@@ -14,7 +14,7 @@ MODULE oxygen
   PRIVATE
 
   PUBLIC  :: gross_emission
-  PUBLIC  :: uptake
+  PUBLIC  :: uptake, O_to_N, N_to_O
   PUBLIC  :: OXYFLUX
 
   CONTAINS
@@ -51,14 +51,193 @@ MODULE oxygen
         REAL(wp), INTENT(IN) :: carboxlation,vo_vc
         REAL(wp), INTENT(OUT) :: o2_emit, Ja, Jn
 
-        Jn = nitrogen%J_extra
+        Jn = nitrogen%J_glu
         Ja = 4*(1+vo_vc)*carboxlation
         o2_emit = (Ja+Jn)/4
 !        print *, Jn/Ja
 
   END SUBROUTINE gross_emission
 
-  FUNCTION uptake (oxygenation,dark_resp)
+
+
+  SUBROUTINE O_to_N (An,carboxlation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,Etot,En, Uo, dark_resp_O, Ja, J_glu, J_Busch, N_tot, &
+    source_Busch, source_NO3,source_NO2,source_NH4)
+
+    USE utils,        ONLY: ER_rd_func
+    USE nitrogen_assimilation, ONLY: N_fraction
+
+    REAL(wp), INTENT(IN)  :: An,carboxlation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine
+    REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
+    REAL(wp)              :: ER_rd, MAP, source_glu
+    REAL(wp)              :: Jtot, f1, f2, f3
+
+    ! oxygen uptake by leaf dark resp:
+    MAP = 0
+    ER_rd = ER_rd_func(leaf_T)
+    dark_resp_O = Rd * ER_rd
+    ! net Ass oxygen
+    En = An*ER_An
+
+    if (En<An) MAP = An-En
+    Uo = 1.5*Vo_Vc*carboxlation+dark_resp_O + MAP
+    Etot = En + Uo
+
+    ! calculate N assimilation:
+    ! total electrons
+    Jtot = Etot * 4
+    ! electrons for CO2 assimilation
+    Ja = 4*(1+Vo_Vc)*carboxlation
+    ! electrons by Busch's photorespiration
+    J_Busch = (8*gly+4*serine)*Vo_Vc*carboxlation
+    ! e- required for B assimilation
+    J_glu = Jtot-Ja-J_Busch
+    call N_fraction (f1,f2,f3)
+    source_glu = J_glu/(f1*10+f2*8+f3*2)
+    source_Busch = (gly+2*serine/3)*Vo_Vc*carboxlation
+    source_NO3 = source_glu*f1
+    source_NO2 = source_glu*f2
+    source_NH4 = source_glu*f3
+    N_tot = source_Busch + source_glu
+    if (N_tot<=zero) then
+        J_glu = zero
+        J_Busch = zero
+        N_tot = zero
+        source_Busch = zero
+        source_NO3 = zero
+        source_NO2 = zero
+        source_NH4 = zero
+
+    end if
+
+
+! save N source in structures:
+!    nitrogen%Ja = Ja
+!    nitrogen%J_glu = J_glu
+!    nitrogen%J_Busch = J_Busch
+!    nitrogen%Busch_mol   = source_Busch
+!    nitrogen%nitrate_mol = source_NO3
+!    nitrogen%nitrite_mol = source_NO2
+!    nitrogen%ammonia_mol = source_NH4
+
+
+  END SUBROUTINE O_to_N
+
+  SUBROUTINE N_to_O (carboxylation,Vo_Vc,Rd,leaf_T,gly,serine, Etot, En, Uo, dark_resp_O, &
+    Ja, J_glu, J_Busch, N_tot, source_Busch, source_NO3, source_NO2, source_NH4)
+
+    USE utils,        ONLY: ER_rd_func
+!    USE OXYGEN,       ONLY: uptake
+    USE nitrogen_assimilation, ONLY: N_fraction
+    USE constants,  ONLY: one
+    USE types,      ONLY: iswitch, nitrogen, time
+    USE parameters, ONLY: nc_bulk, n_supply, n_mult, n_max
+    USE setup,      ONLY: ncl
+
+
+    REAL(wp), INTENT(IN)  :: carboxylation,Vo_Vc,Rd,leaf_T,gly,serine
+    REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
+    REAL(wp)              :: ER_rd, MAP, source_glu
+    REAL(wp)              :: J1,J2,J3, Jtot, f1, f2, f3
+    ! INTEGER(i4), INTENT(IN) :: layer
+
+        ! to calculate N assimilation accompany with carbon assimilation
+    ! electron requirements
+    ! assuming N reducted to glutamate, CO2 reducted to carbohydrate,
+    ! co2~4e, nitrate~10e, nitrite~8e and ammonia~2e
+    ! J_extra/J_a =(e_source)*ncbulk/e_co2 without N limit
+    ! J_extra/J_a =(e_source)*N_supply/(C_ass*e_co2) under N limit
+
+    ! determine N assimilation amount:
+
+    SELECT CASE (iswitch%n_limit)
+
+    CASE (0)
+
+
+        !n_ass = nc_bulk*gpp
+        ! use the vertical N:C profile (Bachofen et al. 2020)
+
+        ! spring
+!        if (time%days >= time%leafout .and. time%days < time%leaffull) then
+!            if (layer<=10) then
+!                N_C = 0.065
+!            else if (layer >10 .and. layer <= 20) then
+!                N_C = 0.066
+!            else if (layer >20 .and. layer <= 30) then
+!                N_C = 0.071
+!            else if (layer >30 .and. layer <= 40) then
+!                N_C = 0.07
+!            end if
+!
+!        end if
+!
+!!print *, time%days
+!        ! summer
+!        if (time%days >= time%leaffull .and. time%days <= time%leaffall) then
+!            if (layer<=10) then
+!                N_C = 0.0547
+!            else if (layer >10 .and. layer <= 20) then
+!                N_C = 0.0531
+!            else if (layer >20 .and. layer <= 30) then
+!                N_C = 0.0502
+!            else if (layer >30 .and. layer <= 40) then
+!                N_C = 0.0498
+!            end if
+!
+!        end if
+        source_glu = nc_bulk*carboxylation
+    CASE (1)
+        source_glu = min(min(n_supply,n_max),nc_bulk*carboxylation) ! or n_supply/ncl, per layer
+    CASE (2)
+      source_glu = n_mult*(gly+serine)
+
+    END SELECT
+
+! calculate N source fractions:
+    call N_fraction (f1,f2,f3)
+    source_NO3 = source_glu*f1
+    source_NO2 = source_glu*f2
+    source_NH4 = source_glu*f3
+    source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
+    N_tot = source_glu+source_Busch
+!    J_nitrate = J_co2*(10*source_nitrate/gpp)/4
+!    J_nitrite = J_co2*(8*source_nitrite/gpp)/4
+!    J_ammonia = J_co2*(2*source_ammonia/gpp)/4
+
+! from nitrogen to electron
+    J1 = 10*source_NO3
+    J2 = 8*source_NO2
+    J3 = 2*source_NH4
+    J_glu = J1 + J2 + J3
+
+! e- by carboxylation and oxygenation:
+    MAP = 0
+    ER_rd = ER_rd_func(leaf_T)
+    dark_resp_O = Rd * ER_rd
+
+    ! electrons for CO2 assimilation
+    Ja = 4*(1+Vo_Vc)*carboxylation
+    ! electrons by Busch's photorespiration
+    J_Busch = (8*gly+4*serine)*Vo_Vc*carboxylation
+    ! total electrons
+    Jtot = J_glu+Ja+J_Busch
+    ! total O2 emission:
+    Etot = Jtot/4
+    Uo = 1.5*Vo_Vc*carboxylation+dark_resp_O + MAP
+    En = Etot-Uo
+
+    ! save N source in structures:
+!    nitrogen%Ja = Ja
+!    nitrogen%J_glu = J_glu
+!    nitrogen%J_Busch = J_Busch
+!    nitrogen%Busch_mol   = source_Busch
+!    nitrogen%nitrate_mol = source_NO3
+!    nitrogen%nitrite_mol = source_NO2
+!    nitrogen%ammonia_mol = source_NH4
+
+  END SUBROUTINE N_to_O
+
+  FUNCTION uptake (oxygenation,Ro)
 
     ! Rubisco oxygenase activity is a major component of the leaf’s oxygen uptake processes. One
     !mol of O2 is consumed per mol of RuBP oxygenated and a further half mol of O2 is consumed
@@ -70,13 +249,10 @@ MODULE oxygen
     IMPLICIT NONE
 
     REAL(wp), INTENT(IN) :: oxygenation
-    REAL(wp), INTENT(IN) :: dark_resp
-    REAL(wp)             :: MAP, Ro
+    REAL(wp), INTENT(IN) :: Ro
     REAL(wp)             :: uptake
 
-    Ro = dark_resp
-    MAP = 0
-    uptake = 1.5*oxygenation+Ro+MAP
+    uptake = 1.5*oxygenation+Ro
 
   END FUNCTION uptake
 

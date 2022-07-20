@@ -19,6 +19,7 @@ MODULE utils
   PUBLIC :: lambda     ! latent heat of vaporization
   PUBLIC :: tboltz     ! Boltzmann function for temperature
   PUBLIC :: temp_func  ! Arrenhius function for temperature
+  PUBLIC :: ER_rd_func
 
   INTERFACE tboltz
      MODULE PROCEDURE tboltz0, tboltz1
@@ -54,7 +55,7 @@ CONTAINS
     corr  = sxy/(sqrt(sxx*syy)+TINY)
 
   END FUNCTION corr
-  
+
   ! ----------------------------------------------------
 
   ELEMENTAL PURE FUNCTION lambda(tak)
@@ -101,7 +102,7 @@ CONTAINS
     if (t <= zero) call message('ES: ','input must be > 0')
 #endif
     es = ess
-    
+
   END FUNCTION es
 
   ! ----------------------------------------------------
@@ -188,9 +189,9 @@ CONTAINS
     REAL(wp),               INTENT(IN) :: tl
     REAL(wp),               INTENT(IN) :: hkin_in
     REAL(wp), DIMENSION(1:size(rate))  :: inv_boltz
-    
+
     REAL(wp) :: dtlopt, prodt, denom, numm
-    
+
     dtlopt    = tl - topt
     prodt     = rugc * topt * tl
     denom     = hkin_in * exp(eakin * (dtlopt) / (prodt))
@@ -213,7 +214,7 @@ CONTAINS
     REAL(wp), INTENT(IN) :: tl
     REAL(wp), INTENT(IN) :: hkin_in
     REAL(wp) :: tboltz0
-    
+
     REAL(wp) :: dtlopt, prodt, denom, numm
 
     dtlopt  = tl - topt
@@ -237,7 +238,7 @@ CONTAINS
     REAL(wp),               INTENT(IN) :: tl
     REAL(wp),               INTENT(IN) :: hkin_in
     REAL(wp), DIMENSION(1:size(rate))  :: tboltz1
-    
+
     REAL(wp), DIMENSION(1:size(rate))  :: numm
     REAL(wp) :: dtlopt, prodt, denom, ztmp
 
@@ -257,16 +258,33 @@ CONTAINS
     USE constants, ONLY: rugc
 
     IMPLICIT NONE
-    
+
     REAL(wp), INTENT(IN) :: rate
     REAL(wp), INTENT(IN) :: eact
     REAL(wp), INTENT(IN) :: tprime
     REAL(wp), INTENT(IN) :: tref
     REAL(wp), INTENT(IN) :: t_lk
     REAL(wp) :: temp_func
-    
+
     temp_func = rate * exp(tprime*eact/(tref*rugc*t_lk))
-    
+
   END FUNCTION temp_func
+
+   ! ----------------------------------------------------
+
+  FUNCTION ER_rd_func(tlk)
+    ! O2:CO2 of leaf dark respiration
+    USE constants, ONLY: one, TN0
+
+    IMPLICIT NONE
+
+    REAL(wp), INTENT(IN) :: tlk
+    REAL(wp) :: ER_rd_func
+
+    ER_rd_func = one/(-0.0147*(tlk-TN0)+1.24)
+
+  END FUNCTION ER_rd_func
+
+  ! ----------------------------------------------------
 
 END MODULE utils

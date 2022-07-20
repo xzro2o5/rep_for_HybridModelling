@@ -122,7 +122,7 @@ CONTAINS
     REAL(wp) :: wj_leaf, wc_leaf, wp_leaf, surface_rh, surface_vpd
     REAL(wp) :: rs_sun, rs_shade, A_mg, GPP, resp, internal_CO2, surface_CO2, chloroplast_CO2
     REAL(wp) :: GOP, O_sun, O_shade, A_O2, resp_O2, resp_ROC ! leaf level oxygen flux in photosynthesis and dark respirations
-    REAL(wp) :: A_NO3, A_NO2, A_NH4!, shd_NO3, shd_NO2, shd_NH4 ! assimilated N from different sources
+    REAL(wp) :: A_Busch, A_NO3, A_NO2, A_NH4!, shd_NO3, shd_NO2, shd_NH4 ! assimilated N from different sources
     REAL(wp) :: csca, cica, ccca
     REAL(wp) :: fact_rs_sun, fact_rs_shd
     REAL(wp) :: JA ! electron transport rate for CO2 assimilation
@@ -219,8 +219,8 @@ CONTAINS
                   resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, chloroplast_CO2, cica, ccca, &
                   surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
                   prof%sun_alphag(j),prof%sun_alphas(j),prof%sun_tpu_coeff(j), prof%jphoton_sun(j) , &
-                  prof%Ja_sun(j), prof%Jn_sun(j),  &
-                  A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+                  prof%Ja_sun(j), prof%Jglu_sun(j), prof%JBusch_sun(j), &
+                  A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
 
 
           end if
@@ -272,6 +272,7 @@ CONTAINS
           prof%sun_ccca(j)      = ccca
           prof%sun_rh(j)        = surface_rh ! relative humidity at leaf surface (0 to 1)
           prof%sun_vpd(j)       = surface_vpd ! vapor pressure deficit at leaf surface (hPa)
+          prof%sun_ABusch(j)    = A_Busch
           prof%sun_NO3(j)       = A_NO3
           prof%sun_NO2(j)       = A_NO2
           prof%sun_NH4(j)       = A_NH4
@@ -313,8 +314,9 @@ CONTAINS
           call photosynthesis(solar%quantum_shd(j), rs_shade,prof%ht(j), prof%co2_air_filter(j), &
                T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP, resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, &
                chloroplast_CO2, cica, ccca, surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
-               prof%shd_alphag(j),prof%shd_alphas(j),prof%shd_tpu_coeff(j),prof%jphoton_shd(j),prof%Ja_shd(j),prof%Jn_shd(j), &
-               A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+               prof%shd_alphag(j),prof%shd_alphas(j),prof%shd_tpu_coeff(j),&
+               prof%jphoton_shd(j),prof%Ja_shd(j),prof%Jglu_shd(j), prof%JBusch_shd(j), &
+               A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
 
 !          if (j==40) then
 !            print *, "quad shd:", prof%shd_quad(j)
@@ -369,6 +371,7 @@ CONTAINS
        prof%shd_csca(j)   = surface_CO2/prof%co2_air_filter(j)
        prof%shd_cica(j)   = cica
        prof%shd_ccca(j)   = ccca
+       prof%shd_ABusch(j) = A_Busch
        prof%shd_NO3(j)    = A_NO3
        prof%shd_NO2(j)    = A_NO2
        prof%shd_NH4(j)    = A_NH4
@@ -623,7 +626,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
   ! ------------------------------------------------------------------
   SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, O_pt, &
        GPPpt, GOPpt, resppt, resOppt, ROC_rd, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
-       wjpnt, wcpnt, wppnt, alphagpnt, alphaspnt, tpupnt, j_photonpnt, Jcpnt, Jnitpnt, NO3pnt, NO2pnt, NH4pnt, quadpnt, JJ)
+       wjpnt, wcpnt, wppnt, alphagpnt, alphaspnt, tpupnt, j_photonpnt, Jcpnt, Jglupnt, JBuschpnt, &
+       NBuschpnt, NO3pnt, NO2pnt, NH4pnt, quadpnt, JJ)
     ! This program solves a cubic equation to calculate
     ! leaf photosynthesis. This cubic expression is derived from solving
     ! five simultaneous equations for A, PG, cs, CI and GS.
@@ -719,14 +723,16 @@ debug%R4=es(tsrfkpt)*100._wp-ea
          ekc, eko, ektau, jmopt, vcopt, htFrac, zh65, lai, evc, &
          toptvc, rd_vc, ejm, toptjm, kball, g0, a1, erd, &
          D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in, &
-         tp_vc, alphag_max, alphas_max, alpha, n_max
+         tp_vc, alphag_max, alphas_max, alpha, n_max, n_supply
     USE types,        ONLY: time, prof, met, bound_lay_res, srf_res, soil, &
          iswitch, output, input, nitrogen
     USE utils,        ONLY: temp_func, tboltz, es
     USE messages,     ONLY: message
     USE string_utils, ONLY: num2str
-    USE nitrogen_assimilation, ONLY: N_assimilation
-    USE oxygen,     ONLY: gross_emission, uptake
+    !USE nitrogen_assimilation, ONLY: N_assimilation
+    !USE oxygen,     ONLY: gross_emission, uptake
+    !USE nitrogen_assimilation, ONLY: N_fraction
+    USE oxygen,     ONLY: N_to_O, O_to_N
 
     IMPLICIT NONE
 
@@ -758,7 +764,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp),    INTENT(OUT) :: tpupnt
     REAL(wp),    INTENT(OUT) :: j_photonpnt ! electron transport for CO2 assimilation, need this output for N assimilation and O2 release later
     REAL(wp),    INTENT(OUT) :: Jcpnt
-    REAL(wp),    INTENT(OUT) :: Jnitpnt
+    REAL(wp),    INTENT(OUT) :: Jglupnt
+    REAL(wp),    INTENT(OUT) :: JBuschpnt
+    REAL(wp),    INTENT(OUT) :: NBuschpnt
     REAL(wp),    INTENT(OUT) :: NO3pnt
     REAL(wp),    INTENT(OUT) :: NO2pnt
     REAL(wp),    INTENT(OUT) :: NH4pnt
@@ -777,7 +785,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: root1, root2
     REAL(wp) :: root3, arg_U, ang_L
     REAL(wp) :: aphoto, Ophoto, Eo, Uo, GOP, NOP, gpp, gpp_o2, gpp_o2_test, j_sucrose, wj ! Ophoto:net phptosynthetic O2
-    REAL(wp) :: ass_NO3, ass_NO2, ass_NH4
+    REAL(wp) :: ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4, Ja, J_glu, J_Busch
     REAL(wp) :: phi, vo, alphag, alphas, alphag_c, alphas_c, alphag_j, alphas_j, alphag_p, alphas_p, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
     REAL(wp) :: tp, wp_tpu
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
@@ -1036,6 +1044,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           beta_tpu = 0
         end if
         ! alphag alphas and gammac ralated to Rubisco:
+        if (iswitch%n_limit==1) n_max = min(n_max,n_supply)
         vo = vcmax*phi
         alphag = n_max*beta_tpu/vo
         alphag_c = min(alphag_max,alphag)
@@ -1445,7 +1454,66 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !       if (JJ==40 .and. quad == 1)then
 !       print *, "aphoto <= zero", aphoto
 !       end if
+
+      ! N assimilation and water as electron provider:
+    phi = input%o2air/(ci*tau)
+    vo = psguess*phi
+SELECT CASE (iswitch%ER)
+   CASE (0) ! no chamber ER input, oxygen is derived from N assimilation
+      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
+      Ja, J_glu, J_Busch, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+
+   CASE (1)
+      call O_to_N(aphoto,psguess,phi,input%ER,rd,tlk,alphag,alphas,GOP,NOP,Uo,rd_O2, &
+      Ja, J_glu, J_Busch, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+END SELECT
+!    call N_assimilation(psguess,j_photon,alphag,alphas, ass_NO3, ass_NO2, ass_NH4,JJ)
+
+ !   Eo = gross_emission(psguess,phi)
+!    call gross_emission(psguess,phi,Eo,Jc,Jnit)
+!if (JJ==40 .and. quad == 1)then
+!    print *, "ci=", ci
+!    print *, "ca=", cca
+! !      print *, "test Jc and Ja"
+! !      print *, psguess,j_photon, Jc
+! !      print *, (j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)), (j_photon * ci  / (4._wp * ci + b8_dd))
+!end if
+
+!    Uo = uptake (vo,rd_O2)
+!    NOP = Eo - Uo
+!    print *, Eo, Uo
+!    GOP = NOP + rd_O2
+!print *, NOP,rd_O2, GOP, gpp
+    gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
+    if (iswitch%tpu == 1) then
+       gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
+!       GOP = GOP + (9*alphag/4 + 4*alphas/3)*phi/4
+    end if
+
+    if (quad == 0) then
+     prof%ROC_leaf_air(JJ) = GOP/gpp
+    else
+     prof%ROC_leaf_air(JJ) = 0
+    end if
+!if (aphoto<0) then
+!print *, JJ, NOP, aphoto
+!end if
+!print *, JJ, Iphoton, GOP/gpp
+
+
+    Ophoto = gpp_o2 - rd_O2
+    !if (ci < 0) then
+    !    print *, cs
+    !    print *, aphoto
+    !    print *, gs_co2
+    !end if
+    !if (cc < 0) then
+    !    print *, gm
+    !end if
     end if ! quad == 0
+
+
+
     if (quad == 1) then
        ! if aphoto < 0 set stomatal conductance to cuticle value
        gs_leaf_mole = bprime_local
@@ -1490,63 +1558,28 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        alphag    = zero
        alphas    = zero
        psguess = zero
+       ! OXYGEN AND N related variables:
+       GOP = zero
+       NOP = zero
+       Uo = zero
+       rd_O2 = zero
+       Ja = zero
+       J_glu = zero
+       J_Busch = zero
+       ass_N = zero
+       ass_Busch = zero
+       ass_NO3 = zero
+       ass_NO2 = zero
+       ass_NH4 = zero
     end if
 
-      ! N assimilation and water as electron provider:
-
-
-    call N_assimilation(gpp,j_photon,alphag,alphas,ass_NO3, ass_NO2, ass_NH4,JJ)
-
-    phi = input%o2air/(ci*tau)
-    vo = psguess*phi
- !   Eo = gross_emission(psguess,phi)
-    call gross_emission(psguess,phi,Eo,Jc,Jnit)
-!if (JJ==40 .and. quad == 1)then
-!    print *, "ci=", ci
-!    print *, "ca=", cca
-! !      print *, "test Jc and Ja"
-! !      print *, psguess,j_photon, Jc
-! !      print *, (j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)), (j_photon * ci  / (4._wp * ci + b8_dd))
-!end if
-
-    Uo = uptake (vo,rd)
-    NOP = Eo - Uo
-!    print *, Eo, Uo
-    GOP = NOP + rd_O2
-!print *, NOP,rd_O2, GOP, gpp
-    gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
-    if (iswitch%tpu == 1) then
-       gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
-       GOP = GOP + (9*alphag/4 + 4*alphas/3)*phi/4
-    end if
-
-    if (quad == 0) then
-     prof%ROC_leaf_air(JJ) = GOP/gpp
-    else
-     prof%ROC_leaf_air(JJ) = 0
-    end if
-!if (aphoto<0) then
-!print *, JJ, NOP, aphoto
-!end if
-!print *, JJ, Iphoton, GOP/gpp
-
-
-    Ophoto = gpp_o2 - rd_O2
-    !if (ci < 0) then
-    !    print *, cs
-    !    print *, aphoto
-    !    print *, gs_co2
-    !end if
-    !if (cc < 0) then
-    !    print *, gm
-    !end if
     if (gpp < zero) then
        call message('PHOTOSYNTHESIS: ','gpp<0 should not be here: ', num2str(JJ), num2str(time%daytime))
     end if
     ! compute photosynthesis with units of mg m-2 s-1 and pass out as pointers
     ! A_mg = APHOTO * 44 / 1000
     A_mgpt      = aphoto * mass_CO2 * e3
-    O_pt        = Ophoto ! units of umol m-2 s-1
+    O_pt        = NOP ! units of umol m-2 s-1
     GPPpt       = gpp
     GOPpt       = GOP!gpp_o2
     resppt      = rd ! leaf dark respiration!
@@ -1566,8 +1599,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     j_photonpnt = j_photon
     rh_leafpnt  = rh_leaf
     vpd_leafpnt = vpd_leaf
-    Jcpnt       = Jc ! real e requirements for gross CO2 assimilation
-    Jnitpnt     = Jnit
+    Jcpnt       = Ja ! real e requirements for gross CO2 assimilation
+    Jglupnt     = J_glu
+    JBuschpnt   = J_Busch
+    NBuschpnt   = ass_Busch
     NO3pnt      = ass_NO3
     NO2pnt      = ass_NO2
     NH4pnt      = ass_NH4

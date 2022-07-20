@@ -165,6 +165,7 @@ MODULE types
      REAL(wp) :: d13CO2       ! d13C of atmospheric CO2 [permille]
      REAL(wp) :: d18CO2       ! d18O of atmospheric CO2 [permille]
      REAL(wp) :: o2air        ! O2 concentration, ppm Yuan 2018.02.14
+     REAL(wp) :: ER           ! net Ass O2:CO2 chamber measurements Yuan 2022.07.14
   END TYPE input_variables
 
 
@@ -692,6 +693,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_shd    ! respiratory quotient of shaded leaves
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_sun    ! respiratory quotient of sunlit leaves
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_shd    ! respiratory quotient of shaded leaves
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_NBusch
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_NBusch
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_NO3   ! assimilated nitrate, nitrite and ammonia
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_NO3
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_NO2
@@ -699,13 +702,17 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_NH4
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_NH4
      REAL(wp), DIMENSION(:), ALLOCATABLE :: Ja_sun    ! electron for CO2
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: Jn_sun    ! electron for N
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: Ja_shd    ! electron for CO2
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: Jn_shd    ! electron for N
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Jglu_sun    ! electron for N->glutamate
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: JBusch_sun    ! electron for N -> gly and serine
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Ja_shd
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Jglu_shd
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: JBusch_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: jphoton_sun    ! electron for CO2
      REAL(wp), DIMENSION(:), ALLOCATABLE :: jphoton_shd    ! electron for N
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_quad
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_quad
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_ABusch
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_ABusch
   END TYPE profile
 
 
@@ -722,6 +729,8 @@ MODULE types
      INTEGER(i4) :: tpu    ! add tpu limits
      INTEGER(i4) :: n_limit ! consider Nitrogen limit
      INTEGER(i4) :: n_random ! random mixed N source
+     INTEGER(i4) :: ER ! if use chamber ER measurements
+
   END TYPE switch_variables
 
 
@@ -750,13 +759,16 @@ MODULE types
 
   ! structure for nitrogen variables
   TYPE nitrogen_variables
-     REAL(wp) :: J_extra ! extra electrons requirements for N assimilation, umol m-2 s-1
+     REAL(wp) :: Ja ! extra electrons requirements for N assimilation, umol m-2 s-1
+     REAL(wp) :: J_glu
+     REAL(wp) :: J_Busch
      REAL(wp) :: nc_bulk ! bulk N:C ratio
      REAL(wp) :: n_supply ! field N supply, ambient for fertilization, umol m-2 s-1
      REAL(wp) :: n_mult ! set nassimilation as a multiple of glycine and serine
      REAL(wp) :: nitrate_per !fraction of nitrate in N supply
      REAL(wp) :: nitrite_per !fraction of nitrite in N supply
      REAL(wp) :: ammonia_per !fraction of ammonia in N supply
+     REAL(wp) :: Busch_mol
      REAL(wp) :: nitrate_mol !mole of nitrate in N supply
      REAL(wp) :: nitrite_mol !mole of nitrite in N supply
      REAL(wp) :: ammonia_mol !mole of ammonia in N supply
@@ -1202,14 +1214,17 @@ CONTAINS
     if (.not. allocated(prof%sun_NH4)) allocate(prof%sun_NH4(ncl))
     if (.not. allocated(prof%shd_NH4)) allocate(prof%shd_NH4(ncl))
     if (.not. allocated(prof%Ja_sun)) allocate(prof%Ja_sun(ncl))
-    if (.not. allocated(prof%Jn_sun)) allocate(prof%Jn_sun(ncl))
+    if (.not. allocated(prof%Jglu_sun)) allocate(prof%Jglu_sun(ncl))
+    if (.not. allocated(prof%JBusch_sun)) allocate(prof%JBusch_sun(ncl))
     if (.not. allocated(prof%Ja_shd)) allocate(prof%Ja_shd(ncl))
-    if (.not. allocated(prof%Jn_shd)) allocate(prof%Jn_shd(ncl))
+    if (.not. allocated(prof%Jglu_shd)) allocate(prof%Jglu_shd(ncl))
+    if (.not. allocated(prof%JBusch_shd)) allocate(prof%JBusch_shd(ncl))
     if (.not. allocated(prof%jphoton_sun)) allocate(prof%jphoton_sun(ncl))
     if (.not. allocated(prof%jphoton_shd)) allocate(prof%jphoton_shd(ncl))
     if (.not. allocated(prof%sun_quad)) allocate(prof%sun_quad(ncl))
     if (.not. allocated(prof%shd_quad)) allocate(prof%shd_quad(ncl))
-
+    if (.not. allocated(prof%sun_ABusch)) allocate(prof%sun_ABusch(ncl))
+    if (.not. allocated(prof%shd_ABusch)) allocate(prof%shd_ABusch(ncl))
 
 
     if (.not. allocated(prof%gpp_O2)) allocate(prof%gpp_O2(ncl))
@@ -1444,6 +1459,7 @@ CONTAINS
     input%d13CO2 = zero
     input%d18CO2 = zero
     input%o2air = zero ! atom o2 ppm Yuan 2018.02.14
+    input%ER = zero
 
   END SUBROUTINE zero_new_timestep_input
 
@@ -2239,13 +2255,16 @@ CONTAINS
 
     IMPLICIT NONE
 
-    nitrogen%J_extra   = zero
+    nitrogen%Ja   = zero
+    nitrogen%J_glu   = zero
+    nitrogen%J_Busch   = zero
     nitrogen%nc_bulk   = zero
     nitrogen%n_supply  = zero
     nitrogen%n_mult    = zero
     nitrogen%nitrate_per   = zero
     nitrogen%nitrite_per   = zero
     nitrogen%ammonia_per   = zero
+    nitrogen%Busch_mol     = zero
     nitrogen%nitrate_mol   = zero
     nitrogen%nitrite_mol   = zero
     nitrogen%ammonia_mol   = zero

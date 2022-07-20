@@ -387,9 +387,9 @@ CONTAINS
     ! Profile fluxes
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(fluxprofilefile), trim(outsuffix)
     open(unit=noutflux, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*82, iostat=ierr) ! original 40*25
+         form="formatted", recl=40*86, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 82, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 86, '(",",a))'
     write(noutflux,form1) "daytime ", "i ", "dHdz ", "dLEdz ", "dLEdz%sun ", "dLEdz%shd ", &
          "sun_A ", "shd_A ", "dGPPdz ", "dGPPdz%sun ", "dGPPdz%shd ", "dPsdz ", &
          "dPsdz%sun ", "dPsdz%shd ", "dRESPdz ", "dRESPdz%sun ", "dRESPdz%shd ", &
@@ -403,18 +403,20 @@ CONTAINS
          "T_sun_f ", "T_shd_f ", "filt_T ", "filt_H ", "filt_LE ", &
          "sun_rs ", "shd_rs ", "LAI_sun ", "LAI_shd ", "par_diff ", "nir_diff ", &
          "PSN_O2 ", "cws ", "wet coef ", "sun_tpucoef ", "shd_tpucoef ","GPO ", "GPO_sun ","GPO_shd ", &
-         "Ja_sun ", "Jn_sun ", "Ja_shd ", "Jn_shd ", "iphoton_sun ", "iphoton_shd ", "sun_quad ", "shd_quad ", "ci_sun ", "ci_shd"
+         "Ja_sun ", "Jglu_sun ", "JBusch_sun ", "Ja_shd ", "Jglu_shd ", "JBusch_shd ", &
+         "iphoton_sun ", "iphoton_shd ", "sun_quad ", "shd_quad ", "ci_sun ", "ci_shd"
         ! write(form1,'(A,I3,A)') '(a,', 44-1, '(",",a))'
     !write(noutflux,form1) "daytime",
 
         ! Profile tpu limits
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(tpufile), trim(outsuffix)
     open(unit=nouttpu, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*22, iostat=ierr) ! original 40*25
+         form="formatted", recl=40*39, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 28, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 39, '(",",a))'
     write(nouttpu,form1) "daytime ", "i ", &
-                       "air_co2 ", &
+                       "lai ", "air_co2 ", &
+                       "sun_lai_f ", "shd_lai_f ", &
                        "sun_ci ", "shd_ci ", &
                        "sun_cs ", "shd_cs ", &
                        "sun_cc ", "shd_cc ", &
@@ -423,6 +425,10 @@ CONTAINS
                        "sun_wp ", "shd_wp ", &
                        "sun_alphag ", "shd_alphag ", &
                        "sun_alphas ", "shd_alphas ", &
+                       "sun_Ja ", "shd_Ja ", &
+                       "sun_Jglu ", "shd_Jglu ", &
+                       "sun_JBusch ", "shd_JBusch ", &
+                       "sun_NBusch ", "shd_NBusch ", &
                        "sun_NO3 "   , "shd_NO3 "   , &
                        "sun_NO2 "   , "shd_NO2 "   , &
                        "sun_NH4 "   , "shd_NH4 "   , &
@@ -594,6 +600,7 @@ CONTAINS
     REAL(wp) :: hhrr, in01, in02, in03, in04, in05, in06, in07, in08
     REAL(wp) :: in09, in10, in11, in13, in14
     REAL(wp) :: in15 ! in15 for o2 con ppm Yuan 2018.02.14
+    REAL(wp) :: in16 ! in16 for chamber ER_An measurements Yuan 2012.07.14
     INTEGER(i8) :: dt
     INTEGER(i4), DIMENSION(nwiso-1) :: mc
 
@@ -601,7 +608,7 @@ CONTAINS
     ! use input%dayy instead of time%days because of several years at once
     time%jdold = input%dayy ! identify previous day
     read(ninmet,*,iostat=ierr) dayy, hhrr, in01, in02, in03, in04, &
-         in05, in06, in07, in08, in09, in10, in11, flag, in13, in14, in15
+         in05, in06, in07, in08, in09, in10, in11, flag, in13, in14, in15, in16
     in01=in01+scenario_temp
     in08=in08+scenario_c
     in15=in15+o2_ref-1.15_wp*scenario_c ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
@@ -624,7 +631,8 @@ CONTAINS
     input%d13CO2       = in13
     input%d18CO2       = in14
     input%o2air        = in15
-!        print *, "inputPAR:    ",input%parin
+    input%ER           = in16
+        print *, "chamber ER:    ", input%ER
     ! write(*,'(a,i10,3f20.14)') 'RI01.01 ', input%dayy, input%hhrr, input%ta
     ! write(*,'(a,3f20.14)') 'RI01.02 ', input%rglobal, input%parin, input%pardif
     ! write(*,'(a,3f20.14)') 'RI01.03 ', input%ea, input%wnd, input%ppt(1)
@@ -946,7 +954,7 @@ CONTAINS
     if (ierr > 0) call error_writing(isroutine, noutprof, ' - 1')
 
     ! Profile fluxes
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 82, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 86, '(",",es22.14))'
     do j=1, ncl
        write(noutflux,form1,iostat=ierr) &
             time%daytime,j,prof%dHdz(j), prof%dLEdz(j,1), &
@@ -970,7 +978,8 @@ CONTAINS
             prof%sun_tleaf_filter(j), prof%shd_tleaf_filter(j), fact%a_filt, fact%heatcoef, fact%latent, &
             prof%sun_rs_filter(j), prof%shd_rs_filter(j), prof%sun_lai(j),prof%shd_lai(j),solar%par_diffuse,solar%nir_diffuse, &
             prof%dPsdz_O2(j), prof%cws(j,1), prof%wet_coef(j), real(prof%sun_tpu_coeff(j)), real(prof%shd_tpu_coeff(j)), &
-            prof%gpp_O2(j),prof%dGOPdz_sun(j), prof%dGOPdz_shd(j), prof%Ja_sun(j),prof%Jn_sun(j),prof%Ja_shd(j),prof%Jn_shd(j), &
+            prof%gpp_O2(j),prof%dGOPdz_sun(j), prof%dGOPdz_shd(j), prof%Ja_sun(j),prof%Jglu_sun(j),prof%JBusch_sun(j),&
+            prof%Ja_shd(j),prof%Jglu_shd(j),prof%JBusch_shd(j), &
             prof%jphoton_sun(j), prof%jphoton_shd(j),prof%sun_quad(j), prof%shd_quad(j), prof%sun_ci(j), prof%shd_ci(j)
 
 !if (j==40) then
@@ -988,11 +997,12 @@ end if
     if (ierr > 0) call error_writing(isroutine, noutflux, ' - 2')
 
      ! Profile tpu
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 28, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 39, '(",",es22.14))'
     do j=1, ncl
        write(nouttpu,form1,iostat=ierr) &
             time%daytime,j,&
-            prof%co2_air_filter(j), &
+            prof%dLAIdz(j), prof%co2_air_filter(j), &
+            solar%prob_beam(j), solar%prob_shd(j), &
             prof%sun_ci(j), prof%shd_ci(j), &
             prof%sun_cs(j), prof%shd_cs(j), &
             prof%sun_cc(j), prof%shd_cc(j), &
@@ -1001,6 +1011,10 @@ end if
             prof%sun_wp(j), prof%shd_wp(j), &
             prof%sun_alphag(j), prof%shd_alphag(j), &
             prof%sun_alphas(j), prof%shd_alphas(j), &
+            prof%Ja_sun(j),     prof%Ja_shd(j), &
+            prof%Jglu_sun(j),   prof%Jglu_shd(j), &
+            prof%JBusch_sun(j), prof%JBusch_shd(j), &
+            prof%sun_ABusch(j), prof%shd_ABusch(j), &
             prof%sun_NO3(j), prof%shd_NO3(j), &
             prof%sun_NO2(j), prof%shd_NO2(j), &
             prof%sun_NH4(j), prof%shd_NH4(j), &

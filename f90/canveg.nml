@@ -282,7 +282,7 @@ n_mult = 1.7 ! N ass as a multiple of glycine and serine
 nitrate = 1 ! fraction of nitrate in N supply
 nitrite = 0 !fraction of nitrite in N supply
 ammonia = 0 !fraction of ammonia in N supply
-switch_n_limit = 0 ! control N ass amount: 0 without N limit; 1 with N limit; 2 N ass as a multiple of glycine and serine
+switch_n_limit = 0 ! control N ass amount: 0 without N limit; 1 with N limit of N supply; 2 min(n supply and nc_bulk); 3 N ass as a multiple of glycine and serine
 switch_n_random = 0 ! control N ass fraction: 0 with fixed N source;0 with random mixed N source
 
 

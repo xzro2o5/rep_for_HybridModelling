@@ -187,8 +187,10 @@ MODULE oxygen
 !        end if
         source_glu = nc_bulk*carboxylation
     CASE (1)
-        source_glu = min(min(n_supply,n_max),nc_bulk*carboxylation) ! or n_supply/ncl, per layer
+        source_glu = n_supply
     CASE (2)
+        source_glu = min(min(n_supply,n_max),nc_bulk*carboxylation) ! or n_supply/ncl, per layer
+    CASE (3)
       source_glu = n_mult*(gly+serine)
 
     END SELECT

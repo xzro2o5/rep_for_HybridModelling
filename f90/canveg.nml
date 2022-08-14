@@ -14,10 +14,10 @@ netcdf_disp = 0 ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 ! --- Model Set-up
 year0 = 2016 ! Year
-start_run = 1860700!1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
-end_run = 1860700!1301100!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
-start_profiles = 1860700!1301100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
-end_profiles =1860700!1301100!3662400!3662400!3662400!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
+start_run = 0010100!1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
+end_run = 3662400!1301100!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
+start_profiles = 0010100!1301100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
+end_profiles =3662400!1301100!3662400!3662400!3662400!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
 ! start_run = 1262000 ! start of model run, [dddhhmm] > 0010100
 ! end_run = 1262100 ! end of model run, [dddhhmm] <3662400
 ! start_profiles = 1262000 ! start of profile output, [dddhhmm]
@@ -244,7 +244,7 @@ bprime_down = 0.001 ! understory
 ! ROC for oxygen module
 !***************************************************
 switch_oxygen = 1 ! if activate ROC calculation
-switch_ER = 1 !0: use fixed ER parameters; 1: use chamber measurements
+switch_ER = 0 !0: use fixed ER parameters; 1: use chamber measurements
 switch_wai_new = 1 ! 1: to use Yuan's wai distr
 ROC_leaf_in = 1
 ROC_bole_in = 1.04
@@ -276,7 +276,7 @@ rsoil2 = 0.07 !power
 !***************************************************
 ! parameters for nitrogen
 !***************************************************
-nc_bulk = 0.1 ! bulk N:C ratio, 0.01-.3
+cn_bulk = 10 ! bulk C:N ratio, 10,20,40,50
 n_supply = 2 ! 2.25-2 field N supply, ambient for fertilization, umol m-2 s-2
 n_mult = 1.7 ! N ass as a multiple of glycine and serine
 nitrate = 1 ! fraction of nitrate in N supply

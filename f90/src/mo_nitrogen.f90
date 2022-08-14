@@ -23,7 +23,7 @@ MODULE nitrogen_assimilation
 
     USE constants,  ONLY: one
     USE types,      ONLY: iswitch, nitrogen, time
-    USE parameters, ONLY: nc_bulk, n_supply, n_mult, nitrate, nitrite, ammonia, n_max
+    USE parameters, ONLY: cn_bulk, n_supply, n_mult, nitrate, nitrite, ammonia, n_max
     USE setup,      ONLY: ncl
 
     IMPLICIT NONE
@@ -44,15 +44,15 @@ MODULE nitrogen_assimilation
     REAL(wp) :: J_nitrate ! electrons for nitrate reduction, umol m-2 s-1
     REAL(wp) :: J_nitrite ! electrons for nitrite reduction, umol m-2 s-1
     REAL(wp) :: J_ammonia ! electrons for ammonia reduction, umol m-2 s-1
-    REAL(wp) :: N_C ! leaf N:C ratio
+    REAL(wp) :: C_N ! leaf N:C ratio
     REAL(wp) :: test
 
     if (iswitch%n_limit==0) then  ! 0 without N limit; 1 with N limit; 2 multiply of gly + serine
 
         !
-        N_C = nc_bulk! default N:C ratio
-        !n_ass = nc_bulk*gpp
-        ! use the vertical N:C profile (Bachofen et al. 2020)
+        C_N = cn_bulk! default C:N ratio
+        !n_ass = gpp/cn_bulk
+        ! use the vertical C:N profile (Bachofen et al. 2020)
 
         ! spring
 !        if (time%days >= time%leafout .and. time%days < time%leaffull) then
@@ -82,12 +82,12 @@ MODULE nitrogen_assimilation
 !            end if
 !
 !        end if
-        n_ass = N_C*carboxylation
+        n_ass = carboxylation/C_N
 
 
     else if (iswitch%n_limit==1) then
 
-        n_ass = min(n_supply,nc_bulk*carboxylation) ! or n_supply/ncl, per layer
+        n_ass = min(n_supply,carboxylation/cn_bulk) ! or n_supply/ncl, per layer
 
     else if (iswitch%n_limit==2) then
 

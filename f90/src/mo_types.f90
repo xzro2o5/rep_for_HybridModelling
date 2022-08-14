@@ -762,7 +762,7 @@ MODULE types
      REAL(wp) :: Ja ! extra electrons requirements for N assimilation, umol m-2 s-1
      REAL(wp) :: J_glu
      REAL(wp) :: J_Busch
-     REAL(wp) :: nc_bulk ! bulk N:C ratio
+     REAL(wp) :: cn_bulk ! bulk C:N ratio
      REAL(wp) :: n_supply ! field N supply, ambient for fertilization, umol m-2 s-1
      REAL(wp) :: n_mult ! set nassimilation as a multiple of glycine and serine
      REAL(wp) :: nitrate_per !fraction of nitrate in N supply
@@ -2258,7 +2258,7 @@ CONTAINS
     nitrogen%Ja   = zero
     nitrogen%J_glu   = zero
     nitrogen%J_Busch   = zero
-    nitrogen%nc_bulk   = zero
+    nitrogen%cn_bulk   = zero
     nitrogen%n_supply  = zero
     nitrogen%n_mult    = zero
     nitrogen%nitrate_per   = zero

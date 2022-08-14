@@ -27,7 +27,7 @@ MODULE parameters
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
        ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
        scenario_c, scenario_temp, rsoil1, rsoil2, &
-       nc_bulk, n_supply, n_mult, nitrate, nitrite, ammonia
+       cn_bulk, n_supply, n_mult, nitrate, nitrite, ammonia
 
 
 
@@ -346,7 +346,7 @@ MODULE parameters
   REAL(wp)           :: scenario_temp
   REAL(wp)           :: rsoil1
   REAL(wp)           :: rsoil2
-  REAL(wp)           :: nc_bulk
+  REAL(wp)           :: cn_bulk
   REAL(wp)           :: n_supply
   REAL(wp)           :: n_mult
   REAL(wp)           :: nitrate
@@ -653,7 +653,7 @@ CONTAINS
     scenario_temp= 0       ! increase temperature by ** degree
     rsoil1= 0.69_wp
     rsoil2= 0.07_wp
-    nc_bulk   = 0.05_wp ! bulk N:C ratio
+    cn_bulk   = 20_wp ! bulk C:N ratio
     n_supply  = 0.05_wp ! field N supply, ambient for fertilization, umol m-2 s-1
     n_mult    = 2.3_wp  ! N ass as a multiple of glycine and serine
     nitrate   = 0.9_wp  ! fraction of nitrate in N supply
@@ -701,7 +701,7 @@ CONTAINS
          switch_oxygen, switch_ER, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
          switch_tpu, tp_vc, n_max, alphag_max, alphas_max, alpha, &
          g0_mly_in, g1_mly_in, scenario_c, scenario_temp, rsoil1, rsoil2, &
-         nc_bulk, n_supply, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
+         cn_bulk, n_supply, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
 
     call ini_namelist()
 !    print *, outdir
@@ -769,7 +769,7 @@ CONTAINS
     wiso%nofracin     = wiso_nofracin
     wiso%implicit     = wiso_implicit
     wiso%merlivat     = merlivat
-    nitrogen%nc_bulk  = nc_bulk
+    nitrogen%cn_bulk  = cn_bulk
     nitrogen%n_supply  = n_supply
     nitrogen%n_mult  = n_mult
     nitrogen%nitrate_per  = nitrate

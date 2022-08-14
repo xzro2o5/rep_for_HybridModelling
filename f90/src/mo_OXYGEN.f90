@@ -130,7 +130,7 @@ MODULE oxygen
     USE nitrogen_assimilation, ONLY: N_fraction
     USE constants,  ONLY: one
     USE types,      ONLY: iswitch, nitrogen, time
-    USE parameters, ONLY: nc_bulk, n_supply, n_mult, n_max
+    USE parameters, ONLY: cn_bulk, n_supply, n_mult, n_max
     USE setup,      ONLY: ncl
 
 
@@ -154,7 +154,7 @@ MODULE oxygen
     CASE (0)
 
 
-        !n_ass = nc_bulk*gpp
+        !n_ass = gpp/cn_bulk
         ! use the vertical N:C profile (Bachofen et al. 2020)
 
         ! spring
@@ -185,11 +185,11 @@ MODULE oxygen
 !            end if
 !
 !        end if
-        source_glu = nc_bulk*carboxylation
+        source_glu = carboxylation/cn_bulk
     CASE (1)
         source_glu = n_supply
     CASE (2)
-        source_glu = min(min(n_supply,n_max),nc_bulk*carboxylation) ! or n_supply/ncl, per layer
+        source_glu = min(min(n_supply,n_max),carboxylation/cn_bulk) ! or n_supply/ncl, per layer
     CASE (3)
       source_glu = n_mult*(gly+serine)
 

@@ -730,6 +730,7 @@ MODULE types
      INTEGER(i4) :: n_limit ! consider Nitrogen limit
      INTEGER(i4) :: n_random ! random mixed N source
      INTEGER(i4) :: ER ! if use chamber ER measurements
+     INTEGER(i4) :: scenario ! if scenario files will be used
 
   END TYPE switch_variables
 

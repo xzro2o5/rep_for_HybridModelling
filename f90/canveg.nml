@@ -268,6 +268,9 @@ g1_mly_in = 6.5!6.06!6.99!7.91!4.82!
 !***************************************************
 scenario_c = 0 ! increase CO5 by xx ppm
 scenario_temp = 0
+switch_scenario = 1 !0:do not use input CO2 and temperature files; 1: use extra input files
+scenariodir = "E:/MY PAPER/3/data/RCP85"! extra folder for sceneario input
+scenariofile = "2016_84.dat"!
 !***************************************************
 ! flexible soil and bole respiration coefficients
 !***************************************************

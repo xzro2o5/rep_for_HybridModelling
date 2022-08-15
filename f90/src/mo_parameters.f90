@@ -26,7 +26,7 @@ MODULE parameters
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
        ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
-       scenario_c, scenario_temp, rsoil1, rsoil2, &
+       scenario_c, scenario_temp, switch_scenario, scenariodir, scenariofile, rsoil1, rsoil2, &
        cn_bulk, n_supply, n_mult, nitrate, nitrite, ammonia
 
 
@@ -344,6 +344,9 @@ MODULE parameters
   ! scenario for elevated CO2
   REAL(wp)           :: scenario_c
   REAL(wp)           :: scenario_temp
+  INTEGER(i4)        :: switch_scenario   ! if scenario file will be used
+  CHARACTER(LEN=256) :: scenariodir       ! location of scenario file
+  CHARACTER(LEN=256) :: scenariofile      ! scenario file
   REAL(wp)           :: rsoil1
   REAL(wp)           :: rsoil2
   REAL(wp)           :: cn_bulk
@@ -651,6 +654,9 @@ CONTAINS
     g1_mly_in   = 6.99_wp   !intercept of MEdlyn's model
     scenario_c= 0        ! increase CO2 by ** ppm
     scenario_temp= 0       ! increase temperature by ** degree
+    switch_scenario = 0
+    scenariodir = "E:/MY PAPER/3/data/RCP85"
+    scenariofile = "2016_0.dat"
     rsoil1= 0.69_wp
     rsoil2= 0.07_wp
     cn_bulk   = 20_wp ! bulk C:N ratio
@@ -700,7 +706,7 @@ CONTAINS
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
          switch_oxygen, switch_ER, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
          switch_tpu, tp_vc, n_max, alphag_max, alphas_max, alpha, &
-         g0_mly_in, g1_mly_in, scenario_c, scenario_temp, rsoil1, rsoil2, &
+         g0_mly_in, g1_mly_in, scenario_c, scenario_temp, switch_scenario, scenariodir, scenariofile, rsoil1, rsoil2, &
          cn_bulk, n_supply, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
 
     call ini_namelist()
@@ -775,6 +781,7 @@ CONTAINS
     nitrogen%nitrate_per  = nitrate
     nitrogen%nitrite_per  = nitrite
     nitrogen%ammonia_per  = ammonia
+    iswitch%scenario   = switch_scenario
     iswitch%n_limit   = switch_n_limit
     iswitch%n_random   = switch_n_random
 

@@ -251,7 +251,8 @@ CONTAINS
   SUBROUTINE open_in_text()
     ! Opens the ascii input files
     USE constants,  ONLY: ninmet, ninlai, ninwiso
-    USE parameters, ONLY: indir, metinfile, laiinfile, wisoinfile, extra_nate
+    USE parameters, ONLY: indir, metinfile, laiinfile, wisoinfile, extra_nate, &
+        scenariodir, scenariofile
     USE types,      ONLY: iswitch
 
     IMPLICIT NONE
@@ -261,7 +262,13 @@ CONTAINS
     INTEGER :: ierr
 
     ! Met
+    select case (iswitch%scenario)
+    case (0)
     write(stmp,'(a,a,a)') trim(indir), '/', trim(metinfile)
+    case (1)
+    write(stmp,'(a,a,a)') trim(scenariodir), '/', trim(scenariofile)
+    end select
+
     open(unit=ninmet, file=stmp,action="read", status="old", &
          form="formatted", iostat=ierr)
     if (ierr > 0) call error_opening(isroutine, stmp)
@@ -632,7 +639,7 @@ CONTAINS
     input%d18CO2       = in14
     input%o2air        = in15
     input%ER           = in16
-        print *, "chamber ER:    ", input%ER
+!   print *, "check scenario file:    ", input%co2air
     ! write(*,'(a,i10,3f20.14)') 'RI01.01 ', input%dayy, input%hhrr, input%ta
     ! write(*,'(a,3f20.14)') 'RI01.02 ', input%rglobal, input%parin, input%pardif
     ! write(*,'(a,3f20.14)') 'RI01.03 ', input%ea, input%wnd, input%ppt(1)

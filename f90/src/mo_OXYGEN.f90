@@ -60,14 +60,15 @@ MODULE oxygen
 
 
 
-  SUBROUTINE O_to_N (An,carboxlation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,Etot,En, Uo, dark_resp_O, Ja, J_glu, J_Busch, N_tot, &
-    source_Busch, source_NO3,source_NO2,source_NH4)
+  SUBROUTINE O_to_N (An,carboxlation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,Etot,En, Uo, dark_resp_O, &
+    Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3,source_NO2,source_NH4)
 
     USE utils,        ONLY: ER_rd_func
     USE nitrogen_assimilation, ONLY: N_fraction
 
     REAL(wp), INTENT(IN)  :: An,carboxlation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine
-    REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
+    REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
+    N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
     REAL(wp)              :: ER_rd, MAP, source_glu
     REAL(wp)              :: Jtot, f1, f2, f3
 
@@ -108,6 +109,7 @@ MODULE oxygen
         source_NH4 = zero
 
     end if
+    N_demand = N_tot
 
 
 ! save N source in structures:
@@ -123,7 +125,7 @@ MODULE oxygen
   END SUBROUTINE O_to_N
 
   SUBROUTINE N_to_O (carboxylation,Vo_Vc,Rd,leaf_T,gly,serine, Etot, En, Uo, dark_resp_O, &
-    Ja, J_glu, J_Busch, N_tot, source_Busch, source_NO3, source_NO2, source_NH4)
+    Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4)
 
     USE utils,        ONLY: ER_rd_func
 !    USE OXYGEN,       ONLY: uptake
@@ -135,7 +137,8 @@ MODULE oxygen
 
 
     REAL(wp), INTENT(IN)  :: carboxylation,Vo_Vc,Rd,leaf_T,gly,serine
-    REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
+    REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
+    N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
     REAL(wp)              :: ER_rd, MAP, source_glu
     REAL(wp)              :: J1,J2,J3, Jtot, f1, f2, f3
     ! INTEGER(i4), INTENT(IN) :: layer
@@ -148,6 +151,8 @@ MODULE oxygen
     ! J_extra/J_a =(e_source)*N_supply/(C_ass*e_co2) under N limit
 
     ! determine N assimilation amount:
+
+    N_demand = carboxylation/cn_bulk
 
     SELECT CASE (iswitch%n_limit)
 
@@ -185,11 +190,12 @@ MODULE oxygen
 !            end if
 !
 !        end if
-        source_glu = carboxylation/cn_bulk
+        source_glu = N_demand
     CASE (1)
         source_glu = n_supply
     CASE (2)
-        source_glu = min(min(n_supply,n_max),carboxylation/cn_bulk) ! or n_supply/ncl, per layer
+        source_glu = min(n_supply, N_demand) ! or n_supply/ncl, per layer
+        !source_glu = min(min(n_supply,n_max),N_demand) ! or n_supply/ncl, per layer
     CASE (3)
       source_glu = n_mult*(gly+serine)
 

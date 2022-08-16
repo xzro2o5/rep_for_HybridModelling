@@ -122,7 +122,7 @@ CONTAINS
     REAL(wp) :: wj_leaf, wc_leaf, wp_leaf, surface_rh, surface_vpd
     REAL(wp) :: rs_sun, rs_shade, A_mg, GPP, resp, internal_CO2, surface_CO2, chloroplast_CO2
     REAL(wp) :: GOP, O_sun, O_shade, A_O2, resp_O2, resp_ROC ! leaf level oxygen flux in photosynthesis and dark respirations
-    REAL(wp) :: A_Busch, A_NO3, A_NO2, A_NH4!, shd_NO3, shd_NO2, shd_NH4 ! assimilated N from different sources
+    REAL(wp) :: N_demand, A_Busch, A_NO3, A_NO2, A_NH4!N demand up to plant C:N, NO3, NO2, NH4 are assimilated N from different sources
     REAL(wp) :: csca, cica, ccca
     REAL(wp) :: fact_rs_sun, fact_rs_shd
     REAL(wp) :: JA ! electron transport rate for CO2 assimilation
@@ -220,7 +220,7 @@ CONTAINS
                   surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
                   prof%sun_alphag(j),prof%sun_alphas(j),prof%sun_tpu_coeff(j), prof%jphoton_sun(j) , &
                   prof%Ja_sun(j), prof%Jglu_sun(j), prof%JBusch_sun(j), &
-                  A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+                  N_demand, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
 
 
           end if
@@ -272,6 +272,7 @@ CONTAINS
           prof%sun_ccca(j)      = ccca
           prof%sun_rh(j)        = surface_rh ! relative humidity at leaf surface (0 to 1)
           prof%sun_vpd(j)       = surface_vpd ! vapor pressure deficit at leaf surface (hPa)
+          prof%sun_Ndemand(j)   = N_demand ! N demand when derive O2 from N
           prof%sun_ABusch(j)    = A_Busch
           prof%sun_NO3(j)       = A_NO3
           prof%sun_NO2(j)       = A_NO2
@@ -316,7 +317,7 @@ CONTAINS
                chloroplast_CO2, cica, ccca, surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
                prof%shd_alphag(j),prof%shd_alphas(j),prof%shd_tpu_coeff(j),&
                prof%jphoton_shd(j),prof%Ja_shd(j),prof%Jglu_shd(j), prof%JBusch_shd(j), &
-               A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+               N_demand, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
 
 !          if (j==40) then
 !            print *, "quad shd:", prof%shd_quad(j)
@@ -372,6 +373,7 @@ CONTAINS
        prof%shd_cica(j)   = cica
        prof%shd_ccca(j)   = ccca
        prof%shd_ABusch(j) = A_Busch
+       prof%shd_Ndemand(j)= N_demand ! N demand when derive O2 from N
        prof%shd_NO3(j)    = A_NO3
        prof%shd_NO2(j)    = A_NO2
        prof%shd_NH4(j)    = A_NH4
@@ -444,6 +446,16 @@ CONTAINS
        prof%dGPPdz_sun(j) = prof%dLAIdz(j) * prof%sun_GPP(j) * solar%prob_beam(j)
        prof%dGPPdz_shd(j) = prof%dLAIdz(j) * prof%shd_GPP(j) * solar%prob_shd(j)
        prof%dGPPdz(j)     = prof%dGPPdz_sun(j) + prof%dGPPdz_shd(j)
+       ! scale N flux to ground level:
+       prof%dNsupplydz(j)  = prof%dLAIdz(j) * nitrogen%n_supply
+       prof%dNgludz_sun(j) = prof%dLAIdz(j) * prof%sun_Ndemand(j) * solar%prob_beam(j)
+       prof%dNgludz_shd(j) = prof%dLAIdz(j) * prof%shd_Ndemand(j) * solar%prob_shd(j)
+       prof%dNgludz(j)     = prof%dNgludz_sun(j) + prof%dNgludz_shd(j)
+
+       prof%dNBuschdz_sun(j) = prof%dLAIdz(j) * prof%sun_ABusch(j) * solar%prob_beam(j)
+       prof%dNBuschdz_shd(j) = prof%dLAIdz(j) * prof%shd_ABusch(j) * solar%prob_beam(j)
+       prof%dNBuschdz(j)     = prof%dNBuschdz_sun(j) + prof%dNBuschdz_shd(j)
+
        ! respiration of the layer, micromol m-2 s-1
        prof%dRESPdz_sun(j) = prof%dLAIdz(j) * prof%sun_resp(j) * solar%prob_beam(j)
        prof%dRESPdz_shd(j) = prof%dLAIdz(j) * prof%shd_resp(j) * solar%prob_shd(j)
@@ -627,7 +639,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
   SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, O_pt, &
        GPPpt, GOPpt, resppt, resOppt, ROC_rd, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
        wjpnt, wcpnt, wppnt, alphagpnt, alphaspnt, tpupnt, j_photonpnt, Jcpnt, Jglupnt, JBuschpnt, &
-       NBuschpnt, NO3pnt, NO2pnt, NH4pnt, quadpnt, JJ)
+       Ndemandpnt, NBuschpnt, NO3pnt, NO2pnt, NH4pnt, quadpnt, JJ)
     ! This program solves a cubic equation to calculate
     ! leaf photosynthesis. This cubic expression is derived from solving
     ! five simultaneous equations for A, PG, cs, CI and GS.
@@ -766,6 +778,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp),    INTENT(OUT) :: Jcpnt
     REAL(wp),    INTENT(OUT) :: Jglupnt
     REAL(wp),    INTENT(OUT) :: JBuschpnt
+    REAL(wp),    INTENT(OUT) :: Ndemandpnt
     REAL(wp),    INTENT(OUT) :: NBuschpnt
     REAL(wp),    INTENT(OUT) :: NO3pnt
     REAL(wp),    INTENT(OUT) :: NO2pnt
@@ -785,7 +798,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: root1, root2
     REAL(wp) :: root3, arg_U, ang_L
     REAL(wp) :: aphoto, Ophoto, Eo, Uo, GOP, NOP, gpp, gpp_o2, gpp_o2_test, j_sucrose, wj ! Ophoto:net phptosynthetic O2
-    REAL(wp) :: ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4, Ja, J_glu, J_Busch
+    REAL(wp) :: ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4, Ja, J_glu, J_Busch
     REAL(wp) :: phi, vo, alphag, alphas, alphag_c, alphas_c, alphag_j, alphas_j, alphag_p, alphas_p, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
     REAL(wp) :: tp, wp_tpu
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
@@ -1461,11 +1474,11 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 SELECT CASE (iswitch%ER)
    CASE (0) ! no chamber ER input, oxygen is derived from N assimilation
       call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
-      Ja, J_glu, J_Busch, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 
    CASE (1)
       call O_to_N(aphoto,psguess,phi,input%ER,rd,tlk,alphag,alphas,GOP,NOP,Uo,rd_O2, &
-      Ja, J_glu, J_Busch, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 END SELECT
 !    call N_assimilation(psguess,j_photon,alphag,alphas, ass_NO3, ass_NO2, ass_NH4,JJ)
 
@@ -1566,6 +1579,7 @@ END SELECT
        Ja = zero
        J_glu = zero
        J_Busch = zero
+       ass_Ndemand = zero
        ass_N = zero
        ass_Busch = zero
        ass_NO3 = zero
@@ -1602,6 +1616,7 @@ END SELECT
     Jcpnt       = Ja ! real e requirements for gross CO2 assimilation
     Jglupnt     = J_glu
     JBuschpnt   = J_Busch
+    Ndemandpnt  = ass_Ndemand
     NBuschpnt   = ass_Busch
     NO3pnt      = ass_NO3
     NO2pnt      = ass_NO2

@@ -528,6 +528,13 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz       ! layer gross primary productivity (Ps + Resp) (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz_shd
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNsupplydz ! N supply per layer area
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNgludz       ! layer Nassimilation (Ps + Resp) (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNgludz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNgludz_shd
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNBuschdz       ! layer Nassimilation (Ps + Resp) (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNBuschdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNBuschdz_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dHdz ! layer sensible heat flux (W m-2) ! [ncl]
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: dLEdz ! layer latent heat flux ! [ncl,nwiso]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dLEdz_sun ! layer latent heat flux of sunlit area (W m-2) ! [ncl]
@@ -713,6 +720,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_quad
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_ABusch
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_ABusch
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_Ndemand
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_Ndemand
   END TYPE profile
 
 
@@ -773,6 +782,8 @@ MODULE types
      REAL(wp) :: nitrate_mol !mole of nitrate in N supply
      REAL(wp) :: nitrite_mol !mole of nitrite in N supply
      REAL(wp) :: ammonia_mol !mole of ammonia in N supply
+     REAL(wp) :: Nsupply ! N supply and demand per hour!
+     REAL(wp) :: Ndemand
 
      !REAL(wp) :: ammonia !fraction of ammonia in N supply
 
@@ -1058,6 +1069,13 @@ CONTAINS
     if (.not. allocated(prof%dGOPdz)) allocate(prof%dGOPdz(ncl))
     if (.not. allocated(prof%dGOPdz_sun)) allocate(prof%dGOPdz_sun(ncl))
     if (.not. allocated(prof%dGOPdz_shd)) allocate(prof%dGOPdz_shd(ncl))
+        if (.not. allocated(prof%dNsupplydz)) allocate(prof%dNsupplydz(ncl))
+    if (.not. allocated(prof%dNgludz)) allocate(prof%dNgludz(ncl))
+    if (.not. allocated(prof%dNgludz_sun)) allocate(prof%dNgludz_sun(ncl))
+    if (.not. allocated(prof%dNgludz_shd)) allocate(prof%dNgludz_shd(ncl))
+    if (.not. allocated(prof%dNBuschdz)) allocate(prof%dNBuschdz(ncl))
+    if (.not. allocated(prof%dNBuschdz_sun)) allocate(prof%dNBuschdz_sun(ncl))
+    if (.not. allocated(prof%dNBuschdz_shd)) allocate(prof%dNBuschdz_shd(ncl))
     if (.not. allocated(prof%dHdz)) allocate(prof%dHdz(ncl))
     if (.not. allocated(prof%dLEdz)) allocate(prof%dLEdz(ncl,nwiso))
     if (.not. allocated(prof%dLEdz_sun)) allocate(prof%dLEdz_sun(ncl))
@@ -1224,6 +1242,8 @@ CONTAINS
     if (.not. allocated(prof%jphoton_shd)) allocate(prof%jphoton_shd(ncl))
     if (.not. allocated(prof%sun_quad)) allocate(prof%sun_quad(ncl))
     if (.not. allocated(prof%shd_quad)) allocate(prof%shd_quad(ncl))
+    if (.not. allocated(prof%sun_Ndemand)) allocate(prof%sun_Ndemand(ncl))
+    if (.not. allocated(prof%shd_Ndemand)) allocate(prof%shd_Ndemand(ncl))
     if (.not. allocated(prof%sun_ABusch)) allocate(prof%sun_ABusch(ncl))
     if (.not. allocated(prof%shd_ABusch)) allocate(prof%shd_ABusch(ncl))
 
@@ -1803,6 +1823,13 @@ CONTAINS
     prof%dGOPdz = zero
     prof%dGOPdz_sun = zero
     prof%dGOPdz_shd = zero
+    prof%dNsupplydz = zero
+    prof%dNgludz = zero
+    prof%dNgludz_sun = zero
+    prof%dNgludz_shd = zero
+    prof%dNBuschdz = zero
+    prof%dNBuschdz_sun = zero
+    prof%dNBuschdz_shd = zero
     prof%dHdz = zero
     prof%dLEdz = zero
     prof%dLEdz_sun = zero
@@ -2269,6 +2296,8 @@ CONTAINS
     nitrogen%nitrate_mol   = zero
     nitrogen%nitrite_mol   = zero
     nitrogen%ammonia_mol   = zero
+    nitrogen%Nsupply       = zero
+    nitrogen%Ndemand       = zero
 
   END SUBROUTINE zero_initial_nitrogen
 

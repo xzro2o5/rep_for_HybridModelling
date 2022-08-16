@@ -279,14 +279,14 @@ rsoil2 = 0.07 !power
 !***************************************************
 ! parameters for nitrogen
 !***************************************************
-cn_bulk = 10 ! bulk C:N ratio, 10,20,40,50
+cn_bulk = 22.81 ! bulk C:N ratio, 10,20,40,50
 n_supply = 2 ! 2.25-2 field N supply, ambient for fertilization, umol m-2 s-2
 n_mult = 1.7 ! N ass as a multiple of glycine and serine
 nitrate = 1 ! fraction of nitrate in N supply
 nitrite = 0 !fraction of nitrite in N supply
 ammonia = 0 !fraction of ammonia in N supply
-switch_n_limit = 0 ! control N ass amount: 0 without N limit; 1 with N limit of N supply; 2 min(n supply and nc_bulk); 3 N ass as a multiple of glycine and serine
-switch_n_random = 0 ! control N ass fraction: 0 with fixed N source;0 with random mixed N source
+switch_n_limit = 2 ! control N ass amount: 0 without N limit; 1 with N limit of N supply; 2 min(n supply and nc_bulk); 3 N ass as a multiple of glycine and serine
+switch_n_random = 1 ! control N ass fraction: 0 with fixed N source;0 with random mixed N source
 
 
 /

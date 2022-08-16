@@ -327,16 +327,17 @@ CONTAINS
     ! Hourly/Season
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(hourlyfile), trim(outsuffix)
     open(unit=noutseas, file=stmp,action="write", status="replace", &
-         form="formatted", recl=29*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
+         form="formatted", recl=31*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 19-1+11, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 31, '(",",a))'
 !    print *, form1
     write(noutseas,form1) "daytime ", "netrn ", "sumrn ", "sumh ", "sumle ", &
     "canps ", "gpp ", "canresp ", "soilresp ", "boleresp ", &
     "sumOXY ", "netOXY ", "netROC ", "ROC_leaf ", "ROC_bole ", "ROC_soil ", &
     "ustar ", "Kdiff ","phim ","canresp_o ", &
     "inputPAR ","PAR_dir ","PAR_dn ", "PAR_up ", &
-    "NIR_dir ","NIR_dn ","NIR_up ","IR_dn ","IR_up"
+    "NIR_dir ","NIR_dn ","NIR_up ","IR_dn ","IR_up ", &
+    "Nsupply ", "Ndemand"
     !write(noutseas,form1) &
     !     "daytime", "netrn", "sumrn", "sumh", "sumle"
 
@@ -418,9 +419,9 @@ CONTAINS
         ! Profile tpu limits
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(tpufile), trim(outsuffix)
     open(unit=nouttpu, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*39, iostat=ierr) ! original 40*25
+         form="formatted", recl=40*41, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 39, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 41, '(",",a))'
     write(nouttpu,form1) "daytime ", "i ", &
                        "lai ", "air_co2 ", &
                        "sun_lai_f ", "shd_lai_f ", &
@@ -435,6 +436,7 @@ CONTAINS
                        "sun_Ja ", "shd_Ja ", &
                        "sun_Jglu ", "shd_Jglu ", &
                        "sun_JBusch ", "shd_JBusch ", &
+                       "sun_Ndemand ", "shd_Ndemand ", &
                        "sun_NBusch ", "shd_NBusch ", &
                        "sun_NO3 "   , "shd_NO3 "   , &
                        "sun_NO2 "   , "shd_NO2 "   , &
@@ -843,7 +845,7 @@ CONTAINS
     USE constants, ONLY: noutseas, noutopti, noutsoil, nouth2osoil, &
          noutcisoseason, noutwisoleaf, noutwisosoil, noutdebug
     USE types,     ONLY: iswitch, time, prof, soil, bole, &
-         input, output, flux, met, solar, wiso
+         input, output, flux, met, solar, wiso, nitrogen
     USE setup,     ONLY: ncl, ntl, nwiso, nsoil
     USE parameters,    ONLY: ROC_leaf_in, ROC_bole_in, ROC_soil_in
 
@@ -856,7 +858,7 @@ CONTAINS
     ierr = 0
     ! Hourly/Season
 !write(form1,'(A,I3,A)') '(i07,",",i03,', 19-1+4, '(",",es22.14))'
-    write(form1,'(A,I3,A)') '(i07,', 19-1+11, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,', 31, '(",",es22.14))'
     !print *, form1
     write(noutseas,form1,iostat=ierr) &
          time%daytime, output%netrad, output%sumrn, output%sumh, output%sumle, &
@@ -865,7 +867,7 @@ CONTAINS
          met%ustar_filter, met%K, met%phim, output%hour_canrespo, &
          input%parin,solar%beam_flux_par(ncl+1)/ 4.6_wp,solar%par_down(ncl+1)/ 4.6_wp,solar%par_up(ncl+1)/ 4.6_wp,&
          solar%beam_flux_nir(ncl+1),solar%nir_dn(ncl+1),solar%nir_up(ncl+1),&
-         solar%ir_dn(ncl+1),solar%ir_up(ncl+1)
+         solar%ir_dn(ncl+1),solar%ir_up(ncl+1),nitrogen%Nsupply, nitrogen%Ndemand
     if (ierr > 0) call error_writing(isroutine, noutseas)
 
     ! Optimise
@@ -1004,7 +1006,7 @@ end if
     if (ierr > 0) call error_writing(isroutine, noutflux, ' - 2')
 
      ! Profile tpu
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 39, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 41, '(",",es22.14))'
     do j=1, ncl
        write(nouttpu,form1,iostat=ierr) &
             time%daytime,j,&
@@ -1021,6 +1023,7 @@ end if
             prof%Ja_sun(j),     prof%Ja_shd(j), &
             prof%Jglu_sun(j),   prof%Jglu_shd(j), &
             prof%JBusch_sun(j), prof%JBusch_shd(j), &
+            prof%sun_Ndemand(j),prof%shd_Ndemand(j), &
             prof%sun_ABusch(j), prof%shd_ABusch(j), &
             prof%sun_NO3(j), prof%shd_NO3(j), &
             prof%sun_NO2(j), prof%shd_NO2(j), &

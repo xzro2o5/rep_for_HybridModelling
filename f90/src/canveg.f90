@@ -20,7 +20,7 @@ PROGRAM canveg
        non_dim, bound_lay_res, input, prof, solar, met, &
        ciso, fact, flux, output, bole, srf_res, debug, &
        ! Routines
-       zero_new_timestep
+       zero_new_timestep, nitrogen
   USE io,            ONLY: create_dir, open_files, close_files, &          ! I/O wrappers
        read_disp, skip_input, lastin, write_daily, read_in, &              ! Yuan 2018.01.22 to create a new directory
        write_profiles, write_output, copy_code ! copy_code, Yuan 2018.05.07
@@ -89,7 +89,8 @@ PROGRAM canveg
 !  CHARACTER(LEN=256),PARAMETER :: stmp
 
   ! output of oxygen module Yuan 2018.01.30
-  REAL(wp) :: can_gpp_o=zero, canresp_o = zero, sumo=zero, sumneto=zero, sumcanresp_o=zero
+  REAL(wp) :: can_gpp_o=zero, canresp_o = zero, sumo=zero, sumneto=zero, sumcanresp_o=zero, &
+  sumNsupply=zero, sumNdemand=zero
 
 
 #ifndef QUIET
@@ -877,11 +878,12 @@ PROGRAM canveg
         can_gpp    = sum(prof%dGPPdz(1:ncl))     ! canopy GPP = can_ps_mol + dark respiration
         can_gpp_o  = sum(prof%gpp_O2(1:ncl))     ! O2 emmision via gpp
         canresp    = sum(prof%dRESPdz(1:ncl))    ! canopy respiration
-        canresp_o  = sum(prof%dRESPdz_O2(1:ncl))      ! O2 via canopy respiration
+        canresp_o  = sum(prof%dRESPdz_O2(1:ncl)) ! O2 via canopy respiration
         sumksi     = sum(prof%dStomCondz(1:ncl)) ! canopy stomatal conductance
         sumlai     = sum(prof%dLAIdz(1:ncl))     ! leaf area
         sumpai     = sum(prof%dPAIdz(1:ncl))     ! use plant area Yuan 2018.03.04
-
+        sumNsupply = sum(prof%dNsupplydz(1:ncl)) ! total N supply per hour
+        sumNdemand = sum(prof%dNgludz(1:ncl))    ! total N demand per hour
  !       print*, 'T: ', i_count, prof%shd_tleaf(1), prof%shd_tleaf(40)
 ! print *, i_count
         tleaf_mean = sum(prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &
@@ -1271,6 +1273,8 @@ end if
         sumneto = can_ps_mol*ROC_leaf_in-soil%respiration_mole*ROC_soil_in-bole%respiration_mole*ROC_bole_in
         output%houro = sumo ! save hourly o flux in a global variable
         output%hourneto = sumneto
+        nitrogen%Nsupply = sumNsupply
+        nitrogen%Ndemand = sumNdemand
         output%hour_canrespo = sumcanresp_o
         if (fc_mol == zero) then
             output%hourROC = zero ! Yuan added hourly ROC output 2018.05.07

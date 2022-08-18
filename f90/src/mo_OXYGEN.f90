@@ -124,7 +124,7 @@ MODULE oxygen
 
   END SUBROUTINE O_to_N
 
-  SUBROUTINE N_to_O (carboxylation,Vo_Vc,Rd,leaf_T,gly,serine, Etot, En, Uo, dark_resp_O, &
+  SUBROUTINE N_to_O (carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine, Etot, En, Uo, dark_resp_O, &
     Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4)
 
     USE utils,        ONLY: ER_rd_func
@@ -136,11 +136,11 @@ MODULE oxygen
     USE setup,      ONLY: ncl
 
 
-    REAL(wp), INTENT(IN)  :: carboxylation,Vo_Vc,Rd,leaf_T,gly,serine
+    REAL(wp), INTENT(IN)  :: carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine
     REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
     N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
     REAL(wp)              :: ER_rd, MAP, source_glu
-    REAL(wp)              :: J1,J2,J3, Jtot, f1, f2, f3
+    REAL(wp)              :: J1,J2,J3, JCO2, Jtot, f1, f2, f3
     ! INTEGER(i4), INTENT(IN) :: layer
 
         ! to calculate N assimilation accompany with carbon assimilation
@@ -153,6 +153,7 @@ MODULE oxygen
     ! determine N assimilation amount:
 
     N_demand = carboxylation/cn_bulk
+    !N_demand = gross_CO2/cn_bulk
 
     SELECT CASE (iswitch%n_limit)
 
@@ -225,10 +226,11 @@ MODULE oxygen
 
     ! electrons for CO2 assimilation
     Ja = 4*(1+Vo_Vc)*carboxylation
+    JCO2 = 4*gross_CO2
     ! electrons by Busch's photorespiration
     J_Busch = (8*gly+4*serine)*Vo_Vc*carboxylation
     ! total electrons
-    Jtot = J_glu+Ja+J_Busch
+    Jtot = J_glu+JCO2+J_Busch
     ! total O2 emission:
     Etot = Jtot/4
     Uo = 1.5*Vo_Vc*carboxylation+dark_resp_O + MAP

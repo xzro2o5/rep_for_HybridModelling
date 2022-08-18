@@ -236,8 +236,8 @@ CONTAINS
           prof%sun_tleaf(j)     = T_srf_C
           loutsun               = lout_leaf ! long wave out
           Rn_sun                = solar%rnet_sun(j) - lout_leaf ! net radiation
-!          if (j==40) then
-!          print *, "Rn_leaf,  net_leaf,    longwave_leaf",Rn_sun, solar%rnet_sun(j) , lout_leaf
+!          if (j==37) then
+!          print *, "GPP,  GOP",GPP, GOP
 !          endif
           A_sun                 = A_mg ! leaf photosynthesis, mg CO2 m-2 s-1
           O_sun                 = A_O2
@@ -1471,9 +1471,17 @@ debug%R4=es(tsrfkpt)*100._wp-ea
       ! N assimilation and water as electron provider:
     phi = input%o2air/(ci*tau)
     vo = psguess*phi
+!        if (JJ==37) then
+!        print *, 'debug GPP and GOP', gpp, GOP
+!    end if
+
 SELECT CASE (iswitch%ER)
+
+
    CASE (0) ! no chamber ER input, oxygen is derived from N assimilation
-      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
+!      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
+!      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+    call N_to_O(gpp,psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
       Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 
    CASE (1)

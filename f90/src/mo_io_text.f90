@@ -641,7 +641,7 @@ CONTAINS
     input%d18CO2       = in14
     input%o2air        = in15
     input%ER           = in16
-!   print *, "check scenario file:    ", input%co2air
+   !print *, "check scenario file:    ", input%co2air
     ! write(*,'(a,i10,3f20.14)') 'RI01.01 ', input%dayy, input%hhrr, input%ta
     ! write(*,'(a,3f20.14)') 'RI01.02 ', input%rglobal, input%parin, input%pardif
     ! write(*,'(a,3f20.14)') 'RI01.03 ', input%ea, input%wnd, input%ppt(1)
@@ -677,7 +677,7 @@ CONTAINS
     ! cuticular resistance
     srf_res%rcuticle(1:ncl) = one / (bprime(1:ncl) * met%T_Kelvin * met%pstat273)
     ! check for bad CO2 data
-    if (abs(input%co2air) >= 998._wp) input%co2air = 370._wp
+    !if (abs(input%co2air) >= 998._wp) input%co2air = 370._wp
     ! write(*,'(a,3f20.14)') 'RI01.07 ', input%parin
     if (input%parin < zero) input%parin = zero ! check for bad par data
  !   print *, "inputPAR:    ",input%parin

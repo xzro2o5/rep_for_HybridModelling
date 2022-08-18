@@ -1057,7 +1057,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           beta_tpu = 0
         end if
         ! alphag alphas and gammac ralated to Rubisco:
-        if (iswitch%n_limit==1) n_max = min(n_max,n_supply)
+        if (iswitch%n_limit==1 .or. iswitch%n_limit==2) n_max = min(n_max,n_supply)
         vo = vcmax*phi
         alphag = n_max*beta_tpu/vo
         alphag_c = min(alphag_max,alphag)

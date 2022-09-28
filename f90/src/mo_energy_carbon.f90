@@ -799,7 +799,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: root3, arg_U, ang_L
     REAL(wp) :: aphoto, Ophoto, Eo, Uo, GOP, NOP, gpp, gpp_o2, gpp_o2_test, j_sucrose, wj ! Ophoto:net phptosynthetic O2
     REAL(wp) :: ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4, Ja, J_glu, J_Busch
-    REAL(wp) :: phi, vo, alphag, alphas, alphag_c, alphas_c, alphag_j, alphas_j, alphag_p, alphas_p, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
+    REAL(wp) :: phi, vo, alphag, alphas, alphag_guess, alphag_c, alphas_c, &
+                alphag_j, alphas_j, alphag_p, alphas_p, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
     REAL(wp) :: tp, wp_tpu
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
     REAL(wp) :: ps_1,delta_1, Aquad1, Bquad1, Cquad1
@@ -851,6 +852,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     cc           = one
     tpu_coeff    = zero
     alphag    = zero
+    alphag_guess = zero ! have to guess alpha_g before carboxylation
     alphas    = zero
     g1_local     = zero
 
@@ -1058,7 +1060,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         end if
         ! alphag alphas and gammac ralated to Rubisco:
         if (iswitch%n_limit==1 .or. iswitch%n_limit==2) n_max = min(n_max,n_supply)
-        vo = vcmax*phi
+
+
+        wc = vcmax * ci_guess / (ci_guess + bc)
+        vo = wc*phi
         alphag = n_max*beta_tpu/vo
         alphag_c = min(alphag_max,alphag)
         alphas = 1.5*n_max*(1._wp-beta_tpu)/vo
@@ -1066,8 +1071,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         gammac_c = 0.5 * input%o2air*(1._wp-alphag_c) / tau
         dd = gammac_c
         b8_dd = 8._wp * dd
-        wc = vcmax * ci_guess / (ci_guess + bc)
         Ac = vcmax * (ci_guess - dd) / (ci_guess + bc)
+
 
         ! alphag alphas and gammac ralated to RUBP:
         if (j_photon>n_max*(2._wp*beta_tpu+6._wp)) then
@@ -1091,10 +1096,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         (4._wp*(1-alphag_j) * ci_guess + (1._wp+2._wp*alphag_j+alphas_j)*b8_dd)
         ! alphag alphas and gammac ralated to TPU:
 
-        alphag = n_max*beta_tpu+(2._wp/phi-1._wp) / &
+        alphag = n_max*beta_tpu*(2._wp/phi-1._wp) / &
         6._wp*tp+3._wp*n_max*(2._wp-beta_tpu)
         alphag_p = min(alphag_max,alphag)
-        alphas = 1.5*n_max*(1._wp-beta_tpu)+(2._wp/phi-1._wp) / &
+        alphas = 1.5*n_max*(1._wp-beta_tpu)*(2._wp/phi-1._wp) / &
         6._wp*tp+3._wp*n_max*(2._wp-beta_tpu)
         alphas_p = min(alphas_max,alphas)
         gammac_p = 0.5 * input%o2air*(1._wp-alphag_p) / tau
@@ -1109,9 +1114,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
            tpu_coeff = 2
            dd = gammac_j
            psguess = wj
-           b_ps = (8._wp+16._wp*alphag_j+8._wp*alphas_j)*dd
-           a_ps = j_photon*(1._wp-alphag_j)
-           e_ps = 4._wp*(1-alphag_j)
+           b_ps = (8._wp+16._wp*alphag_j+8._wp*alphas_j)*dd/(1._wp-alphag_j)
+           a_ps = j_photon
+           e_ps = 4._wp
            ! final alphag and alphas:
            alphag = alphag_j
            alphas = alphas_j
@@ -1128,9 +1133,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
            tpu_coeff = 3
            dd = gammac_p
            psguess=wp_tpu
-           b_ps = -(1._wp+3._wp*alphag_p+4._wp*alphas_p)*dd
-           a_ps = 3._wp*tp*(1-alphag_p)
-           e_ps = (1._wp-alphag_p)
+           b_ps = -(1._wp+3._wp*alphag_p+4._wp*alphas_p)*dd/(1._wp-alphag_p)
+           a_ps = 3._wp*tp
+           e_ps = one
            alphag = alphag_p
            alphas = alphas_p
         end if

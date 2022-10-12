@@ -1090,10 +1090,10 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         dd = gammac_j
         b8_dd = 8._wp * dd
         wj = j_photon * ci_guess  / &
-        (4._wp*(1-alphag_j) * ci_guess + (1._wp+2._wp*alphag_j+alphas_j)*b8_dd)
+        (4._wp * ci_guess + (1._wp+2._wp*alphag_j+alphas_j)*b8_dd/(1._wp-alphag_j))
 
         Aj = j_photon * (ci_guess - dd) / &
-        (4._wp*(1-alphag_j) * ci_guess + (1._wp+2._wp*alphag_j+alphas_j)*b8_dd)
+        (4._wp * ci_guess + (1._wp+2._wp*alphag_j+alphas_j)*b8_dd/(1._wp-alphag_j))
         ! alphag alphas and gammac ralated to TPU:
 
         alphag = n_max*beta_tpu*(2._wp/phi-1._wp) / &
@@ -1106,9 +1106,9 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         dd = gammac_p
         b8_dd = 8._wp * dd
         wp_tpu = 3._wp*tp * ci_guess  / &
-        (ci_guess*(1-alphag_p)-(1_wp+3._wp*alphag_p+4._wp*alphas_p)*dd)
+        (ci_guess-(1_wp+3._wp*alphag_p+4._wp*alphas_p)*dd/(1._wp-alphag_p))
         Ap = 3._wp*tp * (ci_guess - dd) / &
-        (ci_guess*(1-alphag_p)-(1_wp+3._wp*alphag_p+4._wp*alphas_p)*dd)
+        (ci_guess-(1_wp+3._wp*alphag_p+4._wp*alphas_p)*dd/(1._wp-alphag_p))
         if (wj < min(wc,wp_tpu)) then
          ! for Harley and Farquhar type model for Wj
            tpu_coeff = 2
@@ -1421,19 +1421,19 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 
        if (iswitch%tpu == 1) then
         wc = vcmax * ci  / (ci + bc)
-        wj = j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
-        wp_tpu = 3._wp*tp * ci / (ci-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+        wj = j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd/(1._wp-alphag))
+        wp_tpu = 3._wp*tp * ci / (ci-(1._wp+3._wp*alphag+4._wp*alphas)*dd/(1._wp-alphag))
         Ac = vcmax * (ci - dd) / (ci + bc)
-        Aj = j_photon * (ci - dd) / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
-        Ap = 3._wp*tp * (ci - dd) / (ci-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+        Aj = j_photon * (ci - dd) / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd/(1._wp-alphag))
+        Ap = 3._wp*tp * (ci - dd) / (ci-(1._wp+3._wp*alphag+4._wp*alphas)*dd/(1._wp-alphag))
         psguess = min(wc,wj,wp_tpu)
         if (iswitch%ball == 1 .OR. iswitch%ball == 3) then
             wc = vcmax * cc / (cc + bc)
-            wj = j_photon * cc / (4._wp * cc + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
-            wp_tpu = 3._wp*tp * cc / (cc-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+            wj = j_photon * cc / (4._wp * cc + (8._wp+16._wp*alphag+8._wp*alphas)*dd/(1._wp-alphag))
+            wp_tpu = 3._wp*tp * cc / (cc-(1._wp+3._wp*alphag+4._wp*alphas)*dd/(1._wp-alphag))
             Ac = vcmax * (cc - dd) / (cc + bc)
-            Aj = j_photon * (cc - dd) / (4._wp * cc + (8._wp+16._wp*alphag+8._wp*alphas)*dd)
-            Ap = 3._wp*tp * (cc - dd) / (cc-(1._wp+3._wp*alphag+4._wp*alphas)*dd)
+            Aj = j_photon * (cc - dd) / (4._wp * cc + (8._wp+16._wp*alphag+8._wp*alphas)*dd/(1._wp-alphag))
+            Ap = 3._wp*tp * (cc - dd) / (cc-(1._wp+3._wp*alphag+4._wp*alphas)*dd/(1._wp-alphag))
             psguess = min(wc,wj,wp_tpu)
         end if
        end if

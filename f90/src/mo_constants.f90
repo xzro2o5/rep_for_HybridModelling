@@ -168,7 +168,7 @@ MODULE constants
   ! oxygen module Yuan 2018.01.18
 
   REAL(wp), PARAMETER :: factor_meg_ppm      = 4.8_wp  ! 4.8 is a factor per meg/ppm, 1 ppm = 4.8 per meg
-  REAL(wp), PARAMETER :: o2_ref       =209400_wp ! a reference value for O2 ppm
+  REAL(wp), PARAMETER :: o2_ref       =209750_wp ! a reference value for O2 ppm, also the slope of O2~CO2 conc linear fit
  ! molecules in the atmosphere. http://scrippso2.ucsd.edu/faq
  ! The units of δ (O2/N2) are per meg; one per meg is one molecule of oxygen out of a million molecules of oxygen.
  ! The ppm unit is a measure of the mole (or molecular) fraction.

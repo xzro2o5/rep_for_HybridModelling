@@ -622,13 +622,12 @@ CONTAINS
     ! Although O2 is included as "in15" in input file, it is more convenient to calculate atm O2 directly in the model,
     ! especially when RCP CO2 concentration is implemented.
 
-    in15=o2_ref-1.15*in08
+    in15=o2_ref-1.15_wp*in08
     !the following 3 lines are not needed when RCP scenario files are used,
     !cause scenario_temp and scenario_c are only a fixed value of annual T and CO2 variation.
     in01=in01+scenario_temp
     in08=in08+scenario_c ! input CO2 ppm
-    in15=in15+o2_ref-1.15_wp*scenario_c ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
-
+    in15=in15-1.15_wp*scenario_c ! deltaO2+refO2=real O2 ppm Yuan 2018.02.14
     if (ierr > 0) call error_reading(isroutine, ninmet)
     if (ierr < 0) call error_reading(isroutine, ninmet, 'reached EOF.')
     input%dayy         = dayy

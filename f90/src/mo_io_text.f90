@@ -421,7 +421,7 @@ CONTAINS
     open(unit=nouttpu, file=stmp,action="write", status="replace", &
          form="formatted", recl=40*41, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 41, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 43, '(",",a))'
     write(nouttpu,form1) "daytime ", "i ", &
                        "lai ", "air_co2 ", &
                        "sun_lai_f ", "shd_lai_f ", &
@@ -437,6 +437,7 @@ CONTAINS
                        "sun_Jglu ", "shd_Jglu ", &
                        "sun_JBusch ", "shd_JBusch ", &
                        "sun_Ndemand ", "shd_Ndemand ", &
+                       "sun_Ntot ", "shd_Ntot ", &
                        "sun_NBusch ", "shd_NBusch ", &
                        "sun_NO3 "   , "shd_NO3 "   , &
                        "sun_NO2 "   , "shd_NO2 "   , &
@@ -1013,7 +1014,7 @@ end if
     if (ierr > 0) call error_writing(isroutine, noutflux, ' - 2')
 
      ! Profile tpu
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 41, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 43, '(",",es22.14))'
     do j=1, ncl
        write(nouttpu,form1,iostat=ierr) &
             time%daytime,j,&
@@ -1031,6 +1032,7 @@ end if
             prof%Jglu_sun(j),   prof%Jglu_shd(j), &
             prof%JBusch_sun(j), prof%JBusch_shd(j), &
             prof%sun_Ndemand(j),prof%shd_Ndemand(j), &
+            prof%sun_Ntot(j), prof%shd_Ntot(j), &
             prof%sun_ABusch(j), prof%shd_ABusch(j), &
             prof%sun_NO3(j), prof%shd_NO3(j), &
             prof%sun_NO2(j), prof%shd_NO2(j), &

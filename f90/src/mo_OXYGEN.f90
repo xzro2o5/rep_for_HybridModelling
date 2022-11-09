@@ -60,13 +60,14 @@ MODULE oxygen
 
 
 
-  SUBROUTINE O_to_N (An,carboxlation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,Etot,En, Uo, dark_resp_O, &
+  SUBROUTINE O_to_N (An,carboxylation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,Etot,En, Uo, dark_resp_O, &
     Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3,source_NO2,source_NH4)
 
     USE utils,        ONLY: ER_rd_func
     USE nitrogen_assimilation, ONLY: N_fraction
+    USE parameters, ONLY: cn_bulk
 
-    REAL(wp), INTENT(IN)  :: An,carboxlation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine
+    REAL(wp), INTENT(IN)  :: An,carboxylation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine
     REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
     N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
     REAL(wp)              :: ER_rd, MAP, source_glu
@@ -80,21 +81,21 @@ MODULE oxygen
     En = An*ER_An
 
     if (En<An) MAP = An-En
-    Uo = 1.5*Vo_Vc*carboxlation+dark_resp_O + MAP
+    Uo = 1.5*Vo_Vc*carboxylation+dark_resp_O + MAP
     Etot = En + Uo
 
     ! calculate N assimilation:
     ! total electrons
     Jtot = Etot * 4
     ! electrons for CO2 assimilation
-    Ja = 4*(1+Vo_Vc)*carboxlation
+    Ja = 4*(1+Vo_Vc)*carboxylation
     ! electrons by Busch's photorespiration
-    J_Busch = (8*gly+4*serine)*Vo_Vc*carboxlation
+    J_Busch = (8*gly+4*serine)*Vo_Vc*carboxylation
     ! e- required for B assimilation
     J_glu = Jtot-Ja-J_Busch
     call N_fraction (f1,f2,f3)
     source_glu = J_glu/(f1*10+f2*8+f3*2)
-    source_Busch = (gly+2*serine/3)*Vo_Vc*carboxlation
+    source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
     source_NO3 = source_glu*f1
     source_NO2 = source_glu*f2
     source_NH4 = source_glu*f3
@@ -109,7 +110,7 @@ MODULE oxygen
         source_NH4 = zero
 
     end if
-    N_demand = N_tot
+    N_demand = carboxylation/cn_bulk
 
 
 ! save N source in structures:

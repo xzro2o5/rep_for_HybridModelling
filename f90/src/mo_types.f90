@@ -722,6 +722,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_ABusch
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_Ndemand
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_Ndemand
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_Ntot
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_Ntot
   END TYPE profile
 
 
@@ -1244,6 +1246,8 @@ CONTAINS
     if (.not. allocated(prof%shd_quad)) allocate(prof%shd_quad(ncl))
     if (.not. allocated(prof%sun_Ndemand)) allocate(prof%sun_Ndemand(ncl))
     if (.not. allocated(prof%shd_Ndemand)) allocate(prof%shd_Ndemand(ncl))
+    if (.not. allocated(prof%sun_Ntot)) allocate(prof%sun_Ntot(ncl))
+    if (.not. allocated(prof%shd_Ntot)) allocate(prof%shd_Ntot(ncl))
     if (.not. allocated(prof%sun_ABusch)) allocate(prof%sun_ABusch(ncl))
     if (.not. allocated(prof%shd_ABusch)) allocate(prof%shd_ABusch(ncl))
 

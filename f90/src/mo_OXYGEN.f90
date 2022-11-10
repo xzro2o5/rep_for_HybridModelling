@@ -93,6 +93,7 @@ MODULE oxygen
     J_Busch = (8*gly+4*serine)*Vo_Vc*carboxylation
     ! e- required for B assimilation
     J_glu = Jtot-Ja-J_Busch
+    J_glu = max(J_glu,zero)
     call N_fraction (f1,f2,f3)
     source_glu = J_glu/(f1*10+f2*8+f3*2)
     source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
@@ -100,16 +101,6 @@ MODULE oxygen
     source_NO2 = source_glu*f2
     source_NH4 = source_glu*f3
     N_tot = source_Busch + source_glu
-    if (N_tot<=zero) then
-        J_glu = zero
-        J_Busch = zero
-        N_tot = zero
-        source_Busch = zero
-        source_NO3 = zero
-        source_NO2 = zero
-        source_NH4 = zero
-
-    end if
     N_demand = carboxylation/cn_bulk
 
 

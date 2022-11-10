@@ -132,7 +132,8 @@ CONTAINS
     USE constants, ONLY: noutseas, noutopti, noutsoil, noutdaily, noutprof, &
          noutflux, nouth2osoil, &
          noutcisodaily, noutcisoseason, noutcisoprof, &
-         noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, noutdebug, nouttpu
+         noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, noutdebug, nouttpu, &
+         noutnit
     USE types,      ONLY: iswitch
 
     IMPLICIT NONE
@@ -146,6 +147,7 @@ CONTAINS
     close(unit=nouth2osoil)
     close(unit=noutdebug)
     close(unit=nouttpu)
+    close(unit=noutnit)
     ! 13CO2 isotope files
     if (iswitch%d13c == 1) then
        close(unit=noutcisodaily)
@@ -306,13 +308,13 @@ CONTAINS
     ! Calls the routines to open input and output files
     USE constants, ONLY: &
          noutseas, noutopti, noutsoil, noutdaily, noutprof, &                ! units
-         noutflux, nouth2osoil, nouttpu, &
+         noutflux, nouth2osoil, nouttpu, noutnit, &
          noutcisodaily, noutcisoseason, noutcisoprof, &
          noutwisoleaf, noutwisoprof, noutwisoflux, noutwisosoil, noutdebug, &
          dailyfile, daily13cfile, hourlyfile, hourly13cfile, optimisefile, & ! filenames
          profilefile, profile13cfile, profileisofile, fluxprofilefile, &
          fluxprofileisofile, soilfile, h2osoilfile, &
-         h2osoilisofile, h2oleafisofile, debugfile, tpufile
+         h2osoilisofile, h2oleafisofile, debugfile, tpufile, nitfile
     USE parameters, ONLY: outdir, outsuffix
     USE types,      ONLY: iswitch
 
@@ -416,7 +418,19 @@ CONTAINS
         ! write(form1,'(A,I3,A)') '(a,', 44-1, '(",",a))'
     !write(noutflux,form1) "daytime",
 
-        ! Profile tpu limits
+    ! Profile N ass
+    write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(nitfile), trim(outsuffix)
+    open(unit=noutnit, file=stmp,action="write", status="replace", &
+         form="formatted", recl=40*11, iostat=ierr) ! original 40*25
+    if (ierr > 0) call error_opening(isroutine, stmp)
+    write(form1,'(A,I3,A)') '(a,', 11, '(",",a))'
+    write(noutnit,form1) "daytime ", "i ", &
+                       "dNdemanddz ", "dNdemand_sundz ", "dNdemand_shddz ", &
+                       "dNtotdz ", "dNtot_sundz ", "dNtot_shddz ",&
+                       "dNBuschdz ", "dNBusch_sundz ", "dNBusch_shddz"
+
+
+    ! Profile tpu limitation
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(tpufile), trim(outsuffix)
     open(unit=nouttpu, file=stmp,action="write", status="replace", &
          form="formatted", recl=40*41, iostat=ierr) ! original 40*25
@@ -443,7 +457,6 @@ CONTAINS
                        "sun_NO2 "   , "shd_NO2 "   , &
                        "sun_NH4 "   , "shd_NH4 "   , &
                        "sun_tpu_coeff ", "shd_tpu_coeff"
-
 
     ! Soil water
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(h2osoilfile), trim(outsuffix)
@@ -947,7 +960,7 @@ CONTAINS
   ! ------------------------------------------------------------------
   SUBROUTINE write_prof_text()
     ! Calls the routines to open input and output files
-    USE constants, ONLY: noutprof, noutflux, noutcisoprof, noutwisoprof, noutwisoflux, nouttpu
+    USE constants, ONLY: noutprof, noutflux, noutcisoprof, noutwisoprof, noutwisoflux, nouttpu, noutnit
     USE types,     ONLY: iswitch, prof, solar, time, input, fact
     USE setup,     ONLY: ncl, ntl, nwiso
 
@@ -1042,8 +1055,19 @@ end if
 
 !print *, prof%sun_tpu_coeff, prof%shd_tpu_coeff
     end do
-    if (ierr > 0) call error_writing(isroutine, noutflux, ' - 2')
+    if (ierr > 0) call error_writing(isroutine, nouttpu, ' - 2')
 
+     ! Profile nitrogen ass
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 11, '(",",es22.14))'
+    do j=1, ncl
+       write(noutnit,form1,iostat=ierr) &
+            time%daytime,j,&
+            prof%dNdemanddz(j),prof%dNdemanddz_sun(j),prof%dNdemanddz_shd(j),&
+            prof%dNtotdz(j),prof%dNtotdz_sun(j),prof%dNtotdz_shd(j),&
+            prof%dNBuschdz(j), prof%dNBuschdz_sun(j), prof%dNBuschdz_shd(j)
+
+    end do
+    if (ierr > 0) call error_writing(isroutine, noutnit, ' - 2')
     ! 13CO2 isotope files
     if (iswitch%d13c == 1) then
        ! Profile air

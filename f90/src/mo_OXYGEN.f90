@@ -152,7 +152,7 @@ MODULE oxygen
     ! J_extra/J_a =(e_source)*N_supply/(C_ass*e_co2) under N limit
 
     ! determine N assimilation amount:
-
+    source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
     N_demand = carboxylation/cn_bulk
     !N_demand = gross_CO2/cn_bulk
 
@@ -199,7 +199,7 @@ MODULE oxygen
         source_glu = min(n_supply, N_demand) ! or n_supply/ncl, per layer
         !source_glu = min(min(n_supply,n_max),N_demand) ! or n_supply/ncl, per layer
     CASE (3)
-      source_glu = n_mult*(gly+serine)
+      source_glu = n_mult*source_Busch
 
     END SELECT
 
@@ -208,7 +208,7 @@ MODULE oxygen
     source_NO3 = source_glu*f1
     source_NO2 = source_glu*f2
     source_NH4 = source_glu*f3
-    source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
+
     N_tot = source_glu+source_Busch
 !    J_nitrate = J_co2*(10*source_nitrate/gpp)/4
 !    J_nitrite = J_co2*(8*source_nitrite/gpp)/4

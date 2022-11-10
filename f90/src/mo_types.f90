@@ -529,12 +529,15 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dNsupplydz ! N supply per layer area
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNgludz       ! layer Nassimilation (Ps + Resp) (micromol m-2 s-1) ! [ncl]
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNgludz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNgludz_shd
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNtotdz       ! layer Nassimilation (Ps + Resp) (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNtotdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNtotdz_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dNBuschdz       ! layer Nassimilation (Ps + Resp) (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dNBuschdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dNBuschdz_shd
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNdemanddz       ! layer N demand (micromol m-2 s-1) ! [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNdemanddz_sun
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNdemanddz_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dHdz ! layer sensible heat flux (W m-2) ! [ncl]
      REAL(wp), DIMENSION(:,:), ALLOCATABLE :: dLEdz ! layer latent heat flux ! [ncl,nwiso]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dLEdz_sun ! layer latent heat flux of sunlit area (W m-2) ! [ncl]
@@ -1072,12 +1075,15 @@ CONTAINS
     if (.not. allocated(prof%dGOPdz_sun)) allocate(prof%dGOPdz_sun(ncl))
     if (.not. allocated(prof%dGOPdz_shd)) allocate(prof%dGOPdz_shd(ncl))
         if (.not. allocated(prof%dNsupplydz)) allocate(prof%dNsupplydz(ncl))
-    if (.not. allocated(prof%dNgludz)) allocate(prof%dNgludz(ncl))
-    if (.not. allocated(prof%dNgludz_sun)) allocate(prof%dNgludz_sun(ncl))
-    if (.not. allocated(prof%dNgludz_shd)) allocate(prof%dNgludz_shd(ncl))
+    if (.not. allocated(prof%dNtotdz)) allocate(prof%dNtotdz(ncl))
+    if (.not. allocated(prof%dNtotdz_sun)) allocate(prof%dNtotdz_sun(ncl))
+    if (.not. allocated(prof%dNtotdz_shd)) allocate(prof%dNtotdz_shd(ncl))
     if (.not. allocated(prof%dNBuschdz)) allocate(prof%dNBuschdz(ncl))
     if (.not. allocated(prof%dNBuschdz_sun)) allocate(prof%dNBuschdz_sun(ncl))
     if (.not. allocated(prof%dNBuschdz_shd)) allocate(prof%dNBuschdz_shd(ncl))
+    if (.not. allocated(prof%dNdemanddz)) allocate(prof%dNdemanddz(ncl))
+    if (.not. allocated(prof%dNdemanddz_sun)) allocate(prof%dNdemanddz_sun(ncl))
+    if (.not. allocated(prof%dNdemanddz_shd)) allocate(prof%dNdemanddz_shd(ncl))
     if (.not. allocated(prof%dHdz)) allocate(prof%dHdz(ncl))
     if (.not. allocated(prof%dLEdz)) allocate(prof%dLEdz(ncl,nwiso))
     if (.not. allocated(prof%dLEdz_sun)) allocate(prof%dLEdz_sun(ncl))
@@ -1828,12 +1834,15 @@ CONTAINS
     prof%dGOPdz_sun = zero
     prof%dGOPdz_shd = zero
     prof%dNsupplydz = zero
-    prof%dNgludz = zero
-    prof%dNgludz_sun = zero
-    prof%dNgludz_shd = zero
+    prof%dNtotdz = zero
+    prof%dNtotdz_sun = zero
+    prof%dNtotdz_shd = zero
     prof%dNBuschdz = zero
     prof%dNBuschdz_sun = zero
     prof%dNBuschdz_shd = zero
+    prof%dNdemanddz_sun = zero
+    prof%dNdemanddz_shd = zero
+    prof%dNdemanddz = zero
     prof%dHdz = zero
     prof%dLEdz = zero
     prof%dLEdz_sun = zero

@@ -883,7 +883,7 @@ PROGRAM canveg
         sumlai     = sum(prof%dLAIdz(1:ncl))     ! leaf area
         sumpai     = sum(prof%dPAIdz(1:ncl))     ! use plant area Yuan 2018.03.04
         sumNsupply = sum(prof%dNsupplydz(1:ncl)) ! total N supply per hour
-        sumNdemand = sum(prof%dNgludz(1:ncl))    ! total N demand per hour
+        sumNdemand = sum(prof%dNdemanddz(1:ncl))    ! total N demand per hour
  !       print*, 'T: ', i_count, prof%shd_tleaf(1), prof%shd_tleaf(40)
 ! print *, i_count
         tleaf_mean = sum(prof%sun_tleaf(1:ncl)*solar%prob_beam(1:ncl)) &

@@ -450,9 +450,14 @@ CONTAINS
        prof%dGPPdz(j)     = prof%dGPPdz_sun(j) + prof%dGPPdz_shd(j)
        ! scale N flux to ground level:
        prof%dNsupplydz(j)  = prof%dLAIdz(j) * nitrogen%n_supply
-       prof%dNgludz_sun(j) = prof%dLAIdz(j) * prof%sun_Ndemand(j) * solar%prob_beam(j)
-       prof%dNgludz_shd(j) = prof%dLAIdz(j) * prof%shd_Ndemand(j) * solar%prob_shd(j)
-       prof%dNgludz(j)     = prof%dNgludz_sun(j) + prof%dNgludz_shd(j)
+
+       prof%dNdemanddz_sun(j) = prof%dLAIdz(j) * prof%sun_Ndemand(j) * solar%prob_beam(j)
+       prof%dNdemanddz_shd(j) = prof%dLAIdz(j) * prof%shd_Ndemand(j) * solar%prob_shd(j)
+       prof%dNdemanddz(j)     = prof%dNdemanddz_sun(j) + prof%dNdemanddz_shd(j)
+
+       prof%dNtotdz_sun(j) = prof%dLAIdz(j) * prof%sun_Ntot(j) * solar%prob_beam(j)
+       prof%dNtotdz_shd(j) = prof%dLAIdz(j) * prof%shd_Ntot(j) * solar%prob_shd(j)
+       prof%dNtotdz(j)     = prof%dNtotdz_sun(j) + prof%dNtotdz_shd(j)
 
        prof%dNBuschdz_sun(j) = prof%dLAIdz(j) * prof%sun_ABusch(j) * solar%prob_beam(j)
        prof%dNBuschdz_shd(j) = prof%dLAIdz(j) * prof%shd_ABusch(j) * solar%prob_beam(j)

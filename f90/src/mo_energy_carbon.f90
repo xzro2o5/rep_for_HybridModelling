@@ -742,7 +742,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
          ekc, eko, ektau, jmopt, vcopt, htFrac, zh65, lai, evc, &
          toptvc, rd_vc, ejm, toptjm, kball, g0, a1, erd, &
          D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in, &
-         tp_vc, alphag_max, alphas_max, alpha, n_max, n_supply
+         tp_vc, alphag_max, alphas_max, alpha, n_max, n_supply, cn_bulk
     USE types,        ONLY: time, prof, met, bound_lay_res, srf_res, soil, &
          iswitch, output, input, nitrogen
     USE utils,        ONLY: temp_func, tboltz, es
@@ -795,7 +795,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     INTEGER(i4), INTENT(IN) :: JJ
 
     REAL(wp) :: tprime25, bc, ttemp, gammac, gammac_c, gammac_j, gammac_p
-    REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z
+    REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z, Ntmpz ! leaf cn per layer
     REAL(wp) :: kct, ko, tau
     REAL(wp) :: rd, rdz, rd_O2, RQ_rd!O2 in dark respiration
     REAL(wp) :: rb_mole, gb_mole, dd, b8_dd
@@ -899,11 +899,13 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (time%days < time%leafout) then
           jmaxz  = zero
           vcmaxz = zero
+          Ntmpz = zero
        end if
        ! spring, increase Ps capacity with leaf expansion as a function of leaf area changes
        if (time%days >= time%leafout .and. time%days < time%leaffull) then
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai! use htFrac in parameter file instead of a fixed value Yuan 2018.02.21
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          Ntmpz  = (one/cn_bulk)  * (zh65 * zzz + (1-htFrac)) * time%lai/lai
 !          print *, htFrac, (1-htFrac)
        end if
        ! growing season, full Ps capacity (note newer data by Wilson et al shows more
@@ -911,16 +913,19 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (time%days >= time%leaffull .and. time%days < time%leaffall) then
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac))
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac))
+          Ntmpz  = (one/cn_bulk)  * (zh65 * zzz + (1-htFrac))
        end if
        ! gradual decline in fall
        if (time%days >= time%leaffall .and. time%days <= time%leaffallcomplete) then
           !delday=1-(time%days-270)/30
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          Ntmpz  = (one/cn_bulk)  * (zh65 * zzz + (1-htFrac)) * time%lai/lai
        end if
        if (time%days > time%leaffallcomplete) then
           jmaxz  = zero
           vcmaxz = zero
+          Ntmpz = zero
        end if
     end if
     prof%vcmaxz(JJ) = vcmaxz
@@ -1487,14 +1492,14 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !        if (JJ==37) then
 !        print *, 'debug GPP and GOP', gpp, GOP
 !    end if
-
+print *, JJ, Ntmpz
 SELECT CASE (iswitch%ER)
 
 
    CASE (0) ! no chamber ER input, oxygen is derived from N assimilation
 !      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
 !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
-    call N_to_O(gpp,psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
+    call N_to_O(psguess,gpp,phi,rd,tlk,alphag,alphas,Ntmpz,GOP,NOP,Uo, rd_O2, &
       Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 
    CASE (1)

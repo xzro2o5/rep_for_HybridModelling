@@ -170,7 +170,7 @@ SUBROUTINE N_fraction (x1,x2,x3)
     implicit none
 
     real(wp),intent(out) :: x1,x2,x3
-    real(wp) :: n1, n2, n3
+    real(wp) :: n1, n2, n3, tmp
 
     SELECT CASE (iswitch%n_random)
    CASE (0)
@@ -187,7 +187,14 @@ SUBROUTINE N_fraction (x1,x2,x3)
       x1 = n1/(n1+n2+n3)
       x2 = n2/(n1+n2+n3)
       x3 = n3/(n1+n2+n3)
-
+    CASE (2)
+      call random_uniform(0.8_wp,0.9_wp,n1)! determine the fraction of nitrate
+      tmp = one-n1
+      call random_uniform(zero,tmp,n2)
+      n3 = tmp-n2
+      x1 = n1
+      x2 = n2
+      x3 = n3
 END SELECT
 
 

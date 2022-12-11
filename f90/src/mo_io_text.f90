@@ -683,6 +683,16 @@ CONTAINS
     !print *, time%days
     ! compute derived quantities for the model
     met%T_Kelvin = input%ta + TN0 ! compute absolute air temperature
+!   print *, input%ea
+    select case (iswitch%scenario) ! in RCP file, column ea is actually relative humidity
+    case (0)
+        met%relative_humidity = input%ea*10._wp/es(met%T_Kelvin) ! relative humidity
+
+    case (1)
+        met%relative_humidity = input%ea
+        input%ea=met%relative_humidity*es(met%T_Kelvin)/10._wp
+    end select
+!print *, iswitch%scenario,input%ea,met%relative_humidity
     met%rhova_g = input%ea * 2165._wp/met%T_Kelvin ! compute absolute humidity, g m-3
     ! limit humidity
     if (met%rhova_g < zero) met%rhova_g = zero
@@ -691,7 +701,7 @@ CONTAINS
     met%press_kpa = input%press_mb *e1 ! air pressure, kPa
     met%press_bars = input%press_mb * e3 ! air pressure, bars
     met%press_Pa = met%press_kpa*1000._wp ! pressure, Pa
-    met%relative_humidity = input%ea*10._wp/es(met%T_Kelvin) ! relative humidity
+
     ! combining gas law constants
     met%pstat273 = rugc / (100000._wp * met%press_bars)
     ! cuticular conductance adjusted for pressure and T, mol m-2 s-1

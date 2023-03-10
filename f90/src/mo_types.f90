@@ -584,7 +584,7 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_wp !
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_alphag ! N assimilation in photorespiration to glycine
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_alphas ! N assimilation in photorespiration to serine
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_tpu_coeff ! tpu occurs = 1 else = 0
+     INTEGER(i4), DIMENSION(:), ALLOCATABLE :: sun_tpu_coeff ! tpu occurs = 1 else = 0
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_resp ! respiration ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_isopreneflux ! isoprene flux per layer for sunleaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: iso_sun ! isoprene flux per leaf area in the sun ! [ncl]
@@ -625,7 +625,7 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_wp
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_alphag
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_alphas
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_tpu_coeff ! tpu occurs = 1 else = 0
+     INTEGER(i4), DIMENSION(:), ALLOCATABLE :: shd_tpu_coeff ! tpu occurs = 1 else = 0
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_resp ! respiration ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_isopreneflux ! isoprene flux per layer for shade leaves ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: iso_shd ! isoprene flux per leaf area in the shade ! [ncl]
@@ -1891,7 +1891,7 @@ CONTAINS
     prof%sun_wp = zero
     prof%sun_alphag = zero
     prof%sun_alphas = zero
-    prof%sun_tpu_coeff = zero
+    prof%sun_tpu_coeff = 0
     prof%sun_resp = zero
     prof%sun_isopreneflux = zero
     prof%iso_sun = zero
@@ -1931,7 +1931,7 @@ CONTAINS
     prof%shd_wp = zero
     prof%shd_alphag = zero
     prof%shd_alphas = zero
-    prof%shd_tpu_coeff = zero
+    prof%shd_tpu_coeff = 0
     prof%shd_resp = zero
     prof%shd_isopreneflux = zero
     prof%iso_shd = zero

@@ -211,8 +211,8 @@ CONTAINS
 ! if (j==40) then
 !     print *, "sunlit:"
 ! end if
-!          if (j==40) then
-!            print *, "start sunlit:", prof%Ja_sun(j)
+!          if (j==23) then
+!            print *, "start sunlit:"
 !          end if
              call photosynthesis(solar%quantum_sun(j), rs_sun, prof%ht(j), &
                   prof%co2_air_filter(j), T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP,&
@@ -236,9 +236,6 @@ CONTAINS
           prof%sun_tleaf(j)     = T_srf_C
           loutsun               = lout_leaf ! long wave out
           Rn_sun                = solar%rnet_sun(j) - lout_leaf ! net radiation
-!          if (j==37) then
-!          print *, "GPP,  GOP",GPP, GOP
-!          endif
           A_sun                 = A_mg ! leaf photosynthesis, mg CO2 m-2 s-1
           O_sun                 = A_O2
           prof%sun_resp(j)      = resp ! respiration on sun leaves
@@ -310,8 +307,8 @@ CONTAINS
 ! if (j==40) then
 !     print *, "shaded:"
 ! end if
-!          if (j==40) then
-!            print *, "start shaded:", prof%Ja_sun(j)
+!          if (j==23) then
+!            print *, "start shaded:"
 !          end if
           call photosynthesis(solar%quantum_shd(j), rs_shade,prof%ht(j), prof%co2_air_filter(j), &
                T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP, resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, &
@@ -329,7 +326,9 @@ CONTAINS
 !          end if
 !          call N_assimilation(GPP,JA)
 !          GOP2 = gross_o2(JA,nitrogen%J_extra,solar%quantum_shd(j))
-
+!          if (j==23) then
+!          print *, "shaded GPP,  shaded GOP",GPP, GOP
+!          endif
       ! call energy_balance(solar%rnet_shd(j), T_srf_K, Tair_K_filtered, prof%rhov_air_filter(j,1), &
       !      bound_lay_res%vapor, rs_shade, LE_leaf, LE_wet, H_leaf, lout_leaf, &
       !      prof%wet_coef_filter(j))
@@ -780,7 +779,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp),    INTENT(OUT) :: wppnt
     REAL(wp),    INTENT(OUT) :: alphagpnt
     REAL(wp),    INTENT(OUT) :: alphaspnt
-    REAL(wp),    INTENT(OUT) :: tpupnt
+    INTEGER(i4), INTENT(OUT) :: tpupnt
     REAL(wp),    INTENT(OUT) :: j_photonpnt ! electron transport for CO2 assimilation, need this output for N assimilation and O2 release later
     REAL(wp),    INTENT(OUT) :: Jcpnt
     REAL(wp),    INTENT(OUT) :: Jglupnt
@@ -808,7 +807,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp) :: aphoto, Ophoto, Eo, Uo, GOP, NOP, gpp, gpp_o2, gpp_o2_test, j_sucrose, wj ! Ophoto:net phptosynthetic O2
     REAL(wp) :: ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4, Ja, J_glu, J_Busch
     REAL(wp) :: phi, vo, alphag, alphas, alphag_guess, alphag_c, alphas_c, &
-                alphag_j, alphas_j, alphag_p, alphas_p, beta_tpu, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
+                alphag_j, alphas_j, alphag_p, alphas_p, beta_tpu
     REAL(wp) :: tp, wp_tpu
     REAL(wp) :: gs_leaf_mole, gs_co2, gs_m_s
     REAL(wp) :: ps_1,delta_1, Aquad1, Bquad1, Cquad1
@@ -824,7 +823,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! double a_cubic, b_cubic, rootprod
     REAL(wp) :: rr, qqq, minroot, maxroot, midroot
     REAL(wp) :: bprime_local, bprime16_local
-    INTEGER(i4) :: quad
+    INTEGER(i4) :: quad, tpu_coeff ! add TPU limits to photosynthesis. Yuan 2019.12.20
 
     jmaxz        = zero
     vcmaxz       = zero
@@ -858,7 +857,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     cs           = one
     ci           = one
     cc           = one
-    tpu_coeff    = zero
+    tpu_coeff    = 0
     alphag    = zero
     alphag_guess = zero ! have to guess alpha_g before carboxylation
     alphas    = zero
@@ -873,8 +872,8 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ko  = temp_func(ko25, eko, tprime25, tk_25, tlk) ! mbar
     tau = temp_func(tau25, ektau, tprime25, tk_25, tlk) ! dimensonless
     ! leaf dark RQ as a function of leaf temperature
-    !RQ_rd = -0.0147*(tlk-TN0)+1.24 !RQ=CO2/O2
-    RQ_rd =1
+    RQ_rd = -0.0147*(tlk-TN0)+1.24 !RQ=CO2/O2
+    !RQ_rd =1
     bc  = kct * (one + o2 / ko) ! mubar*(1+mbar/mbar) = mubar
     ! gammac is the CO2 compensation point due to photorespiration, umol mol-1
     ! Recalculate gammac with the new temperature dependent KO and KC
@@ -1036,7 +1035,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !     print *, jmaxz, jmax, (tlk-TN0), j_photon
     end if
 
-    if (iswitch%tpu == 0) then ! without TPU
+    if (iswitch%tpu == 0) then ! TPU that Tp = 0.167Vcmax
         gammac = 500.0_wp * input%o2air / tau ! use dynamic atom o2 instead of fixed 210000. Yuan 2018.01.31
         gammac = gammac/1000_wp ! Because input o2 is around 210000 in ppm instead of 210. Yuan 2018.01.31
         dd = gammac
@@ -1383,8 +1382,14 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! aphoto=root3 ! back to original assumption
        ! also test for sucrose limitation of photosynthesis, as suggested by
        ! Collatz. Js=Vmax/2
-       j_sucrose = vcmax * half - rd
+       if (iswitch%tpu==0) then
+        !Ap=0.5Vcmax and also Ap=3Tp without N assimilation effects.
+        !So that equivalent to Ap=0.167Vcmax Yuan 2023.03.10
+        j_sucrose = vcmax * half - rd
        if (j_sucrose < aphoto) aphoto = j_sucrose
+       tpu_coeff = 3
+       end if
+
        cs = cca - aphoto / gb_mole
        if (cs > 3._wp*cca) cs = input%co2air
        gpp = aphoto + rd
@@ -1492,13 +1497,14 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !        if (JJ==37) then
 !        print *, 'debug GPP and GOP', gpp, GOP
 !    end if
-print *, JJ, Ntmpz
+!print *, JJ, Ntmpz
 SELECT CASE (iswitch%ER)
 
 
    CASE (0) ! no chamber ER input, oxygen is derived from N assimilation
 !      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
 !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+!print *, 'before N to O:'
     call N_to_O(psguess,gpp,phi,rd,tlk,alphag,alphas,Ntmpz,GOP,NOP,Uo, rd_O2, &
       Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 

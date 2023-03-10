@@ -227,7 +227,7 @@ MODULE oxygen
     Etot = Jtot/4
     Uo = 1.5*Vo_Vc*carboxylation+dark_resp_O + MAP
     En = Etot-Uo
-
+!print *, "GOP and GPP in N to O:",Etot, gross_CO2
     ! save N source in structures:
 !    nitrogen%Ja = Ja
 !    nitrogen%J_glu = J_glu
@@ -327,8 +327,8 @@ MODULE oxygen
    !  print *, prof%dPsdz(33)
    !  print *, bole%layer(33)
      soil%o2 = -soil%respiration_mole*soil%ROC_soil_air ! negative!!!
-   !  print *, prof%dGPPdz(33), bole%layer(33), soil%respiration_mole
-   !  print *, prof%gpp_O2(33), bole%layer(33)*prof%ROC_bole_air(33), soil%o2
+!     print *, "ground level GPP and GOP:", prof%dGPPdz(23), prof%gpp_O2(23) , prof%dGOPdz(23)!,bole%layer(33), soil%respiration_mole
+    ! print *, prof%gpp_O2(33), bole%layer(33)*prof%ROC_bole_air(33), soil%o2
 !     o2air = o2*1000 ! convert to ppm
      o2air = o2
      fact%o2 = (mass_air/mass_O2)*met%air_density_mole ! convert from density to mole concentration
@@ -338,7 +338,12 @@ MODULE oxygen
      call conc_seperate(prof%source_O2, prof%O2_air, input%o2air, soil%o2, prof%O2_soil, prof%O2_disp, fact%o2)
 !    calculate ROC of each layer
      prof%ROC_layer(1:ncl) = abs(prof%source_O2(1:ncl)/prof%source_co2(1:ncl))
-!    print *, prof%ROC_layer
+    print *, 'ROC = ',prof%ROC_layer(23)
+    print *, 'source O2 and CO2',prof%source_O2(23), prof%source_co2(23)
+    print *, 'GOP, resp O2 and bole resp',prof%gpp_O2(23), prof%dRESPdz_O2(23), bole%layer(23)
+    print *, 'GPP, resp CO2 and bole resp',prof%dGOPdz(23), prof%dRESPdz(23), bole%layer(23)
+    print *, 'Psn O2:', prof%dPsdz_O2(23)
+    print *, 'Psn CO2', prof%dPsdz(23)
 !    call conc(prof%source_co2, prof%co2_air, input%co2air, soil%respiration_mole, fact%co2)
 
 !    call conc(prof%sour13co2, prof%c13cnc, co2_13, soil%resp_13, fact%co2)

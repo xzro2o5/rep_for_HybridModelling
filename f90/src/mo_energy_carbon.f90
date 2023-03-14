@@ -952,7 +952,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
  !       print *, wj
  !   end if
     !tp~~beta_tpu are related to tpu limits Yuan 2019.12.20
-    !if (iswitch%tpu == 1) phi = 2*gammac/ci_guess! ratio of oxygenation to carboxylation
+    !if (iswitch%tpu == 3) phi = 2*gammac/ci_guess! ratio of oxygenation to carboxylation
     ! Compute the leaf boundary layer resistance
     ! gb_mole leaf boundary layer conductance for CO2 exchange,
     ! mol m-2 s-1
@@ -1035,7 +1035,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !     print *, jmaxz, jmax, (tlk-TN0), j_photon
     end if
 
-    if (iswitch%tpu == 0) then ! TPU that Tp = 0.167Vcmax
+  !  if (iswitch%tpu == 0) then ! without TPU limitation, tpu==0 is default
         gammac = 500.0_wp * input%o2air / tau ! use dynamic atom o2 instead of fixed 210000. Yuan 2018.01.31
         gammac = gammac/1000_wp ! Because input o2 is around 210000 in ppm instead of 210. Yuan 2018.01.31
         dd = gammac
@@ -1060,7 +1060,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
            e_ps = one
         end if
 
-    else if (iswitch%tpu == 1) then ! TPU Busch
+    if (iswitch%tpu == 3) then ! TPU Busch
         ! first define alphag and alphas, then derive wc wj and wp from alphag and alphas
         tp = vcmax * tp_vc
         prof%tp(JJ)    = tp ! TP is 1/12 of vcmax
@@ -1268,7 +1268,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !    if (JJ==40 .and. quad == 1)then
 !       print *, "Ac <= rd", aphoto
 !    end if
-!    if ((iswitch%tpu == 1 .or. iswitch%tpu == 2).and. Ap <= rd) quad = 1
+!    if ((iswitch%tpu == 3 .or. iswitch%tpu == 2).and. Ap <= rd) quad = 1
 !    if (JJ==40 .and. quad == 1)then
 !       print *, "Ap <= rd", aphoto
 !    end if
@@ -1382,7 +1382,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! aphoto=root3 ! back to original assumption
        ! also test for sucrose limitation of photosynthesis, as suggested by
        ! Collatz. Js=Vmax/2
-       if (iswitch%tpu==0) then
+       if (iswitch%tpu==1) then
         !Ap=0.5Vcmax and also Ap=3Tp without N assimilation effects.
         !So that equivalent to Ap=0.167Vcmax Yuan 2023.03.10
         j_sucrose = vcmax * half - rd
@@ -1437,7 +1437,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        end if
        psguess = min(wc,wj)
 
-       if (iswitch%tpu == 1) then
+       if (iswitch%tpu == 3) then
         wc = vcmax * ci  / (ci + bc)
         wj = j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd/(1._wp-alphag))
         wp_tpu = 3._wp*tp * ci / (ci-(1._wp+3._wp*alphag+4._wp*alphas)*dd/(1._wp-alphag))
@@ -1530,7 +1530,7 @@ END SELECT
 !    GOP = NOP + rd_O2
 !print *, NOP,rd_O2, GOP, gpp
     gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
-    if (iswitch%tpu == 1) then
+    if (iswitch%tpu == 3) then
        gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
 !       GOP = GOP + (9*alphag/4 + 4*alphas/3)*phi/4
     end if

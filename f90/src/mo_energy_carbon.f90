@@ -1382,11 +1382,11 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        ! aphoto=root3 ! back to original assumption
        ! also test for sucrose limitation of photosynthesis, as suggested by
        ! Collatz. Js=Vmax/2
-       if (iswitch%tpu==1) then
-        !Ap=0.5Vcmax and also Ap=3Tp without N assimilation effects.
-        !So that equivalent to Ap=0.167Vcmax Yuan 2023.03.10
+       !Ap=0.5Vcmax and also Ap=3Tp without N assimilation effects.
+       !So that equivalent to Ap=0.167Vcmax Yuan 2023.03.10
         j_sucrose = vcmax * half - rd
-       if (j_sucrose < aphoto) aphoto = j_sucrose
+       if (iswitch%tpu==1 .and. j_sucrose < aphoto) then
+       aphoto = j_sucrose
        tpu_coeff = 3
        end if
 

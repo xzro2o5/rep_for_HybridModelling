@@ -1523,7 +1523,6 @@ END SELECT
 ! !      print *, psguess,j_photon, Jc
 ! !      print *, (j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)), (j_photon * ci  / (4._wp * ci + b8_dd))
 !end if
-
 !    Uo = uptake (vo,rd_O2)
 !    NOP = Eo - Uo
 !    print *, Eo, Uo
@@ -1532,7 +1531,7 @@ END SELECT
     gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
     if (iswitch%tpu == 3) then
        gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
-!       GOP = GOP + (9*alphag/4 + 4*alphas/3)*phi/4
+       GOP = GOP + (9*alphag/4 + 4*alphas/3)*phi/4
     end if
 
     if (quad == 0) then

@@ -186,6 +186,7 @@ MODULE oxygen
         source_glu = N_demand
     CASE (1)
         source_glu = n_supply
+        print *, 'N supply=', n_supply
     CASE (2)
         source_glu = min(n_supply, N_demand) ! or n_supply/ncl, per layer
         !source_glu = min(min(n_supply,n_max),N_demand) ! or n_supply/ncl, per layer

@@ -23,7 +23,7 @@ MODULE nitrogen_assimilation
 
     USE constants,  ONLY: one
     USE types,      ONLY: iswitch, nitrogen, time
-    USE parameters, ONLY: cn_bulk, n_supply, n_mult, nitrate, nitrite, ammonia, n_max
+    USE parameters, ONLY: cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia, Nmax_photo
     USE setup,      ONLY: ncl
 
     IMPLICIT NONE
@@ -87,7 +87,7 @@ MODULE nitrogen_assimilation
 
     else if (iswitch%n_limit==1) then
 
-        n_ass = min(n_supply,carboxylation/cn_bulk) ! or n_supply/ncl, per layer
+        n_ass = min(Nmax_extra,carboxylation/cn_bulk) ! or n_supply/ncl, per layer
 
     else if (iswitch%n_limit==2) then
 

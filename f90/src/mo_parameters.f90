@@ -25,9 +25,9 @@ MODULE parameters
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
-       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
+       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, Nmax_photo, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
        scenario_c, scenario_temp, switch_scenario, scenariodir, scenariofile, rsoil1, rsoil2, &
-       cn_bulk, n_supply, n_mult, nitrate, nitrite, ammonia
+       cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia
 
 
 
@@ -334,7 +334,7 @@ MODULE parameters
   ! ROC for oxygen module
   ! **********************
   REAL(wp)           :: tp_vc
-  REAL(wp)           :: n_max
+  REAL(wp)           :: Nmax_photo
   REAL(wp)           :: alphag_max
   REAL(wp)           :: alphas_max
   REAL(wp)           :: alpha
@@ -350,7 +350,7 @@ MODULE parameters
   REAL(wp)           :: rsoil1
   REAL(wp)           :: rsoil2
   REAL(wp)           :: cn_bulk
-  REAL(wp)           :: n_supply
+  REAL(wp)           :: Nmax_extra
   REAL(wp)           :: n_mult
   REAL(wp)           :: nitrate
   REAL(wp)           :: nitrite
@@ -643,7 +643,7 @@ CONTAINS
     bprime_up   = 0.001_wp ! upper canopy
     bprime_down = 0.001_wp ! understory
     tp_vc       = 0.167    ! ratio of TPU to Vcmax
-    n_max       = 1.21     ! maximum nitrogen supply in umol m-2 s-1
+    Nmax_photo  = 1.21     ! maximum nitrogen supply in umol m-2 s-1
     alphag_max = 0.09     ! fraction of carbon leaving photorespiration in the form of glycine
     alphas_max = 0.38     ! fraction of carbon leaving photorespiration in the form of serine
     alpha       = zero     ! fraction of total carbon leaving photorespiration, used in CLM
@@ -660,7 +660,7 @@ CONTAINS
     rsoil1= 0.69_wp
     rsoil2= 0.07_wp
     cn_bulk   = 20_wp ! bulk C:N ratio
-    n_supply  = 0.05_wp ! field N supply, ambient for fertilization, umol m-2 s-1
+    Nmax_extra  = 0.05_wp ! field N supply, ambient for fertilization, umol m-2 s-1
     n_mult    = 2.3_wp  ! N ass as a multiple of glycine and serine
     nitrate   = 0.9_wp  ! fraction of nitrate in N supply
     nitrite   = 0.05_wp !fraction of nitrite in N supply
@@ -705,9 +705,9 @@ CONTAINS
          theta1_in, theta2_in, theta3_in, extra_nate, nup, vc25_up, vc25_down, jm_vc_up, jm_vc_down, rd_vc_up, rd_vc_down, &
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
          switch_oxygen, switch_ER, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
-         switch_tpu, tp_vc, n_max, alphag_max, alphas_max, alpha, &
+         switch_tpu, tp_vc, Nmax_photo, alphag_max, alphas_max, alpha, &
          g0_mly_in, g1_mly_in, scenario_c, scenario_temp, switch_scenario, scenariodir, scenariofile, rsoil1, rsoil2, &
-         cn_bulk, n_supply, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
+         cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
 
     call ini_namelist()
 !    print *, outdir
@@ -775,8 +775,8 @@ CONTAINS
     wiso%nofracin     = wiso_nofracin
     wiso%implicit     = wiso_implicit
     wiso%merlivat     = merlivat
-    nitrogen%cn_bulk  = cn_bulk
-    nitrogen%n_supply  = n_supply
+    nitrogen%cn_bulk  = cn_bulk! profile 2023.06.15
+    nitrogen%n_supply  = Nmax_extra
     nitrogen%n_mult  = n_mult
     nitrogen%nitrate_per  = nitrate
     nitrogen%nitrite_per  = nitrite

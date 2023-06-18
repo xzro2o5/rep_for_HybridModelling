@@ -439,10 +439,7 @@ CONTAINS
        prof%dPsdz_sun(j) = prof%dLAIdz(j) * prof%sun_A(j) * solar%prob_beam(j)
        prof%dPsdz_shd(j) = prof%dLAIdz(j) * prof%shd_A(j) * solar%prob_shd(j)
        prof%dPsdz(j)     = prof%dPsdz_sun(j) + prof%dPsdz_shd(j)
-       ! photosynthetic O2 per ground level:
-       prof%dPsdz_O2_sun(j) = prof%dLAIdz(j) * prof%sun_psn_O2(j) * solar%prob_beam(j)
-       prof%dPsdz_O2_shd(j) = prof%dLAIdz(j) * prof%shd_psn_O2(j) * solar%prob_shd(j)
-       prof%dPsdz_O2(j)     = prof%dPsdz_O2_sun(j) + prof%dPsdz_O2_shd(j)
+
        ! GPP of layer, prof%dGPPdz has units of micromoles m-2 s-1
        prof%dGPPdz_sun(j) = prof%dLAIdz(j) * prof%sun_GPP(j) * solar%prob_beam(j)
        prof%dGPPdz_shd(j) = prof%dLAIdz(j) * prof%shd_GPP(j) * solar%prob_shd(j)
@@ -741,7 +738,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
          ekc, eko, ektau, jmopt, vcopt, htFrac, zh65, lai, evc, &
          toptvc, rd_vc, ejm, toptjm, kball, g0, a1, erd, &
          D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in, &
-         tp_vc, alphag_max, alphas_max, alpha, n_max, n_supply, cn_bulk
+         tp_vc, alphag_max, alphas_max, alpha, Nmax_photo, Nmax_extra
     USE types,        ONLY: time, prof, met, bound_lay_res, srf_res, soil, &
          iswitch, output, input, nitrogen
     USE utils,        ONLY: temp_func, tboltz, es
@@ -794,7 +791,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     INTEGER(i4), INTENT(IN) :: JJ
 
     REAL(wp) :: tprime25, bc, ttemp, gammac, gammac_c, gammac_j, gammac_p
-    REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z, Ntmpz ! leaf cn per layer
+    REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z, CNtmpz, N_extraz, N_photoz ! leaf cn per layer
     REAL(wp) :: kct, ko, tau
     REAL(wp) :: rd, rdz, rd_O2, RQ_rd!O2 in dark respiration
     REAL(wp) :: rb_mole, gb_mole, dd, b8_dd
@@ -834,7 +831,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     Qcube        = zero
     Rcube        = zero
     aphoto       = zero
-    Ophoto       = zero
+!    Ophoto       = zero
     RQ_rd        = zero
     gpp          = zero
     gs_leaf_mole = zero
@@ -898,13 +895,18 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (time%days < time%leafout) then
           jmaxz  = zero
           vcmaxz = zero
-          Ntmpz = zero
+          N_extraz = zero
+          N_photoz = zero
+          CNtmpz = zero
+
        end if
        ! spring, increase Ps capacity with leaf expansion as a function of leaf area changes
        if (time%days >= time%leafout .and. time%days < time%leaffull) then
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai! use htFrac in parameter file instead of a fixed value Yuan 2018.02.21
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          Ntmpz  = (one/cn_bulk)  * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          CNtmpz  = one/(14.55608 + 11.53367* (JJ/40) * time%lai/lai)
 !          print *, htFrac, (1-htFrac)
        end if
        ! growing season, full Ps capacity (note newer data by Wilson et al shows more
@@ -912,19 +914,24 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (time%days >= time%leaffull .and. time%days < time%leaffall) then
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac))
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac))
-          Ntmpz  = (one/cn_bulk)  * (zh65 * zzz + (1-htFrac))
+          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac))
+          N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac))
+          CNtmpz  = one/(14.55608 + 11.53367*(JJ/40))
        end if
        ! gradual decline in fall
        if (time%days >= time%leaffall .and. time%days <= time%leaffallcomplete) then
           !delday=1-(time%days-270)/30
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          Ntmpz  = (one/cn_bulk)  * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          CNtmpz  = one/(14.55608 + 11.53367* (JJ/40) * time%lai/lai)
        end if
        if (time%days > time%leaffallcomplete) then
           jmaxz  = zero
           vcmaxz = zero
-          Ntmpz = zero
+          N_extraz = zero
+          CNtmpz = zero
        end if
     end if
     prof%vcmaxz(JJ) = vcmaxz
@@ -1071,14 +1078,14 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           beta_tpu = 0
         end if
         ! alphag alphas and gammac ralated to Rubisco:
-        if (iswitch%n_limit==1 .or. iswitch%n_limit==2) n_max = min(n_max,n_supply)
-
+        !if (iswitch%n_limit==1 .or. iswitch%n_limit==2) n_max = min(n_max,n_supply)
+! N_photo and N_extra were already partitioned in the parameter.
 
         wc = vcmax * ci_guess / (ci_guess + bc)
         vo = wc*phi
-        alphag = n_max*beta_tpu/vo
+        alphag = N_photoz*beta_tpu/vo
         alphag_c = min(alphag_max,alphag)
-        alphas = 1.5*n_max*(1._wp-beta_tpu)/vo
+        alphas = 1.5*N_photoz*(1._wp-beta_tpu)/vo
         alphas_c = min(alphas_max,alphas)
         gammac_c = 0.5 * input%o2air*(1._wp-alphag_c) / tau
         dd = gammac_c
@@ -1087,12 +1094,12 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 
 
         ! alphag alphas and gammac ralated to RUBP:
-        if (j_photon>n_max*(2._wp*beta_tpu+6._wp)) then
-            alphag = 4._wp*n_max*beta_tpu*(1._wp/phi+1._wp)/ &
-            (j_photon-n_max*(2._wp*beta_tpu+6._wp))
+        if (j_photon>N_photoz*(2._wp*beta_tpu+6._wp)) then
+            alphag = 4._wp*N_photoz*beta_tpu*(1._wp/phi+1._wp)/ &
+            (j_photon-N_photoz*(2._wp*beta_tpu+6._wp))
             alphag_j=min(alphag_max,alphag)
-            alphas = 6._wp*n_max*(1-beta_tpu)*(1._wp/phi+1._wp)/ &
-            (j_photon-n_max*(2._wp*beta_tpu+6._wp))
+            alphas = 6._wp*N_photoz*(1-beta_tpu)*(1._wp/phi+1._wp)/ &
+            (j_photon-N_photoz*(2._wp*beta_tpu+6._wp))
             alphas_j=min(alphas_max,alphas)
         else
             alphag_j = alphag_max
@@ -1108,11 +1115,11 @@ debug%R4=es(tsrfkpt)*100._wp-ea
         (4._wp * ci_guess + (1._wp+2._wp*alphag_j+alphas_j)*b8_dd/(1._wp-alphag_j))
         ! alphag alphas and gammac ralated to TPU:
 
-        alphag = n_max*beta_tpu*(2._wp/phi-1._wp) / &
-        6._wp*tp+3._wp*n_max*(2._wp-beta_tpu)
+        alphag = N_photoz*beta_tpu*(2._wp/phi-1._wp) / &
+        6._wp*tp+3._wp*N_photoz*(2._wp-beta_tpu)
         alphag_p = min(alphag_max,alphag)
-        alphas = 1.5*n_max*(1._wp-beta_tpu)*(2._wp/phi-1._wp) / &
-        6._wp*tp+3._wp*n_max*(2._wp-beta_tpu)
+        alphas = 1.5*N_photoz*(1._wp-beta_tpu)*(2._wp/phi-1._wp) / &
+        6._wp*tp+3._wp*N_photoz*(2._wp-beta_tpu)
         alphas_p = min(alphas_max,alphas)
         gammac_p = 0.5 * input%o2air*(1._wp-alphag_p) / tau
         dd = gammac_p
@@ -1376,7 +1383,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (minroot > zero .and. midroot > zero .and. maxroot > zero) aphoto = minroot
        if (minroot < zero .and. midroot < zero .and. maxroot > zero) aphoto = maxroot
        if (minroot < zero .and. midroot > zero .and. maxroot > zero) aphoto = midroot
-       ! Ophoto = aphoto * prof%ROC_leaf_air(JJ)
+       ! Ophoto = aphoto * prof%ROC_leaf_G(JJ)
        ! Here A = x - p / 3, allowing the cubic expression to be expressed
        ! as: x^3 + ax + b = 0
        ! aphoto=root3 ! back to original assumption
@@ -1497,7 +1504,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !        if (JJ==37) then
 !        print *, 'debug GPP and GOP', gpp, GOP
 !    end if
-!print *, JJ, Ntmpz
+!print *, JJ, CNtmpz
 SELECT CASE (iswitch%ER)
 
 
@@ -1505,7 +1512,7 @@ SELECT CASE (iswitch%ER)
 !      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
 !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 !print *, 'before N to O:'
-    call N_to_O(psguess,gpp,phi,rd,tlk,alphag,alphas,Ntmpz,GOP,NOP,Uo, rd_O2, &
+    call N_to_O(psguess,gpp,phi,rd,tlk,alphag,alphas,CNtmpz,N_extraz,GOP,NOP,Uo, rd_O2, &
       Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 
    CASE (1)
@@ -1528,16 +1535,16 @@ END SELECT
 !    print *, Eo, Uo
 !    GOP = NOP + rd_O2
 !print *, NOP,rd_O2, GOP, gpp
-    gpp_o2 = gpp * prof%ROC_leaf_air(JJ)
+!    gpp_o2 = gpp * prof%ROC_leaf_G(JJ)
     if (iswitch%tpu == 3) then
-       gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
+!       gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
        GOP = GOP + (9*alphag/4 + 4*alphas/3)*phi/4
     end if
 
     if (quad == 0) then
-     prof%ROC_leaf_air(JJ) = GOP/gpp
+     prof%ROC_leaf_G(JJ) = GOP/gpp
     else
-     prof%ROC_leaf_air(JJ) = 0
+     prof%ROC_leaf_G(JJ) = 0
     end if
 !if (aphoto<0) then
 !print *, JJ, NOP, aphoto
@@ -1545,7 +1552,7 @@ END SELECT
 !print *, JJ, Iphoton, GOP/gpp
 
 
-    Ophoto = gpp_o2 - rd_O2
+!    Ophoto = gpp_o2 - rd_O2
     !if (ci < 0) then
     !    print *, cs
     !    print *, aphoto

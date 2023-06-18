@@ -697,7 +697,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: gpp_O2 ! gross O2 flux
 !     REAL(wp), DIMENSION(:), ALLOCATABLE :: rd_O2 ! dark leaf respiration [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_layer ! ROC  of the layer Yuan 2018.02.26
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_leaf_air !ROC during leaf-air O2 exchange [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_leaf_G !ROC of gross leaf-air O2 exchange [ncl]
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_leaf_net !ROC of net leaf-air O2 exchange [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: ROC_bole_air !ROC during bole-air O2 exchange [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_sun    ! respiratory quotient of sunlit leaves
      REAL(wp), DIMENSION(:), ALLOCATABLE :: RQ_shd    ! respiratory quotient of shaded leaves
@@ -1265,7 +1266,8 @@ CONTAINS
     if (.not. allocated(prof%ROC_sun)) allocate(prof%ROC_sun(ncl))
     if (.not. allocated(prof%ROC_shd)) allocate(prof%ROC_shd(ncl))
     if (.not. allocated(prof%ROC_layer)) allocate(prof%ROC_layer(ncl))
-    if (.not. allocated(prof%ROC_leaf_air)) allocate(prof%ROC_leaf_air(ncl))
+    if (.not. allocated(prof%ROC_leaf_G)) allocate(prof%ROC_leaf_G(ncl))
+    if (.not. allocated(prof%ROC_leaf_net)) allocate(prof%ROC_leaf_G(ncl))
     if (.not. allocated(prof%ROC_bole_air)) allocate(prof%ROC_bole_air(ncl))
 
   END SUBROUTINE alloc_prof
@@ -1988,7 +1990,7 @@ CONTAINS
     prof%ROC_layer = zero
     prof%RQ_sun = zero
     prof%RQ_shd = zero
-    !prof%ROC_leaf_air = zero
+    !prof%ROC_leaf_G = zero
     !prof%ROC_bole_air = zero
 
   END SUBROUTINE zero_new_timestep_prof

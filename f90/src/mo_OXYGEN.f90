@@ -116,7 +116,7 @@ MODULE oxygen
 
   END SUBROUTINE O_to_N
 
-  SUBROUTINE N_to_O (carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine, ncleaf,Etot, En, Uo, dark_resp_O, &
+  SUBROUTINE N_to_O (carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine, cnleaf,nmax_extra,Etot, En, Uo, dark_resp_O, &
     Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4)
 
     USE utils,        ONLY: ER_rd_func
@@ -124,11 +124,11 @@ MODULE oxygen
     USE nitrogen_assimilation, ONLY: N_fraction
     USE constants,  ONLY: one
     USE types,      ONLY: iswitch, nitrogen, time
-    USE parameters, ONLY: cn_bulk, n_supply, n_mult, n_max
+    USE parameters, ONLY: cn_bulk,  n_mult
     USE setup,      ONLY: ncl
 
 
-    REAL(wp), INTENT(IN)  :: carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine,ncleaf
+    REAL(wp), INTENT(IN)  :: carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine,cnleaf,nmax_extra
     REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
     N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
     REAL(wp)              :: ER_rd, MAP, source_glu
@@ -144,7 +144,7 @@ MODULE oxygen
 
     ! determine N assimilation amount:
     source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
-    N_demand = carboxylation*ncleaf
+    N_demand = carboxylation/cnleaf
     !N_demand = gross_CO2/cn_bulk
 
     SELECT CASE (iswitch%n_limit)
@@ -185,10 +185,10 @@ MODULE oxygen
 !        end if
         source_glu = N_demand
     CASE (1)
-        source_glu = n_supply
-        print *, 'N supply=', n_supply
+        source_glu = nmax_extra
+        print *, 'extra N supply=', nmax_extra
     CASE (2)
-        source_glu = min(n_supply, N_demand) ! or n_supply/ncl, per layer
+        source_glu = min(nmax_extra, N_demand) ! or n_supply/ncl, per layer
         !source_glu = min(min(n_supply,n_max),N_demand) ! or n_supply/ncl, per layer
     CASE (3)
       source_glu = n_mult*source_Busch
@@ -290,8 +290,8 @@ MODULE oxygen
  !           sun_A = max(prof%sun_A(j)*solar%prob_beam(j), zero) ! photosynthetic CO2 of sunlit&shade leaves
  !           shd_A = max(prof%shd_A(j)*solar%prob_shd(j), zero)
  !           if (sun_A > zero .or. shd_A > zero) then
- !               source_sun         = sun_A*prof%ROC_leaf_air(j)
- !               source_shade       = shd_A*prof%ROC_leaf_air(j)
+ !               source_sun         = sun_A*prof%ROC_leaf_G(j)
+ !               source_shade       = shd_A*prof%ROC_leaf_G(j)
  !           else
  !               source_sun         = zero
  !               source_shade       = zero
@@ -309,19 +309,25 @@ MODULE oxygen
         end do
 !     rd_o2 updated in photosynthesis()
 !     prof%rd_O2(1:ncl) = prof%dRESPdz_sun(1:ncl)/prof%RQ_sun(1:ncl)+prof%dRESPdz_shd(1:ncl)/prof%RQ_shade(1:ncl)
-    ! prof%gpp_O2(1:ncl) = prof%dPsdz(1:ncl)*prof%ROC_leaf_air(1:ncl) + prof%rd_O2(1:ncl)! o2 flux of gpp = psn + rd
+    ! prof%gpp_O2(1:ncl) = prof%dPsdz(1:ncl)*prof%ROC_leaf_G(1:ncl) + prof%rd_O2(1:ncl)! o2 flux of gpp = psn + rd
     ! prof%gpp_O2(1:ncl) = prof%dPsdz_O2(1:ncl) + prof%dRESPdz_O2(1:ncl)! o2 flux of gpp = psn + rd
      prof%dGOPdz_sun(1:ncl) = prof%dLAIdz(1:ncl) * prof%sun_GOP(1:ncl) * solar%prob_beam(1:ncl)
      prof%dGOPdz_shd(1:ncl) = prof%dLAIdz(1:ncl) * prof%shd_GOP(1:ncl) * solar%prob_shd(1:ncl)
      prof%dGOPdz(1:ncl)     = prof%dGOPdz_sun(1:ncl) + prof%dGOPdz_shd(1:ncl)
-     prof%gpp_O2(1:ncl) = prof%dGOPdz(1:ncl)
+     prof%ROC_leaf_G(1:ncl) = prof%dGOPdz(1:ncl)/prof%dGPPdz(1:ncl)
+
+    ! photosynthetic O2 per ground level:
+     prof%dPsdz_O2_sun(1:ncl) = prof%dLAIdz(1:ncl) * prof%sun_psn_O2(1:ncl) * solar%prob_beam(1:ncl)
+     prof%dPsdz_O2_shd(1:ncl) = prof%dLAIdz(1:ncl) * prof%shd_psn_O2(1:ncl) * solar%prob_shd(1:ncl)
+     prof%dPsdz_O2(1:ncl)     = prof%dPsdz_O2_sun(1:ncl) + prof%dPsdz_O2_shd(1:ncl)
+     prof%ROC_leaf_net(1:ncl) = prof%dPsdz_O2(1:ncl)/prof%dPsdz(1:ncl)
 !     print *, prof%shd_GOP
 !print *, sum(prof%gpp_O2(1:ncl))
 !print *, sum(prof%dGPPdz(1:ncl))
-!print *, sum(prof%dPsdz(1:ncl)*prof%ROC_leaf_air(j))
-!     prof%gpp_O2(1:ncl) = prof%dGPPdz(1:ncl)* prof%ROC_leaf_air(1:ncl)
+!print *, sum(prof%dPsdz(1:ncl)*prof%ROC_leaf_G(j))
+!     prof%gpp_O2(1:ncl) = prof%dGPPdz(1:ncl)* prof%ROC_leaf_G(1:ncl)
 !    prof%source_co2(1:ncl) = -prof%dPsdz(1:ncl) + bole%layer(1:ncl) (negative + positive)
-!    prof%source_O2(1:ncl) = prof%dPsdz(1:ncl)* prof%ROC_leaf_air(1:ncl)- &! add o2 source/sink from bole respiration
+!    prof%source_O2(1:ncl) = prof%dPsdz(1:ncl)* prof%ROC_leaf_G(1:ncl)- &! add o2 source/sink from bole respiration
 !                            bole%layer(1:ncl)* prof%ROC_bole_air(1:ncl)
      prof%source_O2(1:ncl) = prof%gpp_O2(1:ncl) - prof%dRESPdz_O2(1:ncl) - bole%layer(1:ncl)* prof%ROC_bole_air(1:ncl)
    !  print *, prof%source_O2(33)

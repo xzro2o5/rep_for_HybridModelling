@@ -414,7 +414,7 @@ CONTAINS
          "sun_rs ", "shd_rs ", "LAI_sun ", "LAI_shd ", "par_diff ", "nir_diff ", &
          "PSN_O2 ", "cws ", "wet coef ", "sun_tpucoef ", "shd_tpucoef ","GPO ", "GPO_sun ","GPO_shd ", &
          "Ja_sun ", "Jglu_sun ", "JBusch_sun ", "Ja_shd ", "Jglu_shd ", "JBusch_shd ", &
-         "iphoton_sun ", "iphoton_shd ", "sun_quad ", "shd_quad ", "ci_sun ", "ci_shd"
+         "iphoton_sun ", "iphoton_shd ", "sun_quad ", "shd_quad ", "ci_sun ", "ci_shd "
         ! write(form1,'(A,I3,A)') '(a,', 44-1, '(",",a))'
     !write(noutflux,form1) "daytime",
 

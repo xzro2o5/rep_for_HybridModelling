@@ -89,7 +89,7 @@ PROGRAM canveg
 !  CHARACTER(LEN=256),PARAMETER :: stmp
 
   ! output of oxygen module Yuan 2018.01.30
-  REAL(wp) :: can_gpp_o=zero, canresp_o = zero, sumo=zero, sumneto=zero, sumcanresp_o=zero, &
+  REAL(wp) :: can_gpp_o=zero, can_ps_o=zero, canresp_o = zero, sumo=zero, sumneto=zero, sumcanresp_o=zero, &
   sumNsupply=zero, sumNdemand=zero
 
 
@@ -389,11 +389,11 @@ PROGRAM canveg
 !print *, prof%rvapour(1,2:nwiso)
   ! initialize O2: CO2 Yuan 2018.01.17
   if (iswitch%oxygen==1) then
-     prof%ROC_leaf_air(1:ncl) =  ROC_leaf_in!
+     !prof%ROC_leaf_G(1:ncl) =  ROC_leaf_in!
      prof%ROC_bole_air(1:ncl) =  ROC_bole_in!
      soil%ROC_soil_air =  ROC_soil_in!
 !     print *, ROC_leaf_in, ROC_bole_in, ROC_soil_in
- !    print *, prof%ROC_leaf_air, prof%ROC_bole_air, soil%ROC_soil_air
+ !    print *, prof%ROC_leaf_G, prof%ROC_bole_air, soil%ROC_soil_air
   end if
   ! write(*,'(a,2f20.14)') 'CV32 ', prof%rhov_air(1,2), prof%rhov_air(ntl,3)
   ! initialize soil surface temperature with air temperature
@@ -875,6 +875,7 @@ PROGRAM canveg
         sumrn      = sum(prof%dRNdz(1:ncl))      ! net radiation
         sumlout    = sum(prof%dLoutdz(1:ncl))    ! radiation
         can_ps_mol = sum(prof%dPsdz(1:ncl))      ! canopy photosynthesis
+        can_ps_o   = sum(prof%dPsdz_O2(1:ncl))   ! net O2 emission
         can_gpp    = sum(prof%dGPPdz(1:ncl))     ! canopy GPP = can_ps_mol + dark respiration
         can_gpp_o  = sum(prof%gpp_O2(1:ncl))     ! O2 emmision via gpp
         canresp    = sum(prof%dRESPdz(1:ncl))    ! canopy respiration
@@ -1270,7 +1271,7 @@ end if
         !sumo = can_gpp*ROC_leaf_in
         sumo = can_gpp_o
         sumcanresp_o = canresp_o
-        sumneto = can_ps_mol*ROC_leaf_in-soil%respiration_mole*ROC_soil_in-bole%respiration_mole*ROC_bole_in
+        sumneto = can_ps_o-soil%respiration_mole*ROC_soil_in-bole%respiration_mole*ROC_bole_in
         output%houro = sumo ! save hourly o flux in a global variable
         output%hourneto = sumneto
         nitrogen%Nsupply = sumNsupply

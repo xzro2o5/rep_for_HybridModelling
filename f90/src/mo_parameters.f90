@@ -27,7 +27,7 @@ MODULE parameters
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
        ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, Nmax_photo, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
        scenario_c, scenario_temp, switch_scenario, scenariodir, scenariofile, rsoil1, rsoil2, &
-       cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia
+       switch_cn, cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia
 
 
 
@@ -349,6 +349,7 @@ MODULE parameters
   CHARACTER(LEN=256) :: scenariofile      ! scenario file
   REAL(wp)           :: rsoil1
   REAL(wp)           :: rsoil2
+  INTEGER(i4)        :: switch_cn
   REAL(wp)           :: cn_bulk
   REAL(wp)           :: Nmax_extra
   REAL(wp)           :: n_mult
@@ -659,6 +660,7 @@ CONTAINS
     scenariofile = "2016_0.dat"
     rsoil1= 0.69_wp
     rsoil2= 0.07_wp
+    switch_cn = 0
     cn_bulk   = 20_wp ! bulk C:N ratio
     Nmax_extra  = 0.05_wp ! field N supply, ambient for fertilization, umol m-2 s-1
     n_mult    = 2.3_wp  ! N ass as a multiple of glycine and serine
@@ -707,7 +709,7 @@ CONTAINS
          switch_oxygen, switch_ER, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
          switch_tpu, tp_vc, Nmax_photo, alphag_max, alphas_max, alpha, &
          g0_mly_in, g1_mly_in, scenario_c, scenario_temp, switch_scenario, scenariodir, scenariofile, rsoil1, rsoil2, &
-         cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
+         switch_cn, cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
 
     call ini_namelist()
 !    print *, outdir
@@ -756,6 +758,7 @@ CONTAINS
     iswitch%ER = switch_ER
     iswitch%wai_new = switch_wai_new ! 2018.07.16
     iswitch%tpu = switch_tpu
+    iswitch%cn  = switch_cn
     srf_res%fthreshold = fthreshold
     srf_res%fslope     = fslope
     ciso%delta_soil = delta_soil

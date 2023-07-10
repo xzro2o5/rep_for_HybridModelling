@@ -746,6 +746,7 @@ MODULE types
      INTEGER(i4) :: n_random ! random mixed N source
      INTEGER(i4) :: ER ! if use chamber ER measurements
      INTEGER(i4) :: scenario ! if scenario files will be used
+     INTEGER(i4) :: cn ! use fixed CN ratio or decreasing CN with z/ht
 
   END TYPE switch_variables
 

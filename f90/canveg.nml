@@ -1,11 +1,11 @@
 ! -*- Mode: F90 -*- !
 &CANCTL
 workdir = "." ! working directory
-indir = "./input2016"!"./inputiso" ! location of input file
-metinfile = "gf_fp_2016.dat"!"MMeteoDataForYuanLF2016.dat" !"light.dat" ! met input file
+indir = "./input2012"!"./inputiso" ! location of input file
+metinfile = "gf_fp_2012.dat"!"MMeteoDataForYuanLF2016.dat" !"light.dat" ! met input file
 laiinfile = "2006laiinput_eddy.dat" ! lai input file
 wisoinfile = "wisoinput2016gf.dat" ! wiso input fie
-outdir = "output2016_" ! location of output files 'light'
+outdir = "output2012" ! location of output files 'light'
 outsuffix = ".csv" ! output suffix “./output”
 dispfile = "DIJHainich._C" ! location and name of disperion matrix
 netcdf_in = 0 ! 1: input in netcdf; 0: input in ascii format
@@ -13,11 +13,11 @@ netcdf_out = 0 ! 1: output in netcdf; 0: output in ascii format
 netcdf_disp = 0 ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 ! --- Model Set-up
-year0 = 2016 ! Year
-start_run = 0010100!1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
-end_run = 3662400!1301100!1452000!3662400!1452000!3662400! end of model run, [dddhhmm] <3662400
-start_profiles = 0010100!1301100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
-end_profiles =3662400!1301100!3662400!3662400!3662400!1452000!3662400!1452000!3662400! end of profile output, [dddhhmm]
+year0 = 2012 ! Year
+start_run = 1861200!1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
+end_run =1861200!1301100!3662400!3662400!3662400!3662400! end of model run, [dddhhmm] <3662400
+start_profiles = 1861200!1301100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
+end_profiles =1861200!1301100!3662400!3662400!3662400!3662400!3662400!3662400!3662400! end of profile output, [dddhhmm]
 ! start_run = 1262000 ! start of model run, [dddhhmm] > 0010100
 ! end_run = 1262100 ! end of model run, [dddhhmm] <3662400
 ! start_profiles = 1262000 ! start of profile output, [dddhhmm]
@@ -56,9 +56,9 @@ htFrac = 0.65 ! zh65 = htFrac/ht; Yuan 2018.02.21
 pai = 1.06 ! Plant area index [m2 m-2] 1.1???
 lai = 4.8 ! Maximum leaf area index [m2 m-2] 5.5???
 wai = 1.06 ! wood area index, PAI = WAI +LAI, YUAN 2018.03.01
-vc25_in = 66.5!118.3!96.3 ! carboxylation rate at 25 deg C, [umol m-2 s-1] -2.94244056713017.3
-jm_vc_in = 2 ! ratio jmax to vcmax, jmax = electron transport rate at 25 deg C, [umol m-2 s-1] 0.011
-rd_vc_in = 0.015 ! ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
+vc25_in = 68.33581208!118.3!96.3 ! carboxylation rate at 25 deg C, [umol m-2 s-1] -2.94244056713017.3
+jm_vc_in = 2.632032537 ! ratio jmax to vcmax, jmax = electron transport rate at 2.6320325375 deg C, [umol m-2.632032537 s-1] 0.011
+rd_vc_in = 0.016637363 ! ratio of rd to vcmax, rd = dark respiration at 25 C, [umol m-2 s-1]
 ustar_ref = 1. ! reference ustar for Dij [umol m-2 s-1]
 ncl = 40 ! canopy layers
 nsky = 16 ! # of sky angle classes
@@ -95,9 +95,9 @@ ektau = -23408.0 ! ektau, old = -29000
 toptvc = 300. ! toptvc, optimum temperature for maximum carboxylation
 toptjm = 300. ! toptjm, optimum temperature for maximum electron transport
 ! curvature for light response function (ranges from 0 to 1)
-curvature = 0.9
+curvature = 0.981054454
 ! leaf quantum yield, electrons
-qalpha = 0.292
+qalpha = 0.33049453
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 ! --- Ecosystem Set-up --- Stomata Parameter
 g0_in = 0.001 ! g0, intercept of Leuning stomata model for water vapor [mol(H2O) m-2 s-1]
@@ -106,8 +106,8 @@ D0_in = 8. ! Do, empirical coefficient for humidity sensitivity of Leuning stoma
 gm_vc = 0.008 ! ratio of mesophyll conductance to Vcmax [mol m-2 s-1] 0.004
 fthreshold = 0.65 ! threshold of plant available water below which stomata response to water stress
 fslope = 0.35!0. ! slope of stomata response to water stress (should be: slope = 1/threshold)
-kball_in = 10!7!9!8.5!8.5!6.8!7!8!9.5!11 ! Ball-Berry stomatal coefficient for stomatal conductance
-bprime_in = 0.005!0.0175!0.0175!0.0175!0.022!0.01!0.0175 ! intercept of Ball-Berry model, mol m-2 s-1 ! intercept for H2O 0.0225476868954421
+kball_in = 10.97977663!7!9!8.5!8.5!6.8!7!8!9.5!11 ! Ball-Berry stomatal coefficient for stomatal conductance
+bprime_in = 0.002541661!0.0175!0.0175!0.0175!0.0025416612!0.01!0.0175 ! intercept of Ball-Berry model, mol m-2 s-1 ! intercept for H2O 0.00254166125476868954421
 rsm = 145.0 ! Minimum stomatal resistance, s m-1.
 brs = 60.0 ! curvature coeffient for light response
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
@@ -253,24 +253,24 @@ ROC_soil_in = 1.1
 ! parameters for TPU limit
 !***************************************************
 switch_tpu = 1 ! 0: no TPU limit; 1: include TPU limit in photosynthesis, using Busch's parameter; 2: CLM, only tp-vc and alpha works.
-tp_vc = 0.14 ! 0.122, 0.122, 0.122 are used for sensitivity analysis in CLM.tp as a fraction of Vcmax, derived from Licor in Leinefelde
-n_max = 0.75
-alphag_max = 0.01!0.09!0.09!0.09 ! assumed 0.02 in A_Ci curve fitting
-alphas_max = 0.025!0.38!0.4!0!0.3888 ! Busch's paper
+tp_vc = 0.161523710301262 ! 0.161523710301262, 0.161523710301262, 0.161523710301262 are used for sensitivity analysis in CLM.tp as a fraction of Vcmax, derived from Licor in Leinefelde
+Nmax_photo = 1.27615729387407
+alphag_max = 0.0281501306665596!0.09!0.09!0.09 ! assumed 0.02 in A_Ci curve fitting
+alphas_max = 0.0454034918893594!0.38!0.4!0!0.3888 ! Busch's paper
 alpha = 0.02 ! old alpha in CLM mode
 !***************************************************
 ! parameters for Medlyn's stomatal conductance
 !***************************************************
-g0_mly_in = 0.019!0.019!0.044!0.069!0.055!
-g1_mly_in = 6.5!6.06!6.99!7.91!4.82!
+g0_mly_in = 0.00211384438257664!0.00211384438257664!0.044!0.069!0.055!
+g1_mly_in = 7.46833268646151!6.06!6.99!7.91!4.82!
 !***************************************************
 ! future scenario for elevated CO2
 !***************************************************
 scenario_c = 0 ! increase CO5 by xx ppm
 scenario_temp = 0
 switch_scenario = 1 !0:do not use input CO2 and temperature files; 1: use extra input files
-scenariodir = "E:/MY PAPER/3/data/RCP85"! extra folder for sceneario input
-scenariofile = "2016_84.dat"!
+scenariodir = "E:/MY PAPER/3/data/RCP85_RH"! extra folder for sceneario input
+scenariofile = "2016_0.dat"!
 !***************************************************
 ! flexible soil and bole respiration coefficients
 !***************************************************
@@ -279,14 +279,15 @@ rsoil2 = 0.07 !power
 !***************************************************
 ! parameters for nitrogen
 !***************************************************
-cn_bulk = 22.81 ! bulk C:N ratio, 10,20,40,50
-n_supply = 2 ! 2.25-2 field N supply, ambient for fertilization, umol m-2 s-2
+switch_cn = 0 !0: idential as top canopy,1: decreasing with z/ht
+cn_bulk = 22.81 ! bulk C:N ratio of top canopy layer, 10,20,40,50
+Nmax_extra = 2 ! 2.25-2 field N supply, ambient for fertilization, umol m-2 s-2
 n_mult = 1.7 ! N ass as a multiple of glycine and serine
 nitrate = 1 ! fraction of nitrate in N supply
 nitrite = 0 !fraction of nitrite in N supply
 ammonia = 0 !fraction of ammonia in N supply
-switch_n_limit = 2 ! control N ass amount: 0 without N limit; 1 with N limit of N supply; 2 min(n supply and nc_bulk); 3 N ass as a multiple of glycine and serine
-switch_n_random = 1 ! control N ass fraction: 0 with fixed N source;0 with random mixed N source
+switch_n_limit = 1 ! control N ass amount: 0 without N limit; 1 with N limit of N supply; 2 min(n supply and nc_bulk); 3 N ass as a multiple of glycine and serine
+switch_n_random = 0 ! control N ass fraction: 0 with fixed N source;1 with random mixed N source;2 random but NO3 dominant
 
 
 /

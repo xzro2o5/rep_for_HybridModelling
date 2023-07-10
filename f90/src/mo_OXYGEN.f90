@@ -60,14 +60,14 @@ MODULE oxygen
 
 
 
-  SUBROUTINE O_to_N (An,carboxylation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,Etot,En, Uo, dark_resp_O, &
+  SUBROUTINE O_to_N (An,carboxylation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,ncleaf,Etot,En, Uo, dark_resp_O, &
     Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3,source_NO2,source_NH4)
 
     USE utils,        ONLY: ER_rd_func
     USE nitrogen_assimilation, ONLY: N_fraction
-    USE parameters, ONLY: cn_bulk
+    USE types,        ONLY: iswitch
 
-    REAL(wp), INTENT(IN)  :: An,carboxylation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine
+    REAL(wp), INTENT(IN)  :: An,carboxylation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,ncleaf
     REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
     N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
     REAL(wp)              :: ER_rd, MAP, source_glu
@@ -101,7 +101,8 @@ MODULE oxygen
     source_NO2 = source_glu*f2
     source_NH4 = source_glu*f3
     N_tot = source_Busch + source_glu
-    N_demand = carboxylation/cn_bulk
+    N_demand = carboxylation*ncleaf
+
 
 
 ! save N source in structures:
@@ -116,7 +117,7 @@ MODULE oxygen
 
   END SUBROUTINE O_to_N
 
-  SUBROUTINE N_to_O (carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine, cnleaf,nmax_extra,Etot, En, Uo, dark_resp_O, &
+  SUBROUTINE N_to_O (carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine, ncleaf,nmax_extra,Etot, En, Uo, dark_resp_O, &
     Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4)
 
     USE utils,        ONLY: ER_rd_func
@@ -128,7 +129,7 @@ MODULE oxygen
     USE setup,      ONLY: ncl
 
 
-    REAL(wp), INTENT(IN)  :: carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine,cnleaf,nmax_extra
+    REAL(wp), INTENT(IN)  :: carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine,ncleaf,nmax_extra
     REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
     N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
     REAL(wp)              :: ER_rd, MAP, source_glu
@@ -144,7 +145,9 @@ MODULE oxygen
 
     ! determine N assimilation amount:
     source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
-    N_demand = carboxylation/cnleaf
+
+    N_demand = carboxylation*ncleaf
+
     !N_demand = gross_CO2/cn_bulk
 
     SELECT CASE (iswitch%n_limit)

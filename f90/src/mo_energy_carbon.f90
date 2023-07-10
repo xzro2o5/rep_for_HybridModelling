@@ -744,6 +744,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     USE utils,        ONLY: temp_func, tboltz, es
     USE messages,     ONLY: message
     USE string_utils, ONLY: num2str
+    USE nitrogen_assimilation, only: NC_canopy
     !USE nitrogen_assimilation, ONLY: N_assimilation
     !USE oxygen,     ONLY: gross_emission, uptake
     !USE nitrogen_assimilation, ONLY: N_fraction
@@ -791,7 +792,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     INTEGER(i4), INTENT(IN) :: JJ
 
     REAL(wp) :: tprime25, bc, ttemp, gammac, gammac_c, gammac_j, gammac_p
-    REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z, CNtmpz, N_extraz, N_photoz ! leaf cn per layer
+    REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z, NCtmpz, N_extraz, N_photoz ! leaf cn per layer
     REAL(wp) :: kct, ko, tau
     REAL(wp) :: rd, rdz, rd_O2, RQ_rd!O2 in dark respiration
     REAL(wp) :: rb_mole, gb_mole, dd, b8_dd
@@ -886,6 +887,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! at forest floor. Leaf weight scales linearly with height
     ! and so does jmopt and vcmax
     ! zoverh=0.65/HT=zh65
+    NCtmpz = NC_canopy(JJ)
     if (extra_nate == 1) then
        ! for Nate McDowell''s juniper site, no scaling of Vcmax with height and LAI
        jmaxz  = jmopt(JJ)
@@ -897,7 +899,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           vcmaxz = zero
           N_extraz = zero
           N_photoz = zero
-          CNtmpz = zero
+          NCtmpz = zero
 
        end if
        ! spring, increase Ps capacity with leaf expansion as a function of leaf area changes
@@ -906,7 +908,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
           N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac)) * time%lai/lai
           N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          CNtmpz  = one/(14.55608 + 11.53367* (JJ/40) * time%lai/lai)
+          NCtmpz  = NCtmpz * time%lai/lai
 !          print *, htFrac, (1-htFrac)
        end if
        ! growing season, full Ps capacity (note newer data by Wilson et al shows more
@@ -916,7 +918,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac))
           N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac))
           N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac))
-          CNtmpz  = one/(14.55608 + 11.53367*(JJ/40))
+          NCtmpz  = NCtmpz
        end if
        ! gradual decline in fall
        if (time%days >= time%leaffall .and. time%days <= time%leaffallcomplete) then
@@ -925,13 +927,13 @@ debug%R4=es(tsrfkpt)*100._wp-ea
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
           N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac)) * time%lai/lai
           N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          CNtmpz  = one/(14.55608 + 11.53367* (JJ/40) * time%lai/lai)
+          NCtmpz  = NCtmpz * time%lai/lai
        end if
        if (time%days > time%leaffallcomplete) then
           jmaxz  = zero
           vcmaxz = zero
           N_extraz = zero
-          CNtmpz = zero
+          NCtmpz = zero
        end if
     end if
     prof%vcmaxz(JJ) = vcmaxz
@@ -1504,7 +1506,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 !        if (JJ==37) then
 !        print *, 'debug GPP and GOP', gpp, GOP
 !    end if
-!print *, JJ, CNtmpz
+!print *, JJ, NCtmpz
 SELECT CASE (iswitch%ER)
 
 
@@ -1512,11 +1514,11 @@ SELECT CASE (iswitch%ER)
 !      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
 !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 !print *, 'before N to O:'
-    call N_to_O(psguess,gpp,phi,rd,tlk,alphag,alphas,CNtmpz,N_extraz,GOP,NOP,Uo, rd_O2, &
+    call N_to_O(psguess,gpp,phi,rd,tlk,alphag,alphas,NCtmpz,N_extraz,GOP,NOP,Uo, rd_O2, &
       Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 
    CASE (1)
-      call O_to_N(aphoto,psguess,phi,input%ER,rd,tlk,alphag,alphas,GOP,NOP,Uo,rd_O2, &
+      call O_to_N(aphoto,psguess,phi,input%ER,rd,tlk,alphag,alphas,NCtmpz,GOP,NOP,Uo,rd_O2, &
       Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 END SELECT
 !    call N_assimilation(psguess,j_photon,alphag,alphas, ass_NO3, ass_NO2, ass_NH4,JJ)

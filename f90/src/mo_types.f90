@@ -1268,7 +1268,7 @@ CONTAINS
     if (.not. allocated(prof%ROC_shd)) allocate(prof%ROC_shd(ncl))
     if (.not. allocated(prof%ROC_layer)) allocate(prof%ROC_layer(ncl))
     if (.not. allocated(prof%ROC_leaf_G)) allocate(prof%ROC_leaf_G(ncl))
-    if (.not. allocated(prof%ROC_leaf_net)) allocate(prof%ROC_leaf_G(ncl))
+    if (.not. allocated(prof%ROC_leaf_net)) allocate(prof%ROC_leaf_net(ncl))
     if (.not. allocated(prof%ROC_bole_air)) allocate(prof%ROC_bole_air(ncl))
 
   END SUBROUTINE alloc_prof

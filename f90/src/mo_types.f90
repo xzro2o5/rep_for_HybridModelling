@@ -720,8 +720,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: JBusch_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: jphoton_sun    ! electron for CO2
      REAL(wp), DIMENSION(:), ALLOCATABLE :: jphoton_shd    ! electron for N
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_quad
-     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_quad
+     INTEGER(i4), DIMENSION(:), ALLOCATABLE :: sun_quad
+     INTEGER(i4), DIMENSION(:), ALLOCATABLE :: shd_quad
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_ABusch
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_ABusch
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_Ndemand
@@ -786,11 +786,12 @@ MODULE types
      REAL(wp) :: nitrite_per !fraction of nitrite in N supply
      REAL(wp) :: ammonia_per !fraction of ammonia in N supply
      REAL(wp) :: Busch_mol
+     REAL(wp) :: glu_mol !mole of total N supply
      REAL(wp) :: nitrate_mol !mole of nitrate in N supply
      REAL(wp) :: nitrite_mol !mole of nitrite in N supply
      REAL(wp) :: ammonia_mol !mole of ammonia in N supply
-     REAL(wp) :: Nsupply ! N supply and demand per hour!
-     REAL(wp) :: Ndemand
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Nsupply ! hourly N supply and demand on top canopy
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: Ndemand
 
      !REAL(wp) :: ammonia !fraction of ammonia in N supply
 
@@ -841,6 +842,7 @@ CONTAINS
     call alloc_prof()
     call alloc_ciso()
     call alloc_wiso()
+    call alloc_nitrogen()
 
   END SUBROUTINE alloc_type_vars
 
@@ -1294,6 +1296,14 @@ CONTAINS
 
   END SUBROUTINE alloc_wiso
 
+    SUBROUTINE alloc_nitrogen()
+
+    IMPLICIT NONE
+
+    if (.not. allocated(nitrogen%Nsupply)) allocate(nitrogen%Nsupply(ncl))
+    if (.not. allocated(nitrogen%Ndemand)) allocate(nitrogen%Ndemand(ncl))
+
+  END SUBROUTINE alloc_nitrogen
 
 
   ! -----------------------------------------------------------------------------------------------
@@ -2309,6 +2319,7 @@ CONTAINS
     nitrogen%nitrite_per   = zero
     nitrogen%ammonia_per   = zero
     nitrogen%Busch_mol     = zero
+    nitrogen%glu_mol       = zero
     nitrogen%nitrate_mol   = zero
     nitrogen%nitrite_mol   = zero
     nitrogen%ammonia_mol   = zero

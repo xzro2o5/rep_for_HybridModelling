@@ -14,7 +14,7 @@ MODULE oxygen
   PRIVATE
 
   PUBLIC  :: gross_emission
-  PUBLIC  :: uptake, O_to_N, N_to_O
+  PUBLIC  :: uptake, chamber_to_N, N_to_O
   PUBLIC  :: OXYFLUX
 
   CONTAINS
@@ -60,29 +60,69 @@ MODULE oxygen
 
 
 
-  SUBROUTINE O_to_N (An,carboxylation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,ncleaf,Etot,En, Uo, dark_resp_O, &
-    Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3,source_NO2,source_NH4)
+  SUBROUTINE chamber_to_N (An,carboxylation,gross_CO2,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,Etot,En, Uo, dark_resp_O, &
+    Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3,source_NO2,source_NH4, QQ,JJ)
 
     USE utils,        ONLY: ER_rd_func
-    USE nitrogen_assimilation, ONLY: N_fraction
-    USE types,        ONLY: iswitch
+    USE nitrogen_assimilation, ONLY: N_fraction, NC_canopy
+    USE types,        ONLY: iswitch, nitrogen, time, prof
+    USE parameters, ONLY: htFrac, zh65, lai
 
-    REAL(wp), INTENT(IN)  :: An,carboxylation,Vo_Vc,ER_An,Rd,leaf_T,gly,serine,ncleaf
+    REAL(wp), INTENT(IN)  :: An,carboxylation,gross_CO2,Vo_Vc,ER_An,Rd,leaf_T,gly,serine
+    INTEGER(i4), INTENT(IN) :: QQ, JJ
     REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
     N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
-    REAL(wp)              :: ER_rd, MAP, source_glu
+    REAL(wp)              :: ER_rd, MAP, ncleafz, source_glu, N_extraz, glu_mol, N_top
     REAL(wp)              :: Jtot, f1, f2, f3
 
     ! oxygen uptake by leaf dark resp:
     MAP = 0
     ER_rd = ER_rd_func(leaf_T)
     dark_resp_O = Rd * ER_rd
+
+        ncleafz = NC_canopy(JJ)
+       if (time%days < time%leafout) then
+          !N_extraz = zero
+          ncleafz = zero
+       end if
+       ! spring, increase Ps capacity with leaf expansion as a function of leaf area changes
+       if (time%days >= time%leafout .and. time%days < time%leaffull) then
+          !N_extraz = Nmax_extra * (zh65 * prof%ht(JJ) + (1-htFrac)) * time%lai/lai
+          ncleafz  = ncleafz * time%lai/lai
+!          print *, htFrac, (1-htFrac)
+       end if
+       ! growing season, full Ps capacity (note newer data by Wilson et al shows more
+       ! dynamics
+       if (time%days >= time%leaffull .and. time%days < time%leaffall) then
+          !N_extraz = Nmax_extra * (zh65 * prof%ht(JJ) + (1-htFrac))
+          ncleafz  = ncleafz
+       end if
+       ! gradual decline in fall
+       if (time%days >= time%leaffall .and. time%days <= time%leaffallcomplete) then
+          !delday=1-(time%days-270)/30
+          !N_extraz = Nmax_extra * (zh65 * prof%ht(JJ) + (1-htFrac)) * time%lai/lai
+          ncleafz  = ncleafz * time%lai/lai
+       end if
+       if (time%days > time%leaffallcomplete) then
+          !N_extraz = zero
+          ncleafz = zero
+       end if
+
+    N_demand = carboxylation*ncleafz
+
+    call N_fraction (f1,f2,f3)
+
     ! net Ass oxygen
+
     En = An*ER_An
 
     if (En<An) MAP = An-En
     Uo = 1.5*Vo_Vc*carboxylation+dark_resp_O + MAP
     Etot = En + Uo
+    if (iswitch%tpu == 3) then
+!       gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
+       Etot = Etot + (9*gly/4 + 4*serine/3)*Vo_Vc/4
+    end if
 
     ! calculate N assimilation:
     ! total electrons
@@ -94,45 +134,56 @@ MODULE oxygen
     ! e- required for B assimilation
     J_glu = Jtot-Ja-J_Busch
     J_glu = max(J_glu,zero)
-    call N_fraction (f1,f2,f3)
     source_glu = J_glu/(f1*10+f2*8+f3*2)
+    !source_glu_f = min(source_glu,N_demand)
     source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
     source_NO3 = source_glu*f1
     source_NO2 = source_glu*f2
     source_NH4 = source_glu*f3
-    N_tot = source_Busch + source_glu
-    N_demand = carboxylation*ncleaf
-
-
+    glu_mol = source_NO3+source_NO2+source_NH4
+    ! derive N supply of top canopy from the height of chamber measurement
+    N_top = glu_mol/(zh65 * prof%ht(37) + (1-htFrac))
+    N_extraz = N_top * (zh65 * prof%ht(JJ) + (1-htFrac))
+    !N_tot = source_Busch + source_glu
 
 ! save N source in structures:
-!    nitrogen%Ja = Ja
-!    nitrogen%J_glu = J_glu
-!    nitrogen%J_Busch = J_Busch
-!    nitrogen%Busch_mol   = source_Busch
-!    nitrogen%nitrate_mol = source_NO3
-!    nitrogen%nitrite_mol = source_NO2
-!    nitrogen%ammonia_mol = source_NH4
+    nitrogen%Ja = Ja
+    nitrogen%J_glu = J_glu
+    nitrogen%J_Busch = J_Busch
+    nitrogen%glu_mol = source_NO3+source_NO2+source_NH4
+    nitrogen%Busch_mol   = source_Busch
+    nitrogen%nitrate_mol = source_NO3
+    nitrogen%nitrite_mol = source_NO2
+    nitrogen%ammonia_mol = source_NH4
+    nitrogen%Nsupply(JJ) = N_extraz
+    ! N_ref = N_top * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+    !N_top = nitrogen%glu_mol/((zh65 * prof%ht(37) + (1-htFrac)) * time%lai/lai)
+    !N_top = nitrogen%glu_mol/(zh65 * prof%ht(37) + (1-htFrac))
+    if (QQ == 0) then
+     prof%ROC_leaf_G(JJ) = Etot/gross_CO2
+    else
+     prof%ROC_leaf_G(JJ) = 0
+    end if
 
+  END SUBROUTINE chamber_to_N
 
-  END SUBROUTINE O_to_N
-
-  SUBROUTINE N_to_O (carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine, ncleaf,nmax_extra,Etot, En, Uo, dark_resp_O, &
-    Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4)
+  SUBROUTINE N_to_O (carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine, Etot, En, Uo, dark_resp_O, &
+    Ja, J_glu, J_Busch, N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4, QQ, JJ)
 
     USE utils,        ONLY: ER_rd_func
 !    USE OXYGEN,       ONLY: uptake
-    USE nitrogen_assimilation, ONLY: N_fraction
+    USE nitrogen_assimilation, ONLY: N_fraction, NC_canopy
     USE constants,  ONLY: one
     USE types,      ONLY: iswitch, nitrogen, time
-    USE parameters, ONLY: cn_bulk,  n_mult
+    USE parameters, ONLY: cn_bulk,  n_mult, lai, zh65, htFrac, Nmax_extra
     USE setup,      ONLY: ncl
 
 
-    REAL(wp), INTENT(IN)  :: carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine,ncleaf,nmax_extra
+    REAL(wp), INTENT(IN)  :: carboxylation,gross_CO2, Vo_Vc,Rd,leaf_T,gly,serine
+    INTEGER(i4), INTENT(IN) :: QQ, JJ
     REAL(wp), INTENT(OUT) :: Etot, En, Uo, dark_resp_O, J_glu, Ja, J_Busch, &
     N_demand, N_tot, source_Busch, source_NO3, source_NO2, source_NH4
-    REAL(wp)              :: ER_rd, MAP, source_glu
+    REAL(wp)              :: ER_rd, MAP, ncleafz, source_glu,N_extraz
     REAL(wp)              :: J1,J2,J3, JCO2, Jtot, f1, f2, f3
     ! INTEGER(i4), INTENT(IN) :: layer
 
@@ -142,11 +193,38 @@ MODULE oxygen
     ! co2~4e, nitrate~10e, nitrite~8e and ammonia~2e
     ! J_extra/J_a =(e_source)*ncbulk/e_co2 without N limit
     ! J_extra/J_a =(e_source)*N_supply/(C_ass*e_co2) under N limit
-
+    ! determine N supply and NC ratio by canopy layer:
+        ncleafz = NC_canopy(JJ)
+       if (time%days < time%leafout) then
+          N_extraz = zero
+          ncleafz = zero
+       end if
+       ! spring, increase Ps capacity with leaf expansion as a function of leaf area changes
+       if (time%days >= time%leafout .and. time%days < time%leaffull) then
+          N_extraz = Nmax_extra * (zh65 * prof%ht(JJ) + (1-htFrac)) * time%lai/lai
+          ncleafz  = ncleafz * time%lai/lai
+!          print *, htFrac, (1-htFrac)
+       end if
+       ! growing season, full Ps capacity (note newer data by Wilson et al shows more
+       ! dynamics
+       if (time%days >= time%leaffull .and. time%days < time%leaffall) then
+          N_extraz = Nmax_extra * (zh65 * prof%ht(JJ) + (1-htFrac))
+          ncleafz  = ncleafz
+       end if
+       ! gradual decline in fall
+       if (time%days >= time%leaffall .and. time%days <= time%leaffallcomplete) then
+          !delday=1-(time%days-270)/30
+          N_extraz = Nmax_extra * (zh65 * prof%ht(JJ) + (1-htFrac)) * time%lai/lai
+          ncleafz  = ncleafz * time%lai/lai
+       end if
+       if (time%days > time%leaffallcomplete) then
+          N_extraz = zero
+          ncleafz = zero
+       end if
     ! determine N assimilation amount:
     source_Busch = (gly+2*serine/3)*Vo_Vc*carboxylation
 
-    N_demand = carboxylation*ncleaf
+    N_demand = carboxylation*ncleafz
 
     !N_demand = gross_CO2/cn_bulk
 
@@ -189,7 +267,7 @@ MODULE oxygen
         source_glu = N_demand
     CASE (1)
         source_glu = nmax_extra
-        print *, 'extra N supply=', nmax_extra
+!        print *, 'extra N supply=', nmax_extra
     CASE (2)
         source_glu = min(nmax_extra, N_demand) ! or n_supply/ncl, per layer
         !source_glu = min(min(n_supply,n_max),N_demand) ! or n_supply/ncl, per layer
@@ -228,18 +306,30 @@ MODULE oxygen
     ! total electrons
     Jtot = J_glu+JCO2+J_Busch
     ! total O2 emission:
-    Etot = Jtot/4
+    Etot = (J_glu+JCO2)/4
+    if (iswitch%tpu == 3) then
+!       gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
+       Etot = Etot + (9*gly/4 + 4*serine/3)*Vo_Vc/4
+    end if
     Uo = 1.5*Vo_Vc*carboxylation+dark_resp_O + MAP
     En = Etot-Uo
 !print *, "GOP and GPP in N to O:",Etot, gross_CO2
     ! save N source in structures:
-!    nitrogen%Ja = Ja
-!    nitrogen%J_glu = J_glu
-!    nitrogen%J_Busch = J_Busch
-!    nitrogen%Busch_mol   = source_Busch
-!    nitrogen%nitrate_mol = source_NO3
-!    nitrogen%nitrite_mol = source_NO2
-!    nitrogen%ammonia_mol = source_NH4
+    nitrogen%Ja = Ja
+    nitrogen%J_glu = J_glu
+    nitrogen%J_Busch = J_Busch
+    nitrogen%Busch_mol   = source_Busch
+    nitrogen%glu_mol = source_NO3+source_NO2+source_NH4
+    nitrogen%nitrate_mol = source_NO3
+    nitrogen%nitrite_mol = source_NO2
+    nitrogen%ammonia_mol = source_NH4
+    nitrogen%Nsupply(JJ) = N_extraz
+
+    if (QQ == 0) then
+     prof%ROC_leaf_G(JJ) = Etot/gross_CO2
+    else
+     prof%ROC_leaf_G(JJ) = 0
+    end if
 
   END SUBROUTINE N_to_O
 
@@ -348,12 +438,12 @@ MODULE oxygen
      call conc_seperate(prof%source_O2, prof%O2_air, input%o2air, soil%o2, prof%O2_soil, prof%O2_disp, fact%o2)
 !    calculate ROC of each layer
      prof%ROC_layer(1:ncl) = abs(prof%source_O2(1:ncl)/prof%source_co2(1:ncl))
-    print *, 'ROC = ',prof%ROC_layer(23)
-    print *, 'source O2 and CO2',prof%source_O2(23), prof%source_co2(23)
-    print *, 'GOP, resp O2 and bole resp',prof%gpp_O2(23), prof%dRESPdz_O2(23), bole%layer(23)
-    print *, 'GPP, resp CO2 and bole resp',prof%dGOPdz(23), prof%dRESPdz(23), bole%layer(23)
-    print *, 'Psn O2:', prof%dPsdz_O2(23)
-    print *, 'Psn CO2', prof%dPsdz(23)
+!    print *, 'ROC = ',prof%ROC_layer(23)
+!    print *, 'source O2 and CO2',prof%source_O2(23), prof%source_co2(23)
+!    print *, 'GOP, resp O2 and bole resp',prof%gpp_O2(23), prof%dRESPdz_O2(23), bole%layer(23)
+!    print *, 'GPP, resp CO2 and bole resp',prof%dGOPdz(23), prof%dRESPdz(23), bole%layer(23)
+!    print *, 'Psn O2:', prof%dPsdz_O2(23)
+!    print *, 'Psn CO2', prof%dPsdz(23)
 !    call conc(prof%source_co2, prof%co2_air, input%co2air, soil%respiration_mole, fact%co2)
 
 !    call conc(prof%sour13co2, prof%c13cnc, co2_13, soil%resp_13, fact%co2)

@@ -8,7 +8,7 @@ MODULE nitrogen_assimilation
 
   PRIVATE
 
-  PUBLIC :: N_fraction, NC_canopy
+  PUBLIC :: N_fraction, NC_canopy, N_top
 
 
   CONTAINS
@@ -98,5 +98,23 @@ FUNCTION NC_canopy (JJ)
     NC_canopy = one/tmp
 
 END FUNCTION NC_canopy
+
+FUNCTION N_top (J_ref,N_ref)
+
+    ! derive N supply of top canopy layer from actual N assimilation of our measurement layer (J_ref),&
+    ! which is deduced from O2 flux in subroutine "O_to_N"
+    USE types,      ONLY: iswitch, time, prof
+    USE parameters, ONLY: cn_bulk, htFrac, zh65, lai
+
+    IMPLICIT NONE
+
+    INTEGER(i4), INTENT(IN) :: J_ref
+    REAL(wp), INTENT(IN)    :: N_ref
+    REAL(wp)                :: N_top
+    ! N_ref = N_top * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+    N_top = N_ref/(zh65 * prof%ht(J_ref) + (1-htFrac))
+    !print *, zh65, prof%ht(J_ref)
+
+END FUNCTION N_top
 
 END MODULE nitrogen_assimilation

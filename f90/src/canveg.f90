@@ -873,6 +873,7 @@ PROGRAM canveg
 !        print *, "canopy H and LE:"
 !        print *, sumh, sumle
         sumrn      = sum(prof%dRNdz(1:ncl))      ! net radiation
+!        print *, 'sum up=',prof%dRNdz(1:ncl)
         sumlout    = sum(prof%dLoutdz(1:ncl))    ! radiation
         can_ps_mol = sum(prof%dPsdz(1:ncl))      ! canopy photosynthesis
         can_ps_o   = sum(prof%dPsdz_O2(1:ncl))   ! net O2 emission
@@ -1274,8 +1275,8 @@ end if
         sumneto = can_ps_o-soil%respiration_mole*ROC_soil_in-bole%respiration_mole*ROC_bole_in
         output%houro = sumo ! save hourly o flux in a global variable
         output%hourneto = sumneto
-        nitrogen%Nsupply = sumNsupply
-        nitrogen%Ndemand = sumNdemand
+!        nitrogen%Nsupply = sumNsupply
+!        nitrogen%Ndemand = sumNdemand
         output%hour_canrespo = sumcanresp_o
         if (fc_mol == zero) then
             output%hourROC = zero ! Yuan added hourly ROC output 2018.05.07

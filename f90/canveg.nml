@@ -1,11 +1,11 @@
 ! -*- Mode: F90 -*- !
 &CANCTL
 workdir = "." ! working directory
-indir = "./input2012"!"./inputiso" ! location of input file
-metinfile = "gf_fp_2012.dat"!"MMeteoDataForYuanLF2016.dat" !"light.dat" ! met input file
+indir = "./input2015"!"./inputiso" ! location of input file
+metinfile = "gf_fp_2015.dat"!"MMeteoDataForYuanLF2016.dat" !"light.dat" ! met input file
 laiinfile = "2006laiinput_eddy.dat" ! lai input file
-wisoinfile = "wisoinput2016gf.dat" ! wiso input fie
-outdir = "output2012" ! location of output files 'light'
+wisoinfile = "wisoinput2015gf.dat" ! wiso input fie
+outdir = "output2015" ! location of output files 'light'
 outsuffix = ".csv" ! output suffix “./output”
 dispfile = "DIJHainich._C" ! location and name of disperion matrix
 netcdf_in = 0 ! 1: input in netcdf; 0: input in ascii format
@@ -13,11 +13,11 @@ netcdf_out = 0 ! 1: output in netcdf; 0: output in ascii format
 netcdf_disp = 0 ! 1: dispersion matrix in netcdf; 0: dispersion in ascii format
 ! --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
 ! --- Model Set-up
-year0 = 2012 ! Year
-start_run = 1861200!1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
-end_run =1861200!1301100!3662400!3662400!3662400!3662400! end of model run, [dddhhmm] <3662400
-start_profiles = 1861200!1301100!1861200!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
-end_profiles =1861200!1301100!3662400!3662400!3662400!3662400!3662400!3662400!3662400! end of profile output, [dddhhmm]
+year0 = 2015 ! Year
+start_run = 1301100!1452000!1321600!2210800 ! start of model run, [dddhhmm] > 0010100
+end_run =1301100!3662400!3662400!3662400!3662400! end of model run, [dddhhmm] <3662400
+start_profiles = 1301100!1861200!1452000!1321600!1452000!2210800 ! start of profile output, [dddhhmm]
+end_profiles =1301100!3662400!3662400!3662400!3662400!3662400!3662400! end of profile output, [dddhhmm]
 ! start_run = 1262000 ! start of model run, [dddhhmm] > 0010100
 ! end_run = 1262100 ! end of model run, [dddhhmm] <3662400
 ! start_profiles = 1262000 ! start of profile output, [dddhhmm]
@@ -254,7 +254,7 @@ ROC_soil_in = 1.1
 !***************************************************
 switch_tpu = 1 ! 0: no TPU limit; 1: include TPU limit in photosynthesis, using Busch's parameter; 2: CLM, only tp-vc and alpha works.
 tp_vc = 0.161523710301262 ! 0.161523710301262, 0.161523710301262, 0.161523710301262 are used for sensitivity analysis in CLM.tp as a fraction of Vcmax, derived from Licor in Leinefelde
-Nmax_photo = 1.27615729387407
+n_max = 1.27615729387407
 alphag_max = 0.0281501306665596!0.09!0.09!0.09 ! assumed 0.02 in A_Ci curve fitting
 alphas_max = 0.0454034918893594!0.38!0.4!0!0.3888 ! Busch's paper
 alpha = 0.02 ! old alpha in CLM mode
@@ -279,7 +279,7 @@ rsoil2 = 0.07 !power
 !***************************************************
 ! parameters for nitrogen
 !***************************************************
-switch_cn = 0 !0: idential as top canopy,1: decreasing with z/ht
+switch_cn = 1 !0: idential as top canopy,1: decreasing with z/ht
 cn_bulk = 22.81 ! bulk C:N ratio of top canopy layer, 10,20,40,50
 Nmax_extra = 2 ! 2.25-2 field N supply, ambient for fertilization, umol m-2 s-2
 n_mult = 1.7 ! N ass as a multiple of glycine and serine

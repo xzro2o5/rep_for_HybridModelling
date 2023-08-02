@@ -25,7 +25,7 @@ MODULE parameters
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
        leaf_fall, leaf_fall_complete, attfac, eabole, R_base1, R_base2, epsoil, water_film_thickness, tau_water, extra_nate, nup, &
-       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, Nmax_photo, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
+       ROC_leaf_in, ROC_bole_in, ROC_soil_in, tp_vc, n_max, alphag_max, alphas_max, alpha, g0_mly_in, g1_mly_in, &
        scenario_c, scenario_temp, switch_scenario, scenariodir, scenariofile, rsoil1, rsoil2, &
        switch_cn, cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia
 
@@ -334,7 +334,7 @@ MODULE parameters
   ! ROC for oxygen module
   ! **********************
   REAL(wp)           :: tp_vc
-  REAL(wp)           :: Nmax_photo
+  REAL(wp)           :: n_max
   REAL(wp)           :: alphag_max
   REAL(wp)           :: alphas_max
   REAL(wp)           :: alpha
@@ -644,7 +644,7 @@ CONTAINS
     bprime_up   = 0.001_wp ! upper canopy
     bprime_down = 0.001_wp ! understory
     tp_vc       = 0.167    ! ratio of TPU to Vcmax
-    Nmax_photo  = 1.21     ! maximum nitrogen supply in umol m-2 s-1
+    n_max  = 1.21     ! maximum nitrogen supply in umol m-2 s-1
     alphag_max = 0.09     ! fraction of carbon leaving photorespiration in the form of glycine
     alphas_max = 0.38     ! fraction of carbon leaving photorespiration in the form of serine
     alpha       = zero     ! fraction of total carbon leaving photorespiration, used in CLM
@@ -707,7 +707,7 @@ CONTAINS
          theta1_in, theta2_in, theta3_in, extra_nate, nup, vc25_up, vc25_down, jm_vc_up, jm_vc_down, rd_vc_up, rd_vc_down, &
          g0_up, g0_down, a1_up, a1_down, D0_up, D0_down, kball_up, kball_down, bprime_up, bprime_down, &
          switch_oxygen, switch_ER, switch_wai_new, ROC_leaf_in, ROC_bole_in, ROC_soil_in, &
-         switch_tpu, tp_vc, Nmax_photo, alphag_max, alphas_max, alpha, &
+         switch_tpu, tp_vc, n_max, alphag_max, alphas_max, alpha, &
          g0_mly_in, g1_mly_in, scenario_c, scenario_temp, switch_scenario, scenariodir, scenariofile, rsoil1, rsoil2, &
          switch_cn, cn_bulk, Nmax_extra, n_mult, nitrate, nitrite, ammonia, switch_n_limit, switch_n_random
 

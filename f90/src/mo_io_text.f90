@@ -397,10 +397,10 @@ CONTAINS
     ! Profile fluxes
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(fluxprofilefile), trim(outsuffix)
     open(unit=noutflux, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*86, iostat=ierr) ! original 40*25
+         form="formatted", recl=40*84, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 86, '(",",a))'
-    write(noutflux,form1) "daytime ", "i ", "dHdz ", "dLEdz ", "dLEdz%sun ", "dLEdz%shd ", &
+    write(form1,'(A,I3,A)') '(a,', 1, '(",",a))'
+    write(noutflux,form1) "Beam", "daytime ", "i ", "dHdz ", "dLEdz ", "dLEdz%sun ", "dLEdz%shd ", &
          "sun_A ", "shd_A ", "dGPPdz ", "dGPPdz%sun ", "dGPPdz%shd ", "dPsdz ", &
          "dPsdz%sun ", "dPsdz%shd ", "dRESPdz ", "dRESPdz%sun ", "dRESPdz%shd ", &
          "PARdirect ", "PARdiffuse ", "Tleaf ", "Tleaf_sun ", "Tleaf_shd ", &
@@ -414,20 +414,20 @@ CONTAINS
          "sun_rs ", "shd_rs ", "LAI_sun ", "LAI_shd ", "par_diff ", "nir_diff ", &
          "PSN_O2 ", "cws ", "wet coef ", "sun_tpucoef ", "shd_tpucoef ","GPO ", "GPO_sun ","GPO_shd ", &
          "Ja_sun ", "Jglu_sun ", "JBusch_sun ", "Ja_shd ", "Jglu_shd ", "JBusch_shd ", &
-         "iphoton_sun ", "iphoton_shd ", "sun_quad ", "shd_quad ", "ci_sun ", "ci_shd "
+         "iphoton_sun ", "iphoton_shd ", "sun_quad ", "shd_quad ", "ci_sun ", "ci_shd"
         ! write(form1,'(A,I3,A)') '(a,', 44-1, '(",",a))'
     !write(noutflux,form1) "daytime",
 
     ! Profile N ass
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(nitfile), trim(outsuffix)
     open(unit=noutnit, file=stmp,action="write", status="replace", &
-         form="formatted", recl=40*11, iostat=ierr) ! original 40*25
+         form="formatted", recl=40*12, iostat=ierr) ! original 40*25
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 11, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 12, '(",",a))'
     write(noutnit,form1) "daytime ", "i ", &
                        "dNdemanddz ", "dNdemand_sundz ", "dNdemand_shddz ", &
                        "dNtotdz ", "dNtot_sundz ", "dNtot_shddz ",&
-                       "dNBuschdz ", "dNBusch_sundz ", "dNBusch_shddz"
+                       "dNBuschdz ", "dNBusch_sundz ", "dNBusch_shddz ", "dNsupplydz"
 
 
     ! Profile tpu limitation
@@ -898,7 +898,7 @@ CONTAINS
          met%ustar_filter, met%K, met%phim, output%hour_canrespo, &
          input%parin,solar%beam_flux_par(ncl+1)/ 4.6_wp,solar%par_down(ncl+1)/ 4.6_wp,solar%par_up(ncl+1)/ 4.6_wp,&
          solar%beam_flux_nir(ncl+1),solar%nir_dn(ncl+1),solar%nir_up(ncl+1),&
-         solar%ir_dn(ncl+1),solar%ir_up(ncl+1),nitrogen%Nsupply, nitrogen%Ndemand
+         solar%ir_dn(ncl+1),solar%ir_up(ncl+1),nitrogen%Nsupply(40), nitrogen%Ndemand(40)
     if (ierr > 0) call error_writing(isroutine, noutseas)
 
     ! Optimise
@@ -971,7 +971,7 @@ CONTAINS
   SUBROUTINE write_prof_text()
     ! Calls the routines to open input and output files
     USE constants, ONLY: noutprof, noutflux, noutcisoprof, noutwisoprof, noutwisoflux, nouttpu, noutnit
-    USE types,     ONLY: iswitch, prof, solar, time, input, fact
+    USE types,     ONLY: iswitch, prof, solar, time, input, fact, nitrogen
     USE setup,     ONLY: ncl, ntl, nwiso
 
     IMPLICIT NONE
@@ -994,7 +994,7 @@ CONTAINS
     if (ierr > 0) call error_writing(isroutine, noutprof, ' - 1')
 
     ! Profile fluxes
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 86, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 84, '(",",es22.14))'
     do j=1, ncl
        write(noutflux,form1,iostat=ierr) &
             time%daytime,j,prof%dHdz(j), prof%dLEdz(j,1), &
@@ -1020,8 +1020,8 @@ CONTAINS
             prof%dPsdz_O2(j), prof%cws(j,1), prof%wet_coef(j), real(prof%sun_tpu_coeff(j)), real(prof%shd_tpu_coeff(j)), &
             prof%gpp_O2(j),prof%dGOPdz_sun(j), prof%dGOPdz_shd(j), prof%Ja_sun(j),prof%Jglu_sun(j),prof%JBusch_sun(j),&
             prof%Ja_shd(j),prof%Jglu_shd(j),prof%JBusch_shd(j), &
-            prof%jphoton_sun(j), prof%jphoton_shd(j),prof%sun_quad(j), prof%shd_quad(j), prof%sun_ci(j), prof%shd_ci(j)
-
+            prof%jphoton_sun(j), prof%jphoton_shd(j),real(prof%sun_quad(j)), real(prof%shd_quad(j)), prof%sun_ci(j), prof%shd_ci(j)
+!print *, 'beam=', prof%dLAIdz(j)
 !if (j==40) then
 !    print *, 'output:', prof%sun_quad(j)
 !end if
@@ -1034,6 +1034,7 @@ if (ISNAN(prof%dLEdz(j,1))) then
  !   print *, "normal"
 end if
     end do
+    print *, 'error=',ierr
     if (ierr > 0) call error_writing(isroutine, noutflux, ' - 2')
 
      ! Profile tpu
@@ -1068,13 +1069,13 @@ end if
     if (ierr > 0) call error_writing(isroutine, nouttpu, ' - 2')
 
      ! Profile nitrogen ass
-    write(form1,'(A,I3,A)') '(i07,",",i03,', 11, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,",",i03,', 12, '(",",es22.14))'
     do j=1, ncl
        write(noutnit,form1,iostat=ierr) &
             time%daytime,j,&
             prof%dNdemanddz(j),prof%dNdemanddz_sun(j),prof%dNdemanddz_shd(j),&
             prof%dNtotdz(j),prof%dNtotdz_sun(j),prof%dNtotdz_shd(j),&
-            prof%dNBuschdz(j), prof%dNBuschdz_sun(j), prof%dNBuschdz_shd(j)
+            prof%dNBuschdz(j), prof%dNBuschdz_sun(j), prof%dNBuschdz_shd(j), prof%dNsupplydz(j)
 
     end do
     if (ierr > 0) call error_writing(isroutine, noutnit, ' - 2')

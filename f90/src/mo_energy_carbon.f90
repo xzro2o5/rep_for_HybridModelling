@@ -103,13 +103,14 @@ CONTAINS
 
     ! Layer 1 is the soil, Layer 40 is top of the canopy
     USE constants,  ONLY: zero, one, TN0, Rw, rugc, mass_CO2
-    USE types,      ONLY: prof, solar, fact, bound_lay_res, met, time, debug, nitrogen, iswitch
+    USE types,      ONLY: prof, solar, fact, bound_lay_res, met, time, debug, nitrogen, iswitch, input
     USE parameters, ONLY: pai
     USE setup,      ONLY: ncl
     USE utils,      ONLY: es, lambda
     USE transport,  ONLY: boundary_resistance
     USE messages,   ONLY: message
     USE string_utils,  ONLY: num2str
+    USE oxygen,     ONLY: N_to_O, chamber_to_N
 
     IMPLICIT NONE
 
@@ -121,11 +122,12 @@ CONTAINS
     REAL(wp) :: LE_leaf, LE_wet, H_leaf, lout_leaf
     REAL(wp) :: wj_leaf, wc_leaf, wp_leaf, surface_rh, surface_vpd
     REAL(wp) :: rs_sun, rs_shade, A_mg, GPP, resp, internal_CO2, surface_CO2, chloroplast_CO2
-    REAL(wp) :: GOP, O_sun, O_shade, A_O2, resp_O2, resp_ROC ! leaf level oxygen flux in photosynthesis and dark respirations
+    REAL(wp) :: GOP, NOP,Uo, resp_O2, resp_ROC, carboxylation, vo_vc ! leaf level oxygen flux in photosynthesis and dark respirations
     REAL(wp) :: N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4!N demand up to plant C:N, NO3, NO2, NH4 are assimilated N from different sources
     REAL(wp) :: csca, cica, ccca
     REAL(wp) :: fact_rs_sun, fact_rs_shd
-    REAL(wp) :: JA ! electron transport rate for CO2 assimilation
+!    REAL(wp) :: JA ! electron transport rate for CO2 assimilation
+    REAL(wp) :: Ja, J_glu, J_Busch
 
     wj_leaf = zero
     wc_leaf = zero
@@ -147,9 +149,9 @@ CONTAINS
 !       prof%sun_rs_save(j) = rs_sun
 !       prof%sun_gs(j)      = one / rs_sun
        A_sun   = zero
-       O_sun   = zero
+!       O_sun   = zero
        A_mg    = zero
-       A_O2    = zero
+!       A_O2    = zero
        GPP     = zero
        GOP     = zero
        resp    = zero
@@ -214,20 +216,26 @@ CONTAINS
 !          if (j==23) then
 !            print *, "start sunlit:"
 !          end if
+!             call photosynthesis(solar%quantum_sun(j), rs_sun, prof%ht(j), &
+!                  prof%co2_air_filter(j), T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP,&
+!                  resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, chloroplast_CO2, cica, ccca, &
+!                  surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
+!                  prof%sun_alphag(j),prof%sun_alphas(j),prof%sun_tpu_coeff(j), prof%jphoton_sun(j) , &
+!                  prof%Ja_sun(j), prof%Jglu_sun(j), prof%JBusch_sun(j), &
+!                  N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+
              call photosynthesis(solar%quantum_sun(j), rs_sun, prof%ht(j), &
-                  prof%co2_air_filter(j), T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP,&
-                  resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, chloroplast_CO2, cica, ccca, &
-                  surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
+                  prof%co2_air_filter(j), T_srf_K, LE_leaf, A_mg, GPP, &
+                  resp, internal_CO2, surface_CO2, chloroplast_CO2, cica, ccca, &
+                  surface_rh, surface_vpd, carboxylation, wj_leaf, wc_leaf, wp_leaf, vo_vc, &
                   prof%sun_alphag(j),prof%sun_alphas(j),prof%sun_tpu_coeff(j), prof%jphoton_sun(j) , &
-                  prof%Ja_sun(j), prof%Jglu_sun(j), prof%JBusch_sun(j), &
-                  N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+                  prof%sun_quad(j),j)
+
+!  SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, O_pt, &
+!       GPPpt, GOPpt, resppt, resOppt, ROC_rd, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
+!       Vcpnt, wjpnt, wcpnt, wppnt, phipnt,alphagpnt, alphaspnt, tpupnt, j_photonpnt, quadpnt, JJ)
 
 
-          end if
-!          if (j==40) then
-!            print *, "quad sun:", prof%sun_quad(j)
-!            print *, "end sunlit:", prof%Ja_sun(j)
-!          end if
           ! Assign values of function to the LE and H source/sink strengths
           T_srf_C = T_srf_K - TN0 ! surface temperature, Centigrade
           H_sun   = H_leaf ! sensible heat flux
@@ -237,11 +245,10 @@ CONTAINS
           loutsun               = lout_leaf ! long wave out
           Rn_sun                = solar%rnet_sun(j) - lout_leaf ! net radiation
           A_sun                 = A_mg ! leaf photosynthesis, mg CO2 m-2 s-1
-          O_sun                 = A_O2
           prof%sun_resp(j)      = resp ! respiration on sun leaves
           prof%sun_resp_O2(j)   = resp_O2
-          prof%RQ_sun(j)        = 1/resp_ROC
-          prof%ROC_sun(j)       = resp_ROC
+          prof%ROC_sun(j)       = resp_O2/resp
+          prof%RQ_sun(j)        = 1/prof%ROC_sun(j)
           prof%sun_gs(j)        = one / rs_sun ! stomatal conductance
           prof%sun_rs(j)        = rs_sun
           prof%sun_rs_filter(j) = prof%sun_rs(j)! filter should be updated because it is used in every iteration. Yuan 2018.09.13
@@ -257,7 +264,7 @@ CONTAINS
           prof%sun_GPP(j)       = GPP ! micromolC m-2 s-1
           prof%sun_GOP(j)       = GOP
           prof%sun_A(j)         = A_sun * 1000._wp / mass_CO2 ! micromolC m-2 s-1
-          prof%sun_psn_O2(j)    = O_sun
+          prof%sun_psn_O2(j)    = NOP
           prof%sun_rbh(j)       = bound_lay_res%heat
           prof%sun_rbv(j)       = bound_lay_res%vapor
           prof%sun_rbco2(j)     = bound_lay_res%co2
@@ -269,12 +276,46 @@ CONTAINS
           prof%sun_ccca(j)      = ccca
           prof%sun_rh(j)        = surface_rh ! relative humidity at leaf surface (0 to 1)
           prof%sun_vpd(j)       = surface_vpd ! vapor pressure deficit at leaf surface (hPa)
+
+SELECT CASE (iswitch%ER)
+
+
+   CASE (0) ! no chamber ER input, oxygen is derived from N assimilation
+!      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
+!      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+!print *, 'before N to O:'
+    call N_to_O(carboxylation,GPP,vo_vc,resp,T_srf_K,prof%sun_alphag(j),prof%sun_alphas(j),GOP,NOP,Uo, resp_O2, &
+      Ja, J_glu, J_Busch, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+
+   CASE (1)
+    ! in this case, only chamber measurement of ER at the reference height is simulate
+
+!      call O_to_N(aphoto,psguess,phi,input%ER,rd,tlk,alphag,alphas,NCtmpz,GOP,NOP,Uo,rd_O2, &
+!      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+
+      call chamber_to_N(prof%sun_A(j),carboxylation,GPP,vo_vc,input%ER,resp,T_srf_K,prof%sun_alphag(j),prof%sun_alphas(j), &
+      GOP,NOP,Uo,resp_O2, Ja, J_glu, J_Busch, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+
+
+END SELECT
+
+          prof%Ja_sun(j)        = Ja
+          prof%Jglu_sun(j)      = J_glu
+          prof%JBusch_sun(j)    = J_Busch
           prof%sun_Ndemand(j)   = N_demand ! N demand when derive O2 from N
           prof%sun_Ntot(j)      = AN_tot ! total N ass, including gly, serine and other glutamate
           prof%sun_ABusch(j)    = A_Busch
           prof%sun_NO3(j)       = A_NO3
           prof%sun_NO2(j)       = A_NO2
           prof%sun_NH4(j)       = A_NH4
+
+          end if
+!          if (j==40) then
+!            print *, "quad sun:", prof%sun_quad(j)
+!            print *, "end sunlit:", prof%Ja_sun(j)
+!          end if
+
+
        end if
        !print *, j, prof%sun_GOP(j)/prof%sun_GPP(j)
        !print *, j, prof%Jn_sun(j)/prof%Ja_sun(j)
@@ -300,39 +341,20 @@ CONTAINS
        ! compute photosynthesis and stomatal conductance of shaded leaves
    !    if (prof%dLAIdz(j) > pai/ncl) then
         if (prof%dLAIdz(j) > zero) then
-!            print *, "shaded leaves:"
-!            print *, j
-!print *, solar%quantum_shd
 
-! if (j==40) then
-!     print *, "shaded:"
-! end if
-!          if (j==23) then
-!            print *, "start shaded:"
-!          end if
           call photosynthesis(solar%quantum_shd(j), rs_shade,prof%ht(j), prof%co2_air_filter(j), &
-               T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP, resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, &
-               chloroplast_CO2, cica, ccca, surface_rh, surface_vpd, wj_leaf, wc_leaf, wp_leaf, &
+               T_srf_K, LE_leaf, A_mg, GPP, resp, internal_CO2, surface_CO2, &
+               chloroplast_CO2, cica, ccca, surface_rh, surface_vpd, carboxylation, wj_leaf, wc_leaf, wp_leaf, vo_vc, &
                prof%shd_alphag(j),prof%shd_alphas(j),prof%shd_tpu_coeff(j),&
-               prof%jphoton_shd(j),prof%Ja_shd(j),prof%Jglu_shd(j), prof%JBusch_shd(j), &
-               N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+               prof%jphoton_shd(j),prof%shd_quad(j),j)
 
-!          if (j==40) then
-!            print *, "quad shd:", prof%shd_quad(j)
-!          end if
-!          if (j==40) then
-!            print *, "quad shaded:", prof%sun_quad(j)
-!            print *, "end shaded:", prof%Ja_sun(j)
-!          end if
-!          call N_assimilation(GPP,JA)
-!          GOP2 = gross_o2(JA,nitrogen%J_extra,solar%quantum_shd(j))
-!          if (j==23) then
-!          print *, "shaded GPP,  shaded GOP",GPP, GOP
-!          endif
-      ! call energy_balance(solar%rnet_shd(j), T_srf_K, Tair_K_filtered, prof%rhov_air_filter(j,1), &
-      !      bound_lay_res%vapor, rs_shade, LE_leaf, LE_wet, H_leaf, lout_leaf, &
-      !      prof%wet_coef_filter(j))
-       end if
+!          call photosynthesis(solar%quantum_shd(j), rs_shade,prof%ht(j), prof%co2_air_filter(j), &
+!               T_srf_K, LE_leaf, A_mg, A_O2, GPP, GOP, resp, resp_O2, resp_ROC, internal_CO2, surface_CO2, &
+!               chloroplast_CO2, cica, ccca, surface_rh, surface_vpd, carboxylation, wj_leaf, wc_leaf, wp_leaf, &
+!               vo_vc, prof%shd_alphag(j),prof%shd_alphas(j),prof%shd_tpu_coeff(j),&
+!               prof%jphoton_shd(j),prof%Ja_shd(j),prof%Jglu_shd(j), prof%JBusch_shd(j), &
+!               N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+
        ! re-assign variable names from functions output
        T_srf_C               = T_srf_K - TN0 ! surface temperature, C
        prof%shd_LEstoma(j,1) = LE_leaf    ! latent heat flux from stomata
@@ -344,14 +366,14 @@ CONTAINS
        prof%shd_wc(j)        = wc_leaf ! carboxylation velocity, shaded leaves, micromol m-2 s-1
        prof%shd_wp(j)        = wp_leaf
        A_shade               = A_mg ! photosynthesis, shaded leaves, mgCO2 m-2 s-1
-       O_shade               = A_O2
+!       O_shade               = A_O2
        prof%shd_rh(j)        = surface_rh ! relative humidity at leaf surface (0 to 1)
        prof%shd_vpd(j)       = surface_vpd ! vapor pressure deficit at leaf surface (hPa)
        ! compute profiles
        prof%shd_resp(j)   = resp
        prof%shd_resp_O2(j)   = resp_O2
-       prof%RQ_shd(j)        = 1/resp_ROC
-       prof%ROC_shd(j)       = resp_ROC
+       prof%ROC_shd(j)       = resp_O2/resp
+       prof%RQ_shd(j)        = 1/prof%ROC_shd(j)
        prof%shd_tleaf(j)  = T_srf_C
        prof%shd_gs(j)     = one/rs_shade ! stomatal conductance, shaded leaf
        prof%shd_rs(j)     = rs_shade ! stomatal resistance, shaded leaf
@@ -362,7 +384,7 @@ CONTAINS
        prof%shd_GPP(j)    = GPP ! micromolC m-2 s-1
        prof%shd_GOP(j)    = GOP
        prof%shd_A(j)      = A_shade*1000._wp/mass_CO2 ! micromolC m-2 s-1
-       prof%shd_psn_O2(j) = O_shade! net O2 flux in photosynthesis
+       prof%shd_psn_O2(j) = NOP! net O2 flux in photosynthesis
        prof%shd_rbh(j)    = bound_lay_res%heat
        prof%shd_rbv(j)    = bound_lay_res%vapor
        prof%shd_rbco2(j)  = bound_lay_res%co2
@@ -372,12 +394,39 @@ CONTAINS
        prof%shd_csca(j)   = surface_CO2/prof%co2_air_filter(j)
        prof%shd_cica(j)   = cica
        prof%shd_ccca(j)   = ccca
+
+
+          SELECT CASE (iswitch%ER)
+
+
+          CASE (0) ! no chamber ER input, oxygen is derived from N assimilation
+      !      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
+      !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+      !print *, 'before N to O:'
+          call N_to_O(carboxylation,GPP,vo_vc,resp,T_srf_K,prof%shd_alphag(j),prof%shd_alphas(j),GOP,NOP,Uo, resp_O2, &
+          Ja, J_glu, J_Busch, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+
+          CASE (1)
+    ! in this case, only chamber measurement of ER at the reference height is simulate
+
+!      call O_to_N(aphoto,psguess,phi,input%ER,rd,tlk,alphag,alphas,NCtmpz,GOP,NOP,Uo,rd_O2, &
+!      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+
+          call chamber_to_N(prof%shd_A(j),carboxylation,GPP,vo_vc,input%ER,resp,T_srf_K,prof%shd_alphag(j),prof%shd_alphas(j), &
+          GOP,NOP,Uo,resp_O2, Ja, J_glu, J_Busch, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+
+          END SELECT
+        prof%Ja_shd(j)        = Ja
+       prof%Jglu_shd(j)      = J_glu
+       prof%JBusch_shd(j)    = J_Busch
        prof%shd_ABusch(j) = A_Busch
        prof%shd_Ndemand(j)= N_demand ! N demand when derive O2 from N
        prof%shd_Ntot(j)   = AN_tot ! total N ass, including gly, serine and other glutamate
        prof%shd_NO3(j)    = A_NO3
        prof%shd_NO2(j)    = A_NO2
        prof%shd_NH4(j)    = A_NH4
+       end if
+
        !print *, j, prof%shd_GOP(j)/prof%shd_GPP(j)
        !print *, j, prof%Jn_shd(j)/prof%Ja_shd(j)
        ! compute layer energy fluxes, weighted by leaf area and sun and shaded fractions
@@ -421,6 +470,7 @@ CONTAINS
 
 
                end if
+!               print *, solar%prob_beam(j), Rn_sun, solar%prob_shd(j), Rn_shade, prof%dRNdz(j)
  !      prof%dHdz(j)      = prof%dLAIdz(j) * (solar%prob_beam(j) * H_sun + solar%prob_shd(j) * H_shade)
        !print *, prof%dHdz(j)
  !      if (ISNAN(prof%dHdz(j)) ) then
@@ -445,7 +495,7 @@ CONTAINS
        prof%dGPPdz_shd(j) = prof%dLAIdz(j) * prof%shd_GPP(j) * solar%prob_shd(j)
        prof%dGPPdz(j)     = prof%dGPPdz_sun(j) + prof%dGPPdz_shd(j)
        ! scale N flux to ground level:
-       prof%dNsupplydz(j)  = prof%dLAIdz(j) * nitrogen%n_supply
+       prof%dNsupplydz(j)  = prof%dLAIdz(j) * nitrogen%Nsupply(j)
 
        prof%dNdemanddz_sun(j) = prof%dLAIdz(j) * prof%sun_Ndemand(j) * solar%prob_beam(j)
        prof%dNdemanddz_shd(j) = prof%dLAIdz(j) * prof%shd_Ndemand(j) * solar%prob_shd(j)
@@ -639,10 +689,13 @@ debug%R4=es(tsrfkpt)*100._wp-ea
 
 
   ! ------------------------------------------------------------------
-  SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, O_pt, &
-       GPPpt, GOPpt, resppt, resOppt, ROC_rd, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
-       wjpnt, wcpnt, wppnt, alphagpnt, alphaspnt, tpupnt, j_photonpnt, Jcpnt, Jglupnt, JBuschpnt, &
-       Ndemandpnt, Nasspnt,NBuschpnt, NO3pnt, NO2pnt, NH4pnt, quadpnt, JJ)
+!  SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, O_pt, &
+!       GPPpt, GOPpt, resppt, resOppt, ROC_rd, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
+!       wjpnt, wcpnt, wppnt, alphagpnt, alphaspnt, tpupnt, j_photonpnt, Jcpnt, Jglupnt, JBuschpnt, &
+!       Ndemandpnt, Nasspnt,NBuschpnt, NO3pnt, NO2pnt, NH4pnt, quadpnt, JJ)
+  SUBROUTINE photosynthesis(Iphoton, rstompt, zzz, cca, tlk, leleaf, A_mgpt, &
+       GPPpt, resppt, cipnt, cspnt, ccpnt, cicapnt, cccapnt, rh_leafpnt, vpd_leafpnt, &
+       Vcpnt, wjpnt, wcpnt, wppnt, phipnt,alphagpnt, alphaspnt, tpupnt, j_photonpnt, quadpnt, JJ)
     ! This program solves a cubic equation to calculate
     ! leaf photosynthesis. This cubic expression is derived from solving
     ! five simultaneous equations for A, PG, cs, CI and GS.
@@ -738,17 +791,17 @@ debug%R4=es(tsrfkpt)*100._wp-ea
          ekc, eko, ektau, jmopt, vcopt, htFrac, zh65, lai, evc, &
          toptvc, rd_vc, ejm, toptjm, kball, g0, a1, erd, &
          D0, gm_vc, qalpha, curvature, bprime, g0_mly_in, g1_mly_in, &
-         tp_vc, alphag_max, alphas_max, alpha, Nmax_photo, Nmax_extra
+         tp_vc, alphag_max, alphas_max, alpha, n_max, Nmax_extra
     USE types,        ONLY: time, prof, met, bound_lay_res, srf_res, soil, &
          iswitch, output, input, nitrogen
     USE utils,        ONLY: temp_func, tboltz, es
     USE messages,     ONLY: message
     USE string_utils, ONLY: num2str
-    USE nitrogen_assimilation, only: NC_canopy
+    USE nitrogen_assimilation, only: NC_canopy, N_top
     !USE nitrogen_assimilation, ONLY: N_assimilation
     !USE oxygen,     ONLY: gross_emission, uptake
     !USE nitrogen_assimilation, ONLY: N_fraction
-    USE oxygen,     ONLY: N_to_O, O_to_N
+    USE oxygen,     ONLY: N_to_O, chamber_to_N
 
     IMPLICIT NONE
 
@@ -759,12 +812,12 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp),    INTENT(IN) :: tlk
     REAL(wp),    INTENT(IN) :: leleaf
     REAL(wp),    INTENT(OUT) :: A_mgpt
-    REAL(wp),    INTENT(OUT) :: O_pt ! net photosynthetic O2 in umol m-2 leaf area s-2
+!    REAL(wp),    INTENT(OUT) :: O_pt ! net photosynthetic O2 in umol m-2 leaf area s-2
     REAL(wp),    INTENT(OUT) :: GPPpt
-    REAL(wp),    INTENT(OUT) :: GOPpt
+!    REAL(wp),    INTENT(OUT) :: GOPpt
     REAL(wp),    INTENT(OUT) :: resppt
-    REAL(wp),    INTENT(OUT) :: resOppt ! leaf dark respiration!
-    REAL(wp),    INTENT(OUT) :: ROC_rd ! ROC of leaf dark respiration!
+!    REAL(wp),    INTENT(OUT) :: resOppt ! leaf dark respiration!
+!    REAL(wp),    INTENT(OUT) :: ROC_rd ! ROC of leaf dark respiration!
     REAL(wp),    INTENT(OUT) :: cipnt
     REAL(wp),    INTENT(OUT) :: cspnt
     REAL(wp),    INTENT(OUT) :: ccpnt
@@ -772,27 +825,21 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     REAL(wp),    INTENT(OUT) :: cccapnt
     REAL(wp),    INTENT(OUT) :: rh_leafpnt
     REAL(wp),    INTENT(OUT) :: vpd_leafpnt
+    REAL(wp),    INTENT(OUT) :: Vcpnt
     REAL(wp),    INTENT(OUT) :: wjpnt
     REAL(wp),    INTENT(OUT) :: wcpnt
     REAL(wp),    INTENT(OUT) :: wppnt
+    REAL(wp),    INTENT(OUT) :: phipnt
     REAL(wp),    INTENT(OUT) :: alphagpnt
     REAL(wp),    INTENT(OUT) :: alphaspnt
     INTEGER(i4), INTENT(OUT) :: tpupnt
     REAL(wp),    INTENT(OUT) :: j_photonpnt ! electron transport for CO2 assimilation, need this output for N assimilation and O2 release later
-    REAL(wp),    INTENT(OUT) :: Jcpnt
-    REAL(wp),    INTENT(OUT) :: Jglupnt
-    REAL(wp),    INTENT(OUT) :: JBuschpnt
-    REAL(wp),    INTENT(OUT) :: Ndemandpnt
-    REAL(wp),    INTENT(OUT) :: Nasspnt
-    REAL(wp),    INTENT(OUT) :: NBuschpnt
-    REAL(wp),    INTENT(OUT) :: NO3pnt
-    REAL(wp),    INTENT(OUT) :: NO2pnt
-    REAL(wp),    INTENT(OUT) :: NH4pnt
-    REAL(wp),    INTENT(OUT) :: quadpnt
+
+    INTEGER(i4),    INTENT(OUT) :: quadpnt
     INTEGER(i4), INTENT(IN) :: JJ
 
     REAL(wp) :: tprime25, bc, ttemp, gammac, gammac_c, gammac_j, gammac_p
-    REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z, NCtmpz, N_extraz, N_photoz ! leaf cn per layer
+    REAL(wp) :: jmax, vcmax, jmaxz, vcmaxz, cs, ci, cc, vc25z, NCtmpz, N_extraz, N_photoz, N40 ! leaf cn per layer
     REAL(wp) :: kct, ko, tau
     REAL(wp) :: rd, rdz, rd_O2, RQ_rd!O2 in dark respiration
     REAL(wp) :: rb_mole, gb_mole, dd, b8_dd
@@ -887,7 +934,7 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! at forest floor. Leaf weight scales linearly with height
     ! and so does jmopt and vcmax
     ! zoverh=0.65/HT=zh65
-    NCtmpz = NC_canopy(JJ)
+    !NCtmpz = NC_canopy(JJ)
     if (extra_nate == 1) then
        ! for Nate McDowell''s juniper site, no scaling of Vcmax with height and LAI
        jmaxz  = jmopt(JJ)
@@ -897,18 +944,18 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (time%days < time%leafout) then
           jmaxz  = zero
           vcmaxz = zero
-          N_extraz = zero
+!          N_extraz = zero
           N_photoz = zero
-          NCtmpz = zero
+!          NCtmpz = zero
 
        end if
        ! spring, increase Ps capacity with leaf expansion as a function of leaf area changes
        if (time%days >= time%leafout .and. time%days < time%leaffull) then
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai! use htFrac in parameter file instead of a fixed value Yuan 2018.02.21
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          NCtmpz  = NCtmpz * time%lai/lai
+!          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          N_photoz = n_max * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+!          NCtmpz  = NCtmpz * time%lai/lai
 !          print *, htFrac, (1-htFrac)
        end if
        ! growing season, full Ps capacity (note newer data by Wilson et al shows more
@@ -916,24 +963,24 @@ debug%R4=es(tsrfkpt)*100._wp-ea
        if (time%days >= time%leaffull .and. time%days < time%leaffall) then
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac))
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac))
-          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac))
-          N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac))
-          NCtmpz  = NCtmpz
+!          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac))
+          N_photoz = n_max * (zh65 * zzz + (1-htFrac))
+!          NCtmpz  = NCtmpz
        end if
        ! gradual decline in fall
        if (time%days >= time%leaffall .and. time%days <= time%leaffallcomplete) then
           !delday=1-(time%days-270)/30
           jmaxz  = jmopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
           vcmaxz = vcopt(JJ) * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          N_photoz = Nmax_photo * (zh65 * zzz + (1-htFrac)) * time%lai/lai
-          NCtmpz  = NCtmpz * time%lai/lai
+!          N_extraz = Nmax_extra * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+          N_photoz = n_max * (zh65 * zzz + (1-htFrac)) * time%lai/lai
+!          NCtmpz  = NCtmpz * time%lai/lai
        end if
        if (time%days > time%leaffallcomplete) then
           jmaxz  = zero
           vcmaxz = zero
-          N_extraz = zero
-          NCtmpz = zero
+ !         N_extraz = zero
+ !         NCtmpz = zero
        end if
     end if
     prof%vcmaxz(JJ) = vcmaxz
@@ -1270,17 +1317,6 @@ debug%R4=es(tsrfkpt)*100._wp-ea
     ! negative stomatal conductance. In this case, assume gs equals the cuticular value. This
     ! assumptions yields a quadratic rather than cubic solution for A
     if (Aj <= rd) quad = 1
-!    if (JJ==40 .and. quad == 1)then
-!       print *, "Aj <= rd", aphoto
-!    end if
-!    if (Ac <= rd) quad = 1
-!    if (JJ==40 .and. quad == 1)then
-!       print *, "Ac <= rd", aphoto
-!    end if
-!    if ((iswitch%tpu == 3 .or. iswitch%tpu == 2).and. Ap <= rd) quad = 1
-!    if (JJ==40 .and. quad == 1)then
-!       print *, "Ap <= rd", aphoto
-!    end if
     if (quad == 0) then
        ! cubic solution: A^3 + p A^2 + q A + r = 0
        ! for the Ball Berry Farquhar model based on Baldocchis analytical solution
@@ -1503,66 +1539,6 @@ debug%R4=es(tsrfkpt)*100._wp-ea
       ! N assimilation and water as electron provider:
     phi = input%o2air/(ci*tau)
     vo = psguess*phi
-!        if (JJ==37) then
-!        print *, 'debug GPP and GOP', gpp, GOP
-!    end if
-!print *, JJ, NCtmpz
-SELECT CASE (iswitch%ER)
-
-
-   CASE (0) ! no chamber ER input, oxygen is derived from N assimilation
-!      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
-!      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
-!print *, 'before N to O:'
-    call N_to_O(psguess,gpp,phi,rd,tlk,alphag,alphas,NCtmpz,N_extraz,GOP,NOP,Uo, rd_O2, &
-      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
-
-   CASE (1)
-      call O_to_N(aphoto,psguess,phi,input%ER,rd,tlk,alphag,alphas,NCtmpz,GOP,NOP,Uo,rd_O2, &
-      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
-END SELECT
-!    call N_assimilation(psguess,j_photon,alphag,alphas, ass_NO3, ass_NO2, ass_NH4,JJ)
-
- !   Eo = gross_emission(psguess,phi)
-!    call gross_emission(psguess,phi,Eo,Jc,Jnit)
-!if (JJ==40 .and. quad == 1)then
-!    print *, "ci=", ci
-!    print *, "ca=", cca
-! !      print *, "test Jc and Ja"
-! !      print *, psguess,j_photon, Jc
-! !      print *, (j_photon * ci / (4._wp * ci + (8._wp+16._wp*alphag+8._wp*alphas)*dd)), (j_photon * ci  / (4._wp * ci + b8_dd))
-!end if
-!    Uo = uptake (vo,rd_O2)
-!    NOP = Eo - Uo
-!    print *, Eo, Uo
-!    GOP = NOP + rd_O2
-!print *, NOP,rd_O2, GOP, gpp
-!    gpp_o2 = gpp * prof%ROC_leaf_G(JJ)
-    if (iswitch%tpu == 3) then
-!       gpp_o2 = gpp_o2 + (9*alphag/4 + 4*alphas/3)*phi/4
-       GOP = GOP + (9*alphag/4 + 4*alphas/3)*phi/4
-    end if
-
-    if (quad == 0) then
-     prof%ROC_leaf_G(JJ) = GOP/gpp
-    else
-     prof%ROC_leaf_G(JJ) = 0
-    end if
-!if (aphoto<0) then
-!print *, JJ, NOP, aphoto
-!end if
-!print *, JJ, Iphoton, GOP/gpp
-
-
-!    Ophoto = gpp_o2 - rd_O2
-    !if (ci < 0) then
-    !    print *, cs
-    !    print *, aphoto
-    !    print *, gs_co2
-    !end if
-    !if (cc < 0) then
-    !    print *, gm
-    !end if
     end if ! quad == 0
 
 
@@ -1633,44 +1609,38 @@ END SELECT
     ! compute photosynthesis with units of mg m-2 s-1 and pass out as pointers
     ! A_mg = APHOTO * 44 / 1000
     A_mgpt      = aphoto * mass_CO2 * e3
-    O_pt        = NOP ! units of umol m-2 s-1
+!    O_pt        = NOP ! units of umol m-2 s-1
     GPPpt       = gpp
-    GOPpt       = GOP!gpp_o2
+!    GOPpt       = GOP!gpp_o2
     resppt      = rd ! leaf dark respiration!
-    resOppt     = rd_O2
-    ROC_rd      = 1/RQ_rd
+!    resOppt     = rd_O2
+!    ROC_rd      = 1/RQ_rd
     cipnt       = ci
     cspnt       = cs
     ccpnt       = cc
     cicapnt     = ci/cca
     cccapnt     = cc/cca
+    Vcpnt       = psguess
     wcpnt       = wc
     wjpnt       = wj
     wppnt       = wp_tpu
+    phipnt      = phi
     alphagpnt   = alphag
     alphaspnt   = alphas
     tpupnt      = tpu_coeff
     j_photonpnt = j_photon
     rh_leafpnt  = rh_leaf
     vpd_leafpnt = vpd_leaf
-    Jcpnt       = Ja ! real e requirements for gross CO2 assimilation
-    Jglupnt     = J_glu
-    JBuschpnt   = J_Busch
-    Ndemandpnt  = ass_Ndemand
-    Nasspnt     = ass_N
-    NBuschpnt   = ass_Busch
-    NO3pnt      = ass_NO3
-    NO2pnt      = ass_NO2
-    NH4pnt      = ass_NH4
-    quadpnt     = real(quad,wp)
-!    if (JJ == 40)then
-!        if (quad==1) then
-!        print *, "dark inside function:", Jcpnt, Jc
-!        elseif (quad==0) then
-!        print *, "light inside function:", Jcpnt, Jc
-!        end if
-!
-!    end if
+!    Jcpnt       = Ja ! real e requirements for gross CO2 assimilation
+!    Jglupnt     = J_glu
+!    JBuschpnt   = J_Busch
+!    Ndemandpnt  = ass_Ndemand
+!    Nasspnt     = ass_N
+!    NBuschpnt   = ass_Busch
+!    NO3pnt      = ass_NO3
+!    NO2pnt      = ass_NO2
+!    NH4pnt      = ass_NH4
+    quadpnt     = quad!real(quad,wp)
 
   END SUBROUTINE photosynthesis
 

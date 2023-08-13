@@ -12,7 +12,7 @@ MODULE constants
 
   CHARACTER(len=*), PARAMETER :: version       = '4.0'        ! model version number
   CHARACTER(len=*), PARAMETER :: main_file     = 'canveg.f90' ! main file name
-  CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg-Nass.nml'!'canveg-calibration.nml'! 1321600 1452000!'canveg-2016.nml'!'canveg.nml'!'canveg-Copy.nml' ! namelist file name
+  CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg-Nass2.nml'!'canveg-calibration.nml'! 1321600 1452000!'canveg-2016.nml'!'canveg.nml'!'canveg-Copy.nml' ! namelist file name
   !CHARACTER(len=*), PARAMETER :: namelist_file = 'canveg.nml' ! namelist file name
 
   ! maximum model parameters
@@ -32,6 +32,7 @@ MODULE constants
   INTEGER, PARAMETER :: ninmet         = 101 ! fptr1   met in
   INTEGER, PARAMETER :: nindisp        = 104 ! fptr4   dispersion matrix
   INTEGER, PARAMETER :: ninlai         = 115 ! fptr15  lai in
+  INTEGER, PARAMETER :: ninleafn       = 105 ! fptr16  leaf level N supply in, umol m-2 leaf area s-1 for both sun and shaded leaves
 
   INTEGER, PARAMETER :: noutseas       = 106 ! fptr6   season out
   INTEGER, PARAMETER :: noutsoil       = 107 ! fptr7   soil out

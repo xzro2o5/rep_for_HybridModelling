@@ -166,6 +166,8 @@ MODULE types
      REAL(wp) :: d18CO2       ! d18O of atmospheric CO2 [permille]
      REAL(wp) :: o2air        ! O2 concentration, ppm Yuan 2018.02.14
      REAL(wp) :: ER           ! net Ass O2:CO2 chamber measurements Yuan 2022.07.14
+     REAL(wp) :: N_sun        ! extra N supply for sun and shaded leaves Yuan 2023.08.11
+     REAL(wp) :: N_shd
   END TYPE input_variables
 
 
@@ -529,6 +531,8 @@ MODULE types
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dGOPdz_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dNsupplydz ! N supply per layer area
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNsupplydz_sun
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: dNsupplydz_shd
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dNtotdz       ! layer Nassimilation (Ps + Resp) (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dNtotdz_sun   ! layer gross primary productivity (Ps + Resp) of sunlit area (micromol m-2 s-1) ! [ncl]
      REAL(wp), DIMENSION(:), ALLOCATABLE :: dNtotdz_shd
@@ -724,6 +728,8 @@ MODULE types
      INTEGER(i4), DIMENSION(:), ALLOCATABLE :: shd_quad
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_ABusch
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_ABusch
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_Nsupply
+     REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_Nsupply
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_Ndemand
      REAL(wp), DIMENSION(:), ALLOCATABLE :: shd_Ndemand
      REAL(wp), DIMENSION(:), ALLOCATABLE :: sun_Ntot
@@ -1078,7 +1084,9 @@ CONTAINS
     if (.not. allocated(prof%dGOPdz)) allocate(prof%dGOPdz(ncl))
     if (.not. allocated(prof%dGOPdz_sun)) allocate(prof%dGOPdz_sun(ncl))
     if (.not. allocated(prof%dGOPdz_shd)) allocate(prof%dGOPdz_shd(ncl))
-        if (.not. allocated(prof%dNsupplydz)) allocate(prof%dNsupplydz(ncl))
+    if (.not. allocated(prof%dNsupplydz)) allocate(prof%dNsupplydz(ncl))
+    if (.not. allocated(prof%dNdemanddz_sun)) allocate(prof%dNsupplydz_sun(ncl))
+    if (.not. allocated(prof%dNdemanddz_shd)) allocate(prof%dNsupplydz_shd(ncl))
     if (.not. allocated(prof%dNtotdz)) allocate(prof%dNtotdz(ncl))
     if (.not. allocated(prof%dNtotdz_sun)) allocate(prof%dNtotdz_sun(ncl))
     if (.not. allocated(prof%dNtotdz_shd)) allocate(prof%dNtotdz_shd(ncl))
@@ -1254,6 +1262,8 @@ CONTAINS
     if (.not. allocated(prof%jphoton_shd)) allocate(prof%jphoton_shd(ncl))
     if (.not. allocated(prof%sun_quad)) allocate(prof%sun_quad(ncl))
     if (.not. allocated(prof%shd_quad)) allocate(prof%shd_quad(ncl))
+    if (.not. allocated(prof%sun_Nsupply)) allocate(prof%sun_Nsupply(ncl))
+    if (.not. allocated(prof%shd_Nsupply)) allocate(prof%shd_Nsupply(ncl))
     if (.not. allocated(prof%sun_Ndemand)) allocate(prof%sun_Ndemand(ncl))
     if (.not. allocated(prof%shd_Ndemand)) allocate(prof%shd_Ndemand(ncl))
     if (.not. allocated(prof%sun_Ntot)) allocate(prof%sun_Ntot(ncl))
@@ -1504,6 +1514,8 @@ CONTAINS
     input%d18CO2 = zero
     input%o2air = zero ! atom o2 ppm Yuan 2018.02.14
     input%ER = zero
+    input%N_sun = zero
+    input%N_shd = zero
 
   END SUBROUTINE zero_new_timestep_input
 

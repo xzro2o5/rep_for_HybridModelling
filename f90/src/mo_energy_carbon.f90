@@ -123,7 +123,7 @@ CONTAINS
     REAL(wp) :: wj_leaf, wc_leaf, wp_leaf, surface_rh, surface_vpd
     REAL(wp) :: rs_sun, rs_shade, A_mg, GPP, resp, internal_CO2, surface_CO2, chloroplast_CO2
     REAL(wp) :: GOP, NOP,Uo, resp_O2, resp_ROC, carboxylation, vo_vc ! leaf level oxygen flux in photosynthesis and dark respirations
-    REAL(wp) :: N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4!N demand up to plant C:N, NO3, NO2, NH4 are assimilated N from different sources
+    REAL(wp) :: N_supply, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4!N demand up to plant C:N, NO3, NO2, NH4 are assimilated N from different sources
     REAL(wp) :: csca, cica, ccca
     REAL(wp) :: fact_rs_sun, fact_rs_shd
 !    REAL(wp) :: JA ! electron transport rate for CO2 assimilation
@@ -285,7 +285,8 @@ SELECT CASE (iswitch%ER)
 !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 !print *, 'before N to O:'
     call N_to_O(carboxylation,GPP,vo_vc,resp,T_srf_K,prof%sun_alphag(j),prof%sun_alphas(j),GOP,NOP,Uo, resp_O2, &
-      Ja, J_glu, J_Busch, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+      Ja, J_glu, J_Busch, input%N_sun, N_supply,N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j, &
+      solar%prob_beam(40))
 
    CASE (1)
     ! in this case, only chamber measurement of ER at the reference height is simulate
@@ -294,21 +295,27 @@ SELECT CASE (iswitch%ER)
 !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 
       call chamber_to_N(prof%sun_A(j),carboxylation,GPP,vo_vc,input%ER,resp,T_srf_K,prof%sun_alphag(j),prof%sun_alphas(j), &
-      GOP,NOP,Uo,resp_O2, Ja, J_glu, J_Busch, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
+      GOP,NOP,Uo,resp_O2, Ja, J_glu, J_Busch, N_supply, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j)
 
-
+   CASE (2) ! no chamber ER input, oxygen is derived from N assimilation
+!      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
+!      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+!print *, 'before N to O:'
+    call N_to_O(carboxylation,GPP,vo_vc,resp,T_srf_K,prof%sun_alphag(j),prof%sun_alphas(j),GOP,NOP,Uo, resp_O2, &
+      Ja, J_glu, J_Busch, input%N_sun, N_supply,N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%sun_quad(j),j, &
+      solar%prob_beam(40))
 END SELECT
-
+print *, 'after N_to_O:',N_supply
           prof%Ja_sun(j)        = Ja
           prof%Jglu_sun(j)      = J_glu
           prof%JBusch_sun(j)    = J_Busch
+          prof%sun_Nsupply(j)   = N_supply
           prof%sun_Ndemand(j)   = N_demand ! N demand when derive O2 from N
           prof%sun_Ntot(j)      = AN_tot ! total N ass, including gly, serine and other glutamate
           prof%sun_ABusch(j)    = A_Busch
           prof%sun_NO3(j)       = A_NO3
           prof%sun_NO2(j)       = A_NO2
           prof%sun_NH4(j)       = A_NH4
-
           end if
 !          if (j==40) then
 !            print *, "quad sun:", prof%sun_quad(j)
@@ -404,7 +411,8 @@ END SELECT
       !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
       !print *, 'before N to O:'
           call N_to_O(carboxylation,GPP,vo_vc,resp,T_srf_K,prof%shd_alphag(j),prof%shd_alphas(j),GOP,NOP,Uo, resp_O2, &
-          Ja, J_glu, J_Busch, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+          Ja, J_glu, J_Busch, input%N_shd, N_supply,N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j,&
+          solar%prob_shd(40))
 
           CASE (1)
     ! in this case, only chamber measurement of ER at the reference height is simulate
@@ -413,13 +421,23 @@ END SELECT
 !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
 
           call chamber_to_N(prof%shd_A(j),carboxylation,GPP,vo_vc,input%ER,resp,T_srf_K,prof%shd_alphag(j),prof%shd_alphas(j), &
-          GOP,NOP,Uo,resp_O2, Ja, J_glu, J_Busch, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+          GOP,NOP,Uo,resp_O2, Ja, J_glu, J_Busch, N_supply, N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j)
+
+           CASE (2) ! N assimilation derived from chamber measurements
+      !      call N_to_O(psguess,phi,rd,tlk,alphag,alphas,GOP,NOP,Uo, rd_O2, &
+      !      Ja, J_glu, J_Busch, ass_Ndemand, ass_N, ass_Busch, ass_NO3, ass_NO2, ass_NH4)
+      !print *, 'before N to O:'
+          call N_to_O(carboxylation,GPP,vo_vc,resp,T_srf_K,prof%shd_alphag(j),prof%shd_alphas(j),GOP,NOP,Uo, resp_O2, &
+          Ja, J_glu, J_Busch, input%N_shd, N_supply,N_demand, AN_tot, A_Busch, A_NO3, A_NO2, A_NH4,prof%shd_quad(j),j,&
+          solar%prob_shd(40))
+
 
           END SELECT
-        prof%Ja_shd(j)        = Ja
+       prof%Ja_shd(j)        = Ja
        prof%Jglu_shd(j)      = J_glu
        prof%JBusch_shd(j)    = J_Busch
        prof%shd_ABusch(j) = A_Busch
+       prof%shd_Nsupply(j)   = N_supply
        prof%shd_Ndemand(j)= N_demand ! N demand when derive O2 from N
        prof%shd_Ntot(j)   = AN_tot ! total N ass, including gly, serine and other glutamate
        prof%shd_NO3(j)    = A_NO3
@@ -495,8 +513,13 @@ END SELECT
        prof%dGPPdz_shd(j) = prof%dLAIdz(j) * prof%shd_GPP(j) * solar%prob_shd(j)
        prof%dGPPdz(j)     = prof%dGPPdz_sun(j) + prof%dGPPdz_shd(j)
        ! scale N flux to ground level:
-       prof%dNsupplydz(j)  = prof%dLAIdz(j) * nitrogen%Nsupply(j)
-
+       !prof%dNsupplydz(j)  = prof%dLAIdz(j) * nitrogen%Nsupply(j)
+       prof%dNsupplydz_sun(j) = prof%dLAIdz(j) * prof%sun_Nsupply(j) * solar%prob_beam(j)
+       prof%dNsupplydz_shd(j) = prof%dLAIdz(j) * prof%shd_Nsupply(j) * solar%prob_shd(j)
+       prof%dNsupplydz(j)     = prof%dNsupplydz_sun(j) + prof%dNsupplydz_shd(j)
+!if (j==40) then
+!    print *, 'scaling: ',prof%sun_Nsupply(j), prof%shd_Nsupply(j), prof%dNsupplydz(j)
+!end if
        prof%dNdemanddz_sun(j) = prof%dLAIdz(j) * prof%sun_Ndemand(j) * solar%prob_beam(j)
        prof%dNdemanddz_shd(j) = prof%dLAIdz(j) * prof%shd_Ndemand(j) * solar%prob_shd(j)
        prof%dNdemanddz(j)     = prof%dNdemanddz_sun(j) + prof%dNdemanddz_shd(j)

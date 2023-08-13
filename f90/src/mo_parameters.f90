@@ -20,7 +20,7 @@ MODULE parameters
   PUBLIC :: zd, z0, izref, delz, zh65, epsigma, epsigma2, epsigma4, epsigma6, epsigma8, epsigma12, qalpha2, &
        vc25, jm_vc, rd_vc, g0, a1, D0, kball, bprime, vcopt, jmopt, ht_midpt, lai_freq, pai_freq, wai_freq, wai_midpt, &
        par_reflect, par_trans, par_soil_refl_dry, nir_reflect, nir_trans, nir_soil_refl_dry, workdir, &
-       indir, metinfile, laiinfile, wisoinfile, outdir, outsuffix, dispfile, netcdf_in, netcdf_out, netcdf_disp, &
+       indir, metinfile, laiinfile, wisoinfile, leafnfile,outdir, outsuffix, dispfile, netcdf_in, netcdf_out, netcdf_disp, &
        start_run, end_run, start_profiles, end_profiles, latitude, longitude, zone, ht, htFrac, pai, lai, wai, ustar_ref, &
        zm, hkin, skin, ejm, evc, kc25, ko25, o2, tau25, ekc, eko, erd, ektau, toptvc, &
        toptjm, curvature, qalpha, gm_vc, rsm, brs, ep, n_stomata_sides, betfact, markov, lleaf, leaf_out, leaf_full, &
@@ -74,6 +74,7 @@ MODULE parameters
   CHARACTER(LEN=256) :: metinfile         ! met input file
   CHARACTER(LEN=256) :: laiinfile         ! lai input file
   CHARACTER(LEN=256) :: wisoinfile        ! wiso input fie
+  CHARACTER(LEN=256) :: leafnfile         ! leaf nitrogen supply input fie
   CHARACTER(LEN=256) :: outdir            ! location of output file
   CHARACTER(LEN=256) :: outsuffix         ! output suffix
   CHARACTER(LEN=256) :: dispfile          ! location and name of disperion matrix
@@ -372,6 +373,7 @@ CONTAINS
     metinfile   = "2006input_eddy.dat"     ! met input file
     laiinfile   = "2006laiinput.dat"       ! lai input file
     wisoinfile  = "2006wisoinput.dat"      ! wiso input fie
+    leafnfile   = "Nsupply.dat"
     outdir      = "../output/"             ! location of output files
     outsuffix   = ".csv"                   ! output suffix
     dispfile    = "../input/DIJHainich._C" ! location and name of disperion matrix
@@ -689,7 +691,7 @@ CONTAINS
     REAL(wp), DIMENSION(:), ALLOCATABLE :: jm25 ! jmax @ 25C
 
     NAMELIST /canctl/  &
-         workdir, indir, metinfile, laiinfile, wisoinfile, outdir, outsuffix, dispfile, &
+         workdir, indir, metinfile, laiinfile, wisoinfile, leafnfile, outdir, outsuffix, dispfile, &
          netcdf_in, netcdf_out, netcdf_disp, year0, start_run, end_run, start_profiles, &
          end_profiles, time_step, switch_soil_resp_temp, switch_ball, switch_isoprene, switch_d13c, &
          switch_wiso, switch_bethy_resp, switch_no_negative_water_flux, latitude, longitude, zone, ht, &

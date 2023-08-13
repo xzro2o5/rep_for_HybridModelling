@@ -111,7 +111,7 @@ CONTAINS
   ! ------------------------------------------------------------------
   SUBROUTINE close_in_text()
     ! Close ascii input files
-    USE constants,  ONLY: ninmet, ninlai, ninwiso
+    USE constants,  ONLY: ninmet, ninlai, ninwiso, ninleafn
     USE parameters, ONLY: extra_nate
     USE types,      ONLY: iswitch
 
@@ -252,9 +252,9 @@ CONTAINS
   ! ------------------------------------------------------------------
   SUBROUTINE open_in_text()
     ! Opens the ascii input files
-    USE constants,  ONLY: ninmet, ninlai, ninwiso
+    USE constants,  ONLY: ninmet, ninlai, ninwiso, ninleafn
     USE parameters, ONLY: indir, metinfile, laiinfile, wisoinfile, extra_nate, &
-        scenariodir, scenariofile
+        scenariodir, scenariofile, leafnfile
     USE types,      ONLY: iswitch
 
     IMPLICIT NONE
@@ -300,6 +300,16 @@ CONTAINS
        if (ierr < 0) call error_reading(isroutine, ninlai, 'reached EOF.')
     end if
 
+    ! leaf nitrogen supply
+    write(stmp,'(a,a,a)') trim(indir), '/', trim(leafnfile)
+    open(unit=ninleafn, file=stmp,action="read", status="old", &
+         form="formatted", iostat=ierr)
+    if (ierr > 0) call error_opening(isroutine, stmp)
+    read(ninleafn,*,iostat=ierr) stmp ! read header
+    if (ierr > 0) call error_reading(isroutine, ninleafn)
+    if (ierr < 0) call error_reading(isroutine, ninleafn, 'reached EOF.')
+
+
   END SUBROUTINE open_in_text
 
 
@@ -329,9 +339,9 @@ CONTAINS
     ! Hourly/Season
     write(stmp,'(a,a,a,a)') trim(outdir), '/', trim(hourlyfile), trim(outsuffix)
     open(unit=noutseas, file=stmp,action="write", status="replace", &
-         form="formatted", recl=31*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
+         form="formatted", recl=33*25, iostat=ierr) ! add hourlyROC Yuan 2018.05.07
     if (ierr > 0) call error_opening(isroutine, stmp)
-    write(form1,'(A,I3,A)') '(a,', 31, '(",",a))'
+    write(form1,'(A,I3,A)') '(a,', 33, '(",",a))'
 !    print *, form1
     write(noutseas,form1) "daytime ", "netrn ", "sumrn ", "sumh ", "sumle ", &
     "canps ", "gpp ", "canresp ", "soilresp ", "boleresp ", &
@@ -339,7 +349,7 @@ CONTAINS
     "ustar ", "Kdiff ","phim ","canresp_o ", &
     "inputPAR ","PAR_dir ","PAR_dn ", "PAR_up ", &
     "NIR_dir ","NIR_dn ","NIR_up ","IR_dn ","IR_up ", &
-    "Nsupply ", "Ndemand"
+    "Nsupply_sun ", "Nsupply_shd ","Ndemand_sun ","Ndemand_shd"
     !write(noutseas,form1) &
     !     "daytime", "netrn", "sumrn", "sumh", "sumle"
 
@@ -607,7 +617,7 @@ CONTAINS
     ! input data and check for bad data
     ! note that the data were produced in single precision (float)
     ! so I had to read them as single precision, otherwise I ingested garbage
-    USE constants,     ONLY: ninmet, ninwiso, ninlai, zero, one, two, e1, e3, &
+    USE constants,     ONLY: ninmet, ninwiso, ninlai, ninleafn,zero, one, two, e1, e3, &
          TN0, rugc, vonKarman, mass_air, o2_ref
     USE types,         ONLY: met, input, solar, time, srf_res, wiso, iswitch
     USE setup,         ONLY: ncl, nwiso
@@ -623,15 +633,19 @@ CONTAINS
     REAL(wp) :: hhrr, in01, in02, in03, in04, in05, in06, in07, in08
     REAL(wp) :: in09, in10, in11, in13, in14
     REAL(wp) :: in15 ! in15 for o2 con ppm Yuan 2018.02.14
-    REAL(wp) :: in16 ! in16 for chamber ER_An measurements Yuan 2012.07.14
+    REAL(wp) :: in16, in17, in18 ! in16 for chamber ER_An measurements Yuan 2012.07.14 or N supply (Yuan 2023.08.04)
     INTEGER(i8) :: dt
     INTEGER(i4), DIMENSION(nwiso-1) :: mc
 
     dt = int(time%time_step,kind=i8) * 100_i8 / 3600_i8
     ! use input%dayy instead of time%days because of several years at once
     time%jdold = input%dayy ! identify previous day
+
     read(ninmet,*,iostat=ierr) dayy, hhrr, in01, in02, in03, in04, &
-         in05, in06, in07, in08, in09, in10, in11, flag, in13, in14, in15, in16
+         in05, in06, in07, in08, in09, in10, in11, flag, in13, in14, in15
+
+
+
 
     ! Although O2 is included as "in15" in input file, it is more convenient to calculate atm O2 directly in the model,
     ! especially when RCP CO2 concentration is implemented.
@@ -661,7 +675,6 @@ CONTAINS
     input%d13CO2       = in13
     input%d18CO2       = in14
     input%o2air        = in15
-    input%ER           = in16
    !print *, "check scenario file:    ", input%co2air
     ! write(*,'(a,i10,3f20.14)') 'RI01.01 ', input%dayy, input%hhrr, input%ta
     ! write(*,'(a,3f20.14)') 'RI01.02 ', input%rglobal, input%parin, input%pardif
@@ -767,6 +780,16 @@ CONTAINS
        lai            = two
     end if
 
+
+    read(ninleafn,*,iostat=ierr) dayy, hhrr, in16, in17, in18
+    if (ierr > 0) call error_reading(isroutine, ninleafn)
+    if (ierr < 0) call error_reading(isroutine, ninleafn, 'reached EOF.')
+    input%ER = in16
+    input%N_sun = in17
+    input%N_shd = in18
+
+print *, 'new input file:',input%N_sun, input%N_shd
+
     ! Check for end of run or end-of-file
     if (ierr < 0) lastin = 1
     if ((time%daytime+dt) > end_run) lastin = 1
@@ -777,7 +800,7 @@ CONTAINS
   ! ------------------------------------------------------------------
   SUBROUTINE skip_in_text()
     ! Skip input lines
-    USE constants,  ONLY: ninmet, ninlai, ninwiso
+    USE constants,  ONLY: ninmet, ninlai, ninwiso, ninleafn
     USE parameters, ONLY: extra_nate, start_run
     USE types,      ONLY: iswitch
 
@@ -787,7 +810,7 @@ CONTAINS
     INTEGER :: ierr
     LOGICAL :: notreached
     REAL :: dayy, hhrr, in01, in02, in03, in04, in05, in06, in07, in08
-    REAL :: in09, in10, in11, in12, in13, in14, in15
+    REAL :: in09, in10, in11, in12, in13, in14, in15, in16, in17, in18
     INTEGER(i8) :: daytime
 
     lastin = 0
@@ -829,6 +852,17 @@ CONTAINS
        if (ierr < 0) call error_reading(isroutine, ninlai, 'reached EOF.')
        backspace ninlai
     end if
+
+    ! leaf N
+    notreached = .true.
+    do while ((ierr==0) .and. notreached)
+        read(ninleafn,*,iostat=ierr) dayy, hhrr, in16, in17, in18
+        daytime = int(dayy,kind=i8)*10000_i8 + int(hhrr*100., kind=i8)
+        if (daytime >= start_run) notreached = .false.
+    end do
+    if (ierr > 0) call error_reading(isroutine, ninleafn)
+    if (ierr < 0) call error_reading(isroutine, ninleafn, 'reached EOF.')
+    backspace ninleafn
 
   END SUBROUTINE skip_in_text
 
@@ -889,7 +923,7 @@ CONTAINS
     ierr = 0
     ! Hourly/Season
 !write(form1,'(A,I3,A)') '(i07,",",i03,', 19-1+4, '(",",es22.14))'
-    write(form1,'(A,I3,A)') '(i07,', 31, '(",",es22.14))'
+    write(form1,'(A,I3,A)') '(i07,', 33, '(",",es22.14))'
     !print *, form1
     write(noutseas,form1,iostat=ierr) &
          time%daytime, output%netrad, output%sumrn, output%sumh, output%sumle, &
@@ -898,7 +932,9 @@ CONTAINS
          met%ustar_filter, met%K, met%phim, output%hour_canrespo, &
          input%parin,solar%beam_flux_par(ncl+1)/ 4.6_wp,solar%par_down(ncl+1)/ 4.6_wp,solar%par_up(ncl+1)/ 4.6_wp,&
          solar%beam_flux_nir(ncl+1),solar%nir_dn(ncl+1),solar%nir_up(ncl+1),&
-         solar%ir_dn(ncl+1),solar%ir_up(ncl+1),nitrogen%Nsupply(40), nitrogen%Ndemand(40)
+         solar%ir_dn(ncl+1),solar%ir_up(ncl+1), prof%dNsupplydz_sun(40),prof%dNsupplydz_shd(40),&
+         prof%dNdemanddz_sun(40),prof%dNdemanddz_shd(40) !nitrogen%Nsupply(40), nitrogen%Ndemand(40)
+         print *, 'save:',prof%dNsupplydz(40),prof%dNsupplydz_sun(40),prof%dNsupplydz_shd(40)
     if (ierr > 0) call error_writing(isroutine, noutseas)
 
     ! Optimise
